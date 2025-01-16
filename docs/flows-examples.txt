@@ -1,0 +1,4306 @@
+=== ./runner.py ===
+#
+# Copyright (c) 2024, Daily
+#
+# SPDX-License-Identifier: BSD 2-Clause License
+#
+
+import argparse
+import os
+
+import aiohttp
+from pipecat.transports.services.helpers.daily_rest import DailyRESTHelper
+
+
+async def configure(aiohttp_session: aiohttp.ClientSession):
+    (url, token, _) = await configure_with_args(aiohttp_session)
+    return (url, token)
+
+
+async def configure_with_args(
+    aiohttp_session: aiohttp.ClientSession, parser: argparse.ArgumentParser | None = None
+):
+    if not parser:
+        parser = argparse.ArgumentParser(description="Daily AI SDK Bot Sample")
+    parser.add_argument(
+        "-u", "--url", type=str, required=False, help="URL of the Daily room to join"
+    )
+    parser.add_argument(
+        "-k",
+        "--apikey",
+        type=str,
+        required=False,
+        help="Daily API Key (needed to create an owner token for the room)",
+    )
+
+    args, unknown = parser.parse_known_args()
+
+    url = args.url or os.getenv("DAILY_SAMPLE_ROOM_URL")
+    key = args.apikey or os.getenv("DAILY_API_KEY")
+
+    if not url:
+        raise Exception(
+            "No Daily room specified. use the -u/--url option from the command line, or set DAILY_SAMPLE_ROOM_URL in your environment to specify a Daily room URL."
+        )
+
+    if not key:
+        raise Exception(
+            "No Daily API key specified. use the -k/--apikey option from the command line, or set DAILY_API_KEY in your environment to specify a Daily API key, available from https://dashboard.daily.co/developers."
+        )
+
+    daily_rest_helper = DailyRESTHelper(
+        daily_api_key=key,
+        daily_api_url=os.getenv("DAILY_API_URL", "https://api.daily.co/v1"),
+        aiohttp_session=aiohttp_session,
+    )
+
+    # Create a meeting token for the given room with an expiration 1 hour in
+    # the future.
+    expiry_time: float = 60 * 60
+
+    token = await daily_rest_helper.get_token(url, expiry_time)
+
+    return (url, token, args)
+
+=== ./dynamic/insurance_anthropic.py ===
+#
+# Copyright (c) 2024, Daily
+#
+# SPDX-License-Identifier: BSD 2-Clause License
+#
+"""
+Insurance Quote Example using Pipecat Dynamic Flows with Anthropic Claude
+
+This example demonstrates how to create a conversational insurance quote bot using:
+- Dynamic flow management for flexible conversation paths
+- Anthropic Claude for natural language understanding
+- Simple function handlers for processing user input
+- Node configurations for different conversation states
+- Pre/post actions for user feedback
+
+The flow allows users to:
+1. Provide their age
+2. Specify marital status
+3. Get an insurance quote
+4. Adjust coverage options
+5. Complete the quote process
+
+Requirements:
+- Daily room URL
+- Anthropic API key
+- Deepgram API key
+"""
+
+import asyncio
+import os
+import sys
+from pathlib import Path
+from typing import Dict, TypedDict, Union
+
+import aiohttp
+from dotenv import load_dotenv
+from loguru import logger
+from pipecat.audio.vad.silero import SileroVADAnalyzer
+from pipecat.pipeline.pipeline import Pipeline
+from pipecat.pipeline.runner import PipelineRunner
+from pipecat.pipeline.task import PipelineParams, PipelineTask
+from pipecat.processors.aggregators.openai_llm_context import OpenAILLMContext
+from pipecat.services.anthropic import AnthropicLLMService
+from pipecat.services.deepgram import DeepgramSTTService, DeepgramTTSService
+from pipecat.transports.services.daily import DailyParams, DailyTransport
+
+sys.path.append(str(Path(__file__).parent.parent))
+from runner import configure
+
+from pipecat_flows import FlowArgs, FlowManager, FlowResult, NodeConfig
+
+load_dotenv(override=True)
+
+logger.remove(0)
+logger.add(sys.stderr, level="DEBUG")
+
+
+# Type definitions
+class InsuranceQuote(TypedDict):
+    monthly_premium: float
+    coverage_amount: int
+    deductible: int
+
+
+class AgeCollectionResult(FlowResult):
+    age: int
+
+
+class MaritalStatusResult(FlowResult):
+    marital_status: str
+
+
+class QuoteCalculationResult(FlowResult, InsuranceQuote):
+    pass
+
+
+class CoverageUpdateResult(FlowResult, InsuranceQuote):
+    pass
+
+
+# Simulated insurance data
+INSURANCE_RATES = {
+    "young_single": {"base_rate": 150, "risk_multiplier": 1.5},
+    "young_married": {"base_rate": 130, "risk_multiplier": 1.3},
+    "adult_single": {"base_rate": 100, "risk_multiplier": 1.0},
+    "adult_married": {"base_rate": 90, "risk_multiplier": 0.9},
+}
+
+
+# Function handlers
+async def collect_age(args: FlowArgs) -> AgeCollectionResult:
+    """Process age collection."""
+    age = args["age"]
+    logger.debug(f"collect_age handler executing with age: {age}")
+    return {"age": age}
+
+
+async def collect_marital_status(args: FlowArgs) -> MaritalStatusResult:
+    """Process marital status collection."""
+    status = args["marital_status"]
+    logger.debug(f"collect_marital_status handler executing with status: {status}")
+    return {"marital_status": status}
+
+
+async def calculate_quote(args: FlowArgs) -> QuoteCalculationResult:
+    """Calculate insurance quote based on age and marital status."""
+    age = args["age"]
+    marital_status = args["marital_status"]
+    logger.debug(f"calculate_quote handler executing with age: {age}, status: {marital_status}")
+
+    # Determine rate category
+    age_category = "young" if age < 25 else "adult"
+    rate_key = f"{age_category}_{marital_status}"
+    rates = INSURANCE_RATES.get(rate_key, INSURANCE_RATES["adult_single"])
+
+    # Calculate quote
+    monthly_premium = rates["base_rate"] * rates["risk_multiplier"]
+
+    return {
+        "monthly_premium": monthly_premium,
+        "coverage_amount": 250000,
+        "deductible": 1000,
+    }
+
+
+async def update_coverage(args: FlowArgs) -> CoverageUpdateResult:
+    """Update coverage options and recalculate premium."""
+    coverage_amount = args["coverage_amount"]
+    deductible = args["deductible"]
+    logger.debug(
+        f"update_coverage handler executing with amount: {coverage_amount}, deductible: {deductible}"
+    )
+
+    # Calculate adjusted quote
+    monthly_premium = (coverage_amount / 250000) * 100
+    if deductible > 1000:
+        monthly_premium *= 0.9  # 10% discount for higher deductible
+
+    return {
+        "monthly_premium": monthly_premium,
+        "coverage_amount": coverage_amount,
+        "deductible": deductible,
+    }
+
+
+async def end_quote() -> FlowResult:
+    """Handle quote completion."""
+    logger.debug("end_quote handler executing")
+    return {"status": "completed"}
+
+
+# Node configurations
+def create_initial_node() -> NodeConfig:
+    """Create the initial node asking for age."""
+    return {
+        "role_messages": [
+            {
+                "role": "system",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": (
+                            "You are a friendly insurance agent. Your responses will be "
+                            "converted to audio, so avoid special characters. Always use "
+                            "the available functions to progress the conversation naturally."
+                        ),
+                    }
+                ],
+            }
+        ],
+        "task_messages": [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": (
+                            "Ask the customer for their age. "
+                            "Wait for their response before calling collect_age. "
+                            "Only call collect_age after the customer provides their age."
+                        ),
+                    }
+                ],
+            }
+        ],
+        "functions": [
+            {
+                "name": "collect_age",
+                "handler": collect_age,
+                "description": "Record customer's age after they provide it",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {"age": {"type": "integer"}},
+                    "required": ["age"],
+                },
+            }
+        ],
+    }
+
+
+def create_marital_status_node() -> NodeConfig:
+    """Create node for collecting marital status."""
+    return {
+        "task_messages": [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": "Ask about the customer's marital status for premium calculation.",
+                    }
+                ],
+            }
+        ],
+        "functions": [
+            {
+                "name": "collect_marital_status",
+                "handler": collect_marital_status,
+                "description": "Record marital status",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "marital_status": {"type": "string", "enum": ["single", "married"]}
+                    },
+                    "required": ["marital_status"],
+                },
+            }
+        ],
+    }
+
+
+def create_quote_calculation_node(age: int, marital_status: str) -> NodeConfig:
+    """Create node for calculating initial quote."""
+    return {
+        "task_messages": [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": (
+                            f"Calculate a quote for {age} year old {marital_status} customer. "
+                            "First, call calculate_quote with their information. "
+                            "Then explain the quote details and ask if they'd like to adjust coverage."
+                        ),
+                    }
+                ],
+            }
+        ],
+        "functions": [
+            {
+                "name": "calculate_quote",
+                "handler": calculate_quote,
+                "description": "Calculate initial insurance quote",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "age": {"type": "integer"},
+                        "marital_status": {"type": "string", "enum": ["single", "married"]},
+                    },
+                    "required": ["age", "marital_status"],
+                },
+            }
+        ],
+    }
+
+
+def create_quote_results_node(
+    quote: Union[QuoteCalculationResult, CoverageUpdateResult],
+) -> NodeConfig:
+    """Create node for showing quote and adjustment options."""
+    return {
+        "task_messages": [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": (
+                            f"Quote details:\n"
+                            f"Monthly Premium: ${quote['monthly_premium']:.2f}\n"
+                            f"Coverage Amount: ${quote['coverage_amount']:,}\n"
+                            f"Deductible: ${quote['deductible']:,}\n\n"
+                            "Explain these quote details to the customer. "
+                            "Ask if they would like to adjust the coverage amount or deductible. "
+                            "They can also end the quote process if they're satisfied."
+                        ),
+                    }
+                ],
+            }
+        ],
+        "functions": [
+            {
+                "name": "update_coverage",
+                "handler": update_coverage,
+                "description": "Update coverage options",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "coverage_amount": {"type": "integer"},
+                        "deductible": {"type": "integer"},
+                    },
+                    "required": ["coverage_amount", "deductible"],
+                },
+            },
+            {
+                "name": "end_quote",
+                "handler": end_quote,
+                "description": "Complete the quote process",
+                "input_schema": {"type": "object", "properties": {}},
+            },
+        ],
+    }
+
+
+def create_end_node() -> NodeConfig:
+    """Create the final node."""
+    return {
+        "task_messages": [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": (
+                            "Thank the customer for their time and end the conversation. "
+                            "Mention that a representative will contact them about the quote."
+                        ),
+                    }
+                ],
+            }
+        ],
+        "functions": [
+            # Add a dummy function to satisfy Anthropic's requirement
+            {
+                "name": "end_conversation",
+                "description": "End the conversation",
+                "input_schema": {"type": "object", "properties": {}},
+            }
+        ],
+        "post_actions": [{"type": "end_conversation"}],
+    }
+
+
+# Transition callbacks and handlers
+async def handle_age_collection(args: Dict, flow_manager: FlowManager):
+    flow_manager.state["age"] = args["age"]
+    await flow_manager.set_node("marital_status", create_marital_status_node())
+
+async def handle_marital_status_collection(args: Dict, flow_manager: FlowManager):
+    flow_manager.state["marital_status"] = args["marital_status"]
+    await flow_manager.set_node(
+        "quote_calculation",
+        create_quote_calculation_node(
+            flow_manager.state["age"], 
+            flow_manager.state["marital_status"]
+        ),
+    )
+
+async def handle_quote_calculation(args: Dict, flow_manager: FlowManager):
+    quote = await calculate_quote(args)
+    flow_manager.state["quote"] = quote
+    await flow_manager.set_node("quote_results", create_quote_results_node(quote))
+
+async def handle_coverage_update(args: Dict, flow_manager: FlowManager):
+    updated_quote = await update_coverage(args)
+    flow_manager.state["quote"] = updated_quote
+    await flow_manager.set_node("quote_results", create_quote_results_node(updated_quote))
+
+async def handle_end_quote(_: Dict, flow_manager: FlowManager):
+    await flow_manager.set_node("end", create_end_node())
+
+HANDLERS = {
+    "collect_age": handle_age_collection,
+    "collect_marital_status": handle_marital_status_collection,
+    "calculate_quote": handle_quote_calculation,
+    "update_coverage": handle_coverage_update,
+    "end_quote": handle_end_quote,
+}
+
+async def handle_insurance_transition(function_name: str, args: Dict, flow_manager: FlowManager):
+    """Handle transitions between insurance flow states."""
+    logger.debug(f"Processing {function_name} transition with args: {args}")
+    await HANDLERS[function_name](args, flow_manager)
+
+
+
+async def main():
+    """Main function to set up and run the insurance quote bot."""
+    async with aiohttp.ClientSession() as session:
+        (room_url, _) = await configure(session)
+
+        # Initialize services
+        transport = DailyTransport(
+            room_url,
+            None,
+            "Insurance Quote Bot",
+            DailyParams(
+                audio_out_enabled=True,
+                vad_enabled=True,
+                vad_analyzer=SileroVADAnalyzer(),
+                vad_audio_passthrough=True,
+            ),
+        )
+
+        stt = DeepgramSTTService(api_key=os.getenv("DEEPGRAM_API_KEY"))
+        tts = DeepgramTTSService(api_key=os.getenv("DEEPGRAM_API_KEY"), voice="aura-helios-en")
+        llm = AnthropicLLMService(
+            api_key=os.getenv("ANTHROPIC_API_KEY"), model="claude-3-5-sonnet-latest"
+        )
+
+        context = OpenAILLMContext()
+        context_aggregator = llm.create_context_aggregator(context)
+
+        # Create pipeline
+        pipeline = Pipeline(
+            [
+                transport.input(),
+                stt,
+                context_aggregator.user(),
+                llm,
+                tts,
+                transport.output(),
+                context_aggregator.assistant(),
+            ]
+        )
+
+        task = PipelineTask(pipeline, PipelineParams(allow_interruptions=True))
+
+        # Initialize flow manager with transition callback
+        flow_manager = FlowManager(
+            task=task, llm=llm, tts=tts, transition_callback=handle_insurance_transition
+        )
+
+        @transport.event_handler("on_first_participant_joined")
+        async def on_first_participant_joined(transport, participant):
+            await transport.capture_participant_transcription(participant["id"])
+            # Initialize flow
+            await flow_manager.initialize()
+            # Set initial node
+            await flow_manager.set_node("initial", create_initial_node())
+            await task.queue_frames([context_aggregator.user().get_context_frame()])
+
+        # Run the pipeline
+        runner = PipelineRunner()
+        await runner.run(task)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
+
+=== ./dynamic/insurance_openai.py ===
+#
+# Copyright (c) 2024, Daily
+#
+# SPDX-License-Identifier: BSD 2-Clause License
+#
+"""
+Insurance Quote Example using Pipecat Dynamic Flows
+
+This example demonstrates how to create a conversational insurance quote bot using:
+- Dynamic flow management for flexible conversation paths
+- LLM-driven function calls for consistent behavior
+- Node configurations for different conversation states
+- Pre/post actions for user feedback
+- Transition logic based on user responses
+
+The flow allows users to:
+1. Provide their age
+2. Specify marital status
+3. Get an insurance quote
+4. Adjust coverage options
+5. Complete the quote process
+
+Requirements:
+- Daily room URL
+- OpenAI API key
+- Deepgram API key
+"""
+
+import asyncio
+import os
+import sys
+from pathlib import Path
+from typing import Dict, TypedDict, Union
+
+import aiohttp
+from dotenv import load_dotenv
+from loguru import logger
+from pipecat.audio.vad.silero import SileroVADAnalyzer
+from pipecat.pipeline.pipeline import Pipeline
+from pipecat.pipeline.runner import PipelineRunner
+from pipecat.pipeline.task import PipelineParams, PipelineTask
+from pipecat.processors.aggregators.openai_llm_context import OpenAILLMContext
+from pipecat.services.deepgram import DeepgramSTTService, DeepgramTTSService
+from pipecat.services.openai import OpenAILLMService
+from pipecat.transports.services.daily import DailyParams, DailyTransport
+
+from pipecat_flows import FlowArgs, FlowManager, FlowResult, NodeConfig
+
+sys.path.append(str(Path(__file__).parent.parent))
+from runner import configure
+
+load_dotenv(override=True)
+
+logger.remove(0)
+logger.add(sys.stderr, level="DEBUG")
+
+
+# Type definitions
+class InsuranceQuote(TypedDict):
+    monthly_premium: float
+    coverage_amount: int
+    deductible: int
+
+
+class AgeCollectionResult(FlowResult):
+    age: int
+
+
+class MaritalStatusResult(FlowResult):
+    marital_status: str
+
+
+class QuoteCalculationResult(FlowResult, InsuranceQuote):
+    pass
+
+
+class CoverageUpdateResult(FlowResult, InsuranceQuote):
+    pass
+
+
+# Simulated insurance data
+INSURANCE_RATES = {
+    "young_single": {"base_rate": 150, "risk_multiplier": 1.5},
+    "young_married": {"base_rate": 130, "risk_multiplier": 1.3},
+    "adult_single": {"base_rate": 100, "risk_multiplier": 1.0},
+    "adult_married": {"base_rate": 90, "risk_multiplier": 0.9},
+}
+
+
+# Function handlers
+async def collect_age(args: FlowArgs) -> AgeCollectionResult:
+    """Process age collection."""
+    age = args["age"]
+    logger.debug(f"collect_age handler executing with age: {age}")
+    return {"age": age}
+
+
+async def collect_marital_status(args: FlowArgs) -> MaritalStatusResult:
+    """Process marital status collection."""
+    status = args["marital_status"]
+    logger.debug(f"collect_marital_status handler executing with status: {status}")
+    return {"marital_status": status}
+
+
+async def calculate_quote(args: FlowArgs) -> QuoteCalculationResult:
+    """Calculate insurance quote based on age and marital status."""
+    age = args["age"]
+    marital_status = args["marital_status"]
+    logger.debug(f"calculate_quote handler executing with age: {age}, status: {marital_status}")
+
+    # Determine rate category
+    age_category = "young" if age < 25 else "adult"
+    rate_key = f"{age_category}_{marital_status}"
+    rates = INSURANCE_RATES.get(rate_key, INSURANCE_RATES["adult_single"])
+
+    # Calculate quote
+    monthly_premium = rates["base_rate"] * rates["risk_multiplier"]
+
+    return {
+        "monthly_premium": monthly_premium,
+        "coverage_amount": 250000,
+        "deductible": 1000,
+    }
+
+
+async def update_coverage(args: FlowArgs) -> CoverageUpdateResult:
+    """Update coverage options and recalculate premium."""
+    coverage_amount = args["coverage_amount"]
+    deductible = args["deductible"]
+    logger.debug(
+        f"update_coverage handler executing with amount: {coverage_amount}, deductible: {deductible}"
+    )
+
+    # Calculate adjusted quote
+    monthly_premium = (coverage_amount / 250000) * 100
+    if deductible > 1000:
+        monthly_premium *= 0.9  # 10% discount for higher deductible
+
+    return {
+        "monthly_premium": monthly_premium,
+        "coverage_amount": coverage_amount,
+        "deductible": deductible,
+    }
+
+
+async def end_quote() -> FlowResult:
+    """Handle quote completion."""
+    logger.debug("end_quote handler executing")
+    return {"status": "completed"}
+
+
+# Node configurations
+def create_initial_node() -> NodeConfig:
+    """Create the initial node asking for age."""
+    return {
+        "role_messages": [
+            {
+                "role": "system",
+                "content": (
+                    "You are a friendly insurance agent. Your responses will be "
+                    "converted to audio, so avoid special characters. Always use "
+                    "the available functions to progress the conversation naturally."
+                ),
+            }
+        ],
+        "task_messages": [
+            {
+                "role": "system",
+                "content": "Start by asking for the customer's age.",
+            }
+        ],
+        "functions": [
+            {
+                "type": "function",
+                "function": {
+                    "name": "collect_age",
+                    "handler": collect_age,
+                    "description": "Record customer's age",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {"age": {"type": "integer"}},
+                        "required": ["age"],
+                    },
+                },
+            }
+        ],
+    }
+
+
+def create_marital_status_node() -> NodeConfig:
+    """Create node for collecting marital status."""
+    return {
+        "task_messages": [
+            {
+                "role": "system",
+                "content": "Ask about the customer's marital status for premium calculation.",
+            }
+        ],
+        "functions": [
+            {
+                "type": "function",
+                "function": {
+                    "name": "collect_marital_status",
+                    "handler": collect_marital_status,
+                    "description": "Record marital status",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "marital_status": {"type": "string", "enum": ["single", "married"]}
+                        },
+                        "required": ["marital_status"],
+                    },
+                },
+            }
+        ],
+    }
+
+
+def create_quote_calculation_node(age: int, marital_status: str) -> NodeConfig:
+    """Create node for calculating initial quote."""
+    return {
+        "task_messages": [
+            {
+                "role": "system",
+                "content": (
+                    f"Calculate a quote for {age} year old {marital_status} customer. "
+                    "First, call calculate_quote with their information. "
+                    "Then explain the quote details and ask if they'd like to adjust coverage."
+                ),
+            }
+        ],
+        "functions": [
+            {
+                "type": "function",
+                "function": {
+                    "name": "calculate_quote",
+                    "handler": calculate_quote,
+                    "description": "Calculate initial insurance quote",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "age": {"type": "integer"},
+                            "marital_status": {
+                                "type": "string",
+                                "enum": ["single", "married"],
+                            },
+                        },
+                        "required": ["age", "marital_status"],
+                    },
+                },
+            }
+        ],
+    }
+
+
+def create_quote_results_node(
+    quote: Union[QuoteCalculationResult, CoverageUpdateResult],
+) -> NodeConfig:
+    """Create node for showing quote and adjustment options."""
+    return {
+        "task_messages": [
+            {
+                "role": "system",
+                "content": (
+                    f"Quote details:\n"
+                    f"Monthly Premium: ${quote['monthly_premium']:.2f}\n"
+                    f"Coverage Amount: ${quote['coverage_amount']:,}\n"
+                    f"Deductible: ${quote['deductible']:,}\n\n"
+                    "Explain these quote details to the customer. "
+                    "Ask if they would like to adjust the coverage amount or deductible. "
+                    "They can also end the quote process if they're satisfied."
+                ),
+            }
+        ],
+        "functions": [
+            {
+                "type": "function",
+                "function": {
+                    "name": "update_coverage",
+                    "handler": update_coverage,
+                    "description": "Update coverage options",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "coverage_amount": {"type": "integer"},
+                            "deductible": {"type": "integer"},
+                        },
+                        "required": ["coverage_amount", "deductible"],
+                    },
+                },
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "end_quote",
+                    "handler": end_quote,
+                    "description": "Complete the quote process",
+                    "parameters": {"type": "object", "properties": {}},
+                },
+            },
+        ],
+    }
+
+
+def create_end_node() -> NodeConfig:
+    """Create the final node."""
+    return {
+        "task_messages": [
+            {
+                "role": "system",
+                "content": (
+                    "Thank the customer for their time and end the conversation. "
+                    "Mention that a representative will contact them about the quote."
+                ),
+            }
+        ],
+        "functions": [],
+        "post_actions": [{"type": "end_conversation"}],
+    }
+
+
+# Transition callbacks and handlers
+async def handle_age_collection(args: Dict, flow_manager: FlowManager):
+    flow_manager.state["age"] = args["age"]
+    await flow_manager.set_node("marital_status", create_marital_status_node())
+
+async def handle_marital_status_collection(args: Dict, flow_manager: FlowManager):
+    flow_manager.state["marital_status"] = args["marital_status"]
+    await flow_manager.set_node(
+        "quote_calculation",
+        create_quote_calculation_node(
+            flow_manager.state["age"], 
+            flow_manager.state["marital_status"]
+        ),
+    )
+
+async def handle_quote_calculation(args: Dict, flow_manager: FlowManager):
+    quote = await calculate_quote(args)
+    flow_manager.state["quote"] = quote
+    await flow_manager.set_node("quote_results", create_quote_results_node(quote))
+
+async def handle_coverage_update(args: Dict, flow_manager: FlowManager):
+    updated_quote = await update_coverage(args)
+    flow_manager.state["quote"] = updated_quote
+    await flow_manager.set_node("quote_results", create_quote_results_node(updated_quote))
+
+async def handle_end_quote(_: Dict, flow_manager: FlowManager):
+    await flow_manager.set_node("end", create_end_node())
+
+HANDLERS = {
+    "collect_age": handle_age_collection,
+    "collect_marital_status": handle_marital_status_collection,
+    "calculate_quote": handle_quote_calculation,
+    "update_coverage": handle_coverage_update,
+    "end_quote": handle_end_quote,
+}
+
+async def handle_insurance_transition(function_name: str, args: Dict, flow_manager: FlowManager):
+    """Handle transitions between insurance flow states."""
+    logger.debug(f"Processing {function_name} transition with args: {args}")
+    await HANDLERS[function_name](args, flow_manager)
+
+
+async def main():
+    """Main function to set up and run the insurance quote bot."""
+    async with aiohttp.ClientSession() as session:
+        (room_url, _) = await configure(session)
+
+        # Initialize services
+        transport = DailyTransport(
+            room_url,
+            None,
+            "Insurance Quote Bot",
+            DailyParams(
+                audio_out_enabled=True,
+                vad_enabled=True,
+                vad_analyzer=SileroVADAnalyzer(),
+                vad_audio_passthrough=True,
+            ),
+        )
+
+        stt = DeepgramSTTService(api_key=os.getenv("DEEPGRAM_API_KEY"))
+        tts = DeepgramTTSService(api_key=os.getenv("DEEPGRAM_API_KEY"), voice="aura-helios-en")
+        llm = OpenAILLMService(api_key=os.getenv("OPENAI_API_KEY"), model="gpt-4o")
+
+        context = OpenAILLMContext()
+        context_aggregator = llm.create_context_aggregator(context)
+
+        # Create pipeline
+        pipeline = Pipeline(
+            [
+                transport.input(),
+                stt,
+                context_aggregator.user(),
+                llm,
+                tts,
+                transport.output(),
+                context_aggregator.assistant(),
+            ]
+        )
+
+        task = PipelineTask(pipeline, PipelineParams(allow_interruptions=True))
+
+        # Initialize flow manager with transition callback
+        flow_manager = FlowManager(
+            task=task, llm=llm, tts=tts, transition_callback=handle_insurance_transition
+        )
+
+        @transport.event_handler("on_first_participant_joined")
+        async def on_first_participant_joined(transport, participant):
+            await transport.capture_participant_transcription(participant["id"])
+            logger.debug("Initializing flow")
+            await flow_manager.initialize()
+            logger.debug("Setting initial node")
+            await flow_manager.set_node("initial", create_initial_node())
+            logger.debug("Queueing initial context")
+            await task.queue_frames([context_aggregator.user().get_context_frame()])
+
+        # Run the pipeline
+        runner = PipelineRunner()
+        await runner.run(task)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
+
+=== ./dynamic/insurance_gemini.py ===
+#
+# Copyright (c) 2024, Daily
+#
+# SPDX-License-Identifier: BSD 2-Clause License
+#
+"""
+Insurance Quote Example using Pipecat Dynamic Flows with Google Gemini
+
+This example demonstrates how to create a conversational insurance quote bot using:
+- Dynamic flow management for flexible conversation paths
+- Google Gemini for natural language understanding
+- Simple function handlers for processing user input
+- Node configurations for different conversation states
+- Pre/post actions for user feedback
+
+The flow allows users to:
+1. Provide their age
+2. Specify marital status
+3. Get an insurance quote
+4. Adjust coverage options
+5. Complete the quote process
+
+Requirements:
+- Daily room URL
+- Google API key
+- Deepgram API key
+"""
+
+import asyncio
+import os
+import sys
+from pathlib import Path
+from typing import Dict, TypedDict, Union
+
+import aiohttp
+from dotenv import load_dotenv
+from loguru import logger
+from pipecat.audio.vad.silero import SileroVADAnalyzer
+from pipecat.pipeline.pipeline import Pipeline
+from pipecat.pipeline.runner import PipelineRunner
+from pipecat.pipeline.task import PipelineParams, PipelineTask
+from pipecat.processors.aggregators.openai_llm_context import OpenAILLMContext
+from pipecat.services.deepgram import DeepgramSTTService, DeepgramTTSService
+from pipecat.services.google import GoogleLLMService
+from pipecat.transports.services.daily import DailyParams, DailyTransport
+
+sys.path.append(str(Path(__file__).parent.parent))
+from runner import configure
+
+from pipecat_flows import FlowArgs, FlowManager, FlowResult, NodeConfig
+
+load_dotenv(override=True)
+
+logger.remove(0)
+logger.add(sys.stderr, level="DEBUG")
+
+
+# Type definitions
+class InsuranceQuote(TypedDict):
+    monthly_premium: float
+    coverage_amount: int
+    deductible: int
+
+
+class AgeCollectionResult(FlowResult):
+    age: int
+
+
+class MaritalStatusResult(FlowResult):
+    marital_status: str
+
+
+class QuoteCalculationResult(FlowResult, InsuranceQuote):
+    pass
+
+
+class CoverageUpdateResult(FlowResult, InsuranceQuote):
+    pass
+
+
+# Simulated insurance data
+INSURANCE_RATES = {
+    "young_single": {"base_rate": 150, "risk_multiplier": 1.5},
+    "young_married": {"base_rate": 130, "risk_multiplier": 1.3},
+    "adult_single": {"base_rate": 100, "risk_multiplier": 1.0},
+    "adult_married": {"base_rate": 90, "risk_multiplier": 0.9},
+}
+
+
+# Function handlers
+async def collect_age(args: FlowArgs) -> AgeCollectionResult:
+    """Process age collection."""
+    age = args["age"]
+    logger.debug(f"collect_age handler executing with age: {age}")
+    return {"age": age}
+
+
+async def collect_marital_status(args: FlowArgs) -> MaritalStatusResult:
+    """Process marital status collection."""
+    status = args["marital_status"]
+    logger.debug(f"collect_marital_status handler executing with status: {status}")
+    return {"marital_status": status}
+
+
+async def calculate_quote(args: FlowArgs) -> QuoteCalculationResult:
+    """Calculate insurance quote based on age and marital status."""
+    age = args["age"]
+    marital_status = args["marital_status"]
+    logger.debug(f"calculate_quote handler executing with age: {age}, status: {marital_status}")
+
+    # Determine rate category
+    age_category = "young" if age < 25 else "adult"
+    rate_key = f"{age_category}_{marital_status}"
+    rates = INSURANCE_RATES.get(rate_key, INSURANCE_RATES["adult_single"])
+
+    # Calculate quote
+    monthly_premium = rates["base_rate"] * rates["risk_multiplier"]
+
+    return {
+        "monthly_premium": monthly_premium,
+        "coverage_amount": 250000,
+        "deductible": 1000,
+    }
+
+
+async def update_coverage(args: FlowArgs) -> CoverageUpdateResult:
+    """Update coverage options and recalculate premium."""
+    coverage_amount = args["coverage_amount"]
+    deductible = args["deductible"]
+    logger.debug(
+        f"update_coverage handler executing with amount: {coverage_amount}, deductible: {deductible}"
+    )
+
+    # Calculate adjusted quote
+    monthly_premium = (coverage_amount / 250000) * 100
+    if deductible > 1000:
+        monthly_premium *= 0.9  # 10% discount for higher deductible
+
+    return {
+        "monthly_premium": monthly_premium,
+        "coverage_amount": coverage_amount,
+        "deductible": deductible,
+    }
+
+
+async def end_quote() -> FlowResult:
+    """Handle quote completion."""
+    logger.debug("end_quote handler executing")
+    return {"status": "completed"}
+
+
+# Node configurations
+def create_initial_node() -> NodeConfig:
+    """Create the initial node asking for age."""
+    return {
+        "role_messages": [
+            {
+                "role": "system",
+                "content": (
+                    "You are a friendly insurance agent. Your responses will be "
+                    "converted to audio, so avoid special characters. "
+                    "Always wait for customer responses before calling functions. "
+                    "Only call functions after receiving relevant information from the customer."
+                ),
+            }
+        ],
+        "task_messages": [
+            {
+                "role": "system",
+                "content": "Start by asking for the customer's age.",
+            }
+        ],
+        "functions": [
+            {
+                "function_declarations": [
+                    {
+                        "name": "collect_age",
+                        "handler": collect_age,
+                        "description": "Record customer's age",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {"age": {"type": "integer"}},
+                            "required": ["age"],
+                        },
+                    }
+                ]
+            }
+        ],
+    }
+
+
+def create_marital_status_node() -> NodeConfig:
+    """Create node for collecting marital status."""
+    return {
+        "task_messages": [
+            {
+                "role": "system",
+                "content": (
+                    "Ask about the customer's marital status (single or married). "
+                    "Wait for their response before calling collect_marital_status. "
+                    "Only call the function after they provide their status."
+                ),
+            }
+        ],
+        "functions": [
+            {
+                "function_declarations": [
+                    {
+                        "name": "collect_marital_status",
+                        "handler": collect_marital_status,
+                        "description": "Record marital status after customer provides it",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "marital_status": {"type": "string", "enum": ["single", "married"]}
+                            },
+                            "required": ["marital_status"],
+                        },
+                    }
+                ]
+            }
+        ],
+    }
+
+
+def create_quote_calculation_node(age: int, marital_status: str) -> NodeConfig:
+    """Create node for calculating initial quote."""
+    return {
+        "task_messages": [
+            {
+                "role": "system",
+                "content": (
+                    f"Calculate a quote for {age} year old {marital_status} customer. "
+                    "Call calculate_quote with their information. "
+                    "After receiving the quote, explain the details and ask if they'd like to adjust coverage."
+                ),
+            }
+        ],
+        "functions": [
+            {
+                "function_declarations": [
+                    {
+                        "name": "calculate_quote",
+                        "handler": calculate_quote,
+                        "description": "Calculate initial insurance quote",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "age": {"type": "integer"},
+                                "marital_status": {"type": "string", "enum": ["single", "married"]},
+                            },
+                            "required": ["age", "marital_status"],
+                        },
+                    }
+                ]
+            }
+        ],
+    }
+
+
+def create_quote_results_node(
+    quote: Union[QuoteCalculationResult, CoverageUpdateResult],
+) -> NodeConfig:
+    """Create node for showing quote and adjustment options."""
+    return {
+        "task_messages": [
+            {
+                "role": "system",
+                "content": (
+                    f"Quote details:\n"
+                    f"Monthly Premium: ${quote['monthly_premium']:.2f}\n"
+                    f"Coverage Amount: ${quote['coverage_amount']:,}\n"
+                    f"Deductible: ${quote['deductible']:,}\n\n"
+                    "Explain these quote details to the customer. "
+                    "Ask if they would like to adjust the coverage amount or deductible. "
+                    "They can also end the quote process if they're satisfied."
+                ),
+            }
+        ],
+        "functions": [
+            {
+                "function_declarations": [
+                    {
+                        "name": "update_coverage",
+                        "handler": update_coverage,
+                        "description": "Update coverage options when customer requests changes",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "coverage_amount": {"type": "integer"},
+                                "deductible": {"type": "integer"},
+                            },
+                            "required": ["coverage_amount", "deductible"],
+                        },
+                    },
+                    {
+                        "name": "end_quote",
+                        "handler": end_quote,
+                        "description": "Complete the quote process when customer is satisfied",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {"status": {"type": "string", "enum": ["completed"]}},
+                            "required": ["status"],
+                        },
+                    },
+                ]
+            }
+        ],
+    }
+
+
+def create_end_node() -> NodeConfig:
+    """Create the final node."""
+    return {
+        "task_messages": [
+            {
+                "role": "system",
+                "content": (
+                    "Thank the customer for their time and end the conversation. "
+                    "Mention that a representative will contact them about the quote."
+                ),
+            }
+        ],
+        "functions": [],
+        "post_actions": [{"type": "end_conversation"}],
+    }
+
+
+# Transition callbacks and handlers
+async def handle_age_collection(args: Dict, flow_manager: FlowManager):
+    flow_manager.state["age"] = args["age"]
+    await flow_manager.set_node("marital_status", create_marital_status_node())
+
+async def handle_marital_status_collection(args: Dict, flow_manager: FlowManager):
+    flow_manager.state["marital_status"] = args["marital_status"]
+    await flow_manager.set_node(
+        "quote_calculation",
+        create_quote_calculation_node(
+            flow_manager.state["age"], 
+            flow_manager.state["marital_status"]
+        ),
+    )
+
+async def handle_quote_calculation(args: Dict, flow_manager: FlowManager):
+    quote = await calculate_quote(args)
+    flow_manager.state["quote"] = quote
+    await flow_manager.set_node("quote_results", create_quote_results_node(quote))
+
+async def handle_coverage_update(args: Dict, flow_manager: FlowManager):
+    updated_quote = await update_coverage(args)
+    flow_manager.state["quote"] = updated_quote
+    await flow_manager.set_node("quote_results", create_quote_results_node(updated_quote))
+
+async def handle_end_quote(_: Dict, flow_manager: FlowManager):
+    await flow_manager.set_node("end", create_end_node())
+
+HANDLERS = {
+    "collect_age": handle_age_collection,
+    "collect_marital_status": handle_marital_status_collection,
+    "calculate_quote": handle_quote_calculation,
+    "update_coverage": handle_coverage_update,
+    "end_quote": handle_end_quote,
+}
+
+async def handle_insurance_transition(function_name: str, args: Dict, flow_manager: FlowManager):
+    """Handle transitions between insurance flow states."""
+    logger.debug(f"Processing {function_name} transition with args: {args}")
+    await HANDLERS[function_name](args, flow_manager)
+
+async def main():
+    """Main function to set up and run the insurance quote bot."""
+    async with aiohttp.ClientSession() as session:
+        (room_url, _) = await configure(session)
+
+        # Initialize services
+        transport = DailyTransport(
+            room_url,
+            None,
+            "Insurance Quote Bot",
+            DailyParams(
+                audio_out_enabled=True,
+                vad_enabled=True,
+                vad_analyzer=SileroVADAnalyzer(),
+                vad_audio_passthrough=True,
+            ),
+        )
+
+        stt = DeepgramSTTService(api_key=os.getenv("DEEPGRAM_API_KEY"))
+        tts = DeepgramTTSService(api_key=os.getenv("DEEPGRAM_API_KEY"), voice="aura-helios-en")
+        llm = GoogleLLMService(api_key=os.getenv("GOOGLE_API_KEY"), model="gemini-2.0-flash-exp")
+
+        context = OpenAILLMContext()
+        context_aggregator = llm.create_context_aggregator(context)
+
+        # Create pipeline
+        pipeline = Pipeline(
+            [
+                transport.input(),
+                stt,
+                context_aggregator.user(),
+                llm,
+                tts,
+                transport.output(),
+                context_aggregator.assistant(),
+            ]
+        )
+
+        task = PipelineTask(pipeline, PipelineParams(allow_interruptions=True))
+
+        # Initialize flow manager with transition callback
+        flow_manager = FlowManager(
+            task=task, llm=llm, tts=tts, transition_callback=handle_insurance_transition
+        )
+
+        @transport.event_handler("on_first_participant_joined")
+        async def on_first_participant_joined(transport, participant):
+            await transport.capture_participant_transcription(participant["id"])
+            # Initialize flow
+            await flow_manager.initialize()
+            # Set initial node
+            await flow_manager.set_node("initial", create_initial_node())
+            await task.queue_frames([context_aggregator.user().get_context_frame()])
+
+        # Run the pipeline
+        runner = PipelineRunner()
+        await runner.run(task)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
+
+=== ./static/patient_intake.py ===
+#
+# Copyright (c) 2024, Daily
+#
+# SPDX-License-Identifier: BSD 2-Clause License
+#
+
+import asyncio
+import os
+import sys
+from pathlib import Path
+from typing import List, TypedDict
+
+import aiohttp
+from dotenv import load_dotenv
+from loguru import logger
+from pipecat.audio.vad.silero import SileroVADAnalyzer
+from pipecat.pipeline.pipeline import Pipeline
+from pipecat.pipeline.runner import PipelineRunner
+from pipecat.pipeline.task import PipelineParams, PipelineTask
+from pipecat.processors.aggregators.openai_llm_context import OpenAILLMContext
+from pipecat.services.cartesia import CartesiaTTSService
+from pipecat.services.deepgram import DeepgramSTTService
+from pipecat.services.openai import OpenAILLMService
+from pipecat.transports.services.daily import DailyParams, DailyTransport
+
+sys.path.append(str(Path(__file__).parent.parent))
+from runner import configure
+
+from pipecat_flows import FlowArgs, FlowConfig, FlowManager, FlowResult
+
+load_dotenv(override=True)
+
+logger.remove(0)
+logger.add(sys.stderr, level="DEBUG")
+
+# Flow Configuration - Patient Intake
+#
+# This configuration defines a medical intake system with the following states:
+#
+# 1. start
+#    - Initial state where system verifies patient identity through birthday
+#    - Functions:
+#      * verify_birthday (node function to check DOB)
+#      * get_prescriptions (transitions to prescription collection)
+#    - Pre-action: Initial greeting from Jessica
+#    - Expected flow: Greet -> Ask DOB -> Verify -> Transition to prescriptions
+#
+# 2. get_prescriptions
+#    - Collects information about patient's current medications
+#    - Functions:
+#      * record_prescriptions (node function, collects medication name and dosage)
+#      * get_allergies (transitions to allergy collection)
+#    - Expected flow: Ask about prescriptions -> Record details -> Transition to allergies
+#
+# 3. get_allergies
+#    - Collects information about patient's allergies
+#    - Functions:
+#      * record_allergies (node function, records allergy information)
+#      * get_conditions (transitions to medical conditions)
+#    - Expected flow: Ask about allergies -> Record details -> Transition to conditions
+#
+# 4. get_conditions
+#    - Collects information about patient's medical conditions
+#    - Functions:
+#      * record_conditions (node function, records medical conditions)
+#      * get_visit_reasons (transitions to visit reason collection)
+#    - Expected flow: Ask about conditions -> Record details -> Transition to visit reasons
+#
+# 5. get_visit_reasons
+#    - Collects information about why patient is visiting
+#    - Functions:
+#      * record_visit_reasons (node function, records visit reasons)
+#      * verify_information (transitions to verification)
+#    - Expected flow: Ask about visit reason -> Record details -> Transition to verification
+#
+# 6. verify_information
+#    - Reviews all collected information with patient
+#    - Functions:
+#      * get_prescriptions (returns to prescriptions if changes needed)
+#      * end (transitions to end after confirmation)
+#    - Expected flow: Review all info -> Confirm accuracy -> End or revise
+#
+# 7. end
+#    - Final state that closes the conversation
+#    - No functions available
+#    - Pre-action: Thank you message
+#    - Post-action: Ends conversation
+
+
+# Type definitions
+class Prescription(TypedDict):
+    medication: str
+    dosage: str
+
+
+class Allergy(TypedDict):
+    name: str
+
+
+class Condition(TypedDict):
+    name: str
+
+
+class VisitReason(TypedDict):
+    name: str
+
+
+# Result types for each handler
+class BirthdayVerificationResult(FlowResult):
+    verified: bool
+
+
+class PrescriptionRecordResult(FlowResult):
+    count: int
+
+
+class AllergyRecordResult(FlowResult):
+    count: int
+
+
+class ConditionRecordResult(FlowResult):
+    count: int
+
+
+class VisitReasonRecordResult(FlowResult):
+    count: int
+
+
+# Function handlers
+async def verify_birthday(args: FlowArgs) -> BirthdayVerificationResult:
+    """Handler for birthday verification."""
+    birthday = args["birthday"]
+    # In a real app, this would verify against patient records
+    is_valid = birthday == "1983-01-01"
+    return BirthdayVerificationResult(verified=is_valid)
+
+
+async def record_prescriptions(args: FlowArgs) -> PrescriptionRecordResult:
+    """Handler for recording prescriptions."""
+    prescriptions: List[Prescription] = args["prescriptions"]
+    # In a real app, this would store in patient records
+    return PrescriptionRecordResult(count=len(prescriptions))
+
+
+async def record_allergies(args: FlowArgs) -> AllergyRecordResult:
+    """Handler for recording allergies."""
+    allergies: List[Allergy] = args["allergies"]
+    # In a real app, this would store in patient records
+    return AllergyRecordResult(count=len(allergies))
+
+
+async def record_conditions(args: FlowArgs) -> ConditionRecordResult:
+    """Handler for recording medical conditions."""
+    conditions: List[Condition] = args["conditions"]
+    # In a real app, this would store in patient records
+    return ConditionRecordResult(count=len(conditions))
+
+
+async def record_visit_reasons(args: FlowArgs) -> VisitReasonRecordResult:
+    """Handler for recording visit reasons."""
+    visit_reasons: List[VisitReason] = args["visit_reasons"]
+    # In a real app, this would store in patient records
+    return VisitReasonRecordResult(count=len(visit_reasons))
+
+
+flow_config: FlowConfig = {
+    "initial_node": "start",
+    "nodes": {
+        "start": {
+            "role_messages": [
+                {
+                    "role": "system",
+                    "content": "You are Jessica, an agent for Tri-County Health Services. You must ALWAYS use one of the available functions to progress the conversation. Be professional but friendly.",
+                }
+            ],
+            "task_messages": [
+                {
+                    "role": "system",
+                    "content": "Start by introducing yourself to Chad Bailey, then ask for their date of birth, including the year. Once they provide their birthday, use verify_birthday to check it. If verified (1983-01-01), proceed to prescriptions.",
+                }
+            ],
+            "functions": [
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "verify_birthday",
+                        "handler": verify_birthday,
+                        "description": "Verify the user has provided their correct birthday. Once confirmed, the next step is to recording the user's prescriptions.",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "birthday": {
+                                    "type": "string",
+                                    "description": "The user's birthdate (convert to YYYY-MM-DD format)",
+                                }
+                            },
+                            "required": ["birthday"],
+                        },
+                        "transition_to": "get_prescriptions",
+                    },
+                },
+            ],
+        },
+        "get_prescriptions": {
+            "task_messages": [
+                {
+                    "role": "system",
+                    "content": "This step is for collecting prescriptions. Ask them what prescriptions they're taking, including the dosage. After recording prescriptions (or confirming none), proceed to allergies.",
+                }
+            ],
+            "functions": [
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "record_prescriptions",
+                        "handler": record_prescriptions,
+                        "description": "Record the user's prescriptions. Once confirmed, the next step is to collect allergy information.",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "prescriptions": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "medication": {
+                                                "type": "string",
+                                                "description": "The medication's name",
+                                            },
+                                            "dosage": {
+                                                "type": "string",
+                                                "description": "The prescription's dosage",
+                                            },
+                                        },
+                                        "required": ["medication", "dosage"],
+                                    },
+                                }
+                            },
+                            "required": ["prescriptions"],
+                        },
+                        "transition_to": "get_allergies",
+                    },
+                },
+            ],
+        },
+        "get_allergies": {
+            "task_messages": [
+                {
+                    "role": "system",
+                    "content": "Collect allergy information. Ask about any allergies they have. After recording allergies (or confirming none), proceed to medical conditions.",
+                }
+            ],
+            "functions": [
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "record_allergies",
+                        "handler": record_allergies,
+                        "description": "Record the user's allergies. Once confirmed, then next step is to collect medical conditions.",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "allergies": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "name": {
+                                                "type": "string",
+                                                "description": "What the user is allergic to",
+                                            },
+                                        },
+                                        "required": ["name"],
+                                    },
+                                }
+                            },
+                            "required": ["allergies"],
+                        },
+                        "transition_to": "get_conditions",
+                    },
+                },
+            ],
+        },
+        "get_conditions": {
+            "task_messages": [
+                {
+                    "role": "system",
+                    "content": "Collect medical condition information. Ask about any medical conditions they have. After recording conditions (or confirming none), proceed to visit reasons.",
+                }
+            ],
+            "functions": [
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "record_conditions",
+                        "handler": record_conditions,
+                        "description": "Record the user's medical conditions. Once confirmed, the next step is to collect visit reasons.",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "conditions": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "name": {
+                                                "type": "string",
+                                                "description": "The user's medical condition",
+                                            },
+                                        },
+                                        "required": ["name"],
+                                    },
+                                }
+                            },
+                            "required": ["conditions"],
+                        },
+                        "transition_to": "get_visit_reasons",
+                    },
+                },
+            ],
+        },
+        "get_visit_reasons": {
+            "task_messages": [
+                {
+                    "role": "system",
+                    "content": "Collect information about the reason for their visit. Ask what brings them to the doctor today. After recording their reasons, proceed to verification.",
+                }
+            ],
+            "functions": [
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "record_visit_reasons",
+                        "handler": record_visit_reasons,
+                        "description": "Record the reasons for their visit. Once confirmed, the next step is to verify all information.",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "visit_reasons": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "name": {
+                                                "type": "string",
+                                                "description": "The user's reason for visiting",
+                                            },
+                                        },
+                                        "required": ["name"],
+                                    },
+                                }
+                            },
+                            "required": ["visit_reasons"],
+                        },
+                        "transition_to": "verify",
+                    },
+                },
+            ],
+        },
+        "verify": {
+            "task_messages": [
+                {
+                    "role": "system",
+                    "content": """Review all collected information with the patient. Follow these steps:
+1. Summarize their prescriptions, allergies, conditions, and visit reasons
+2. Ask if everything is correct
+3. Use the appropriate function based on their response
+
+Be thorough in reviewing all details and wait for explicit confirmation.""",
+                }
+            ],
+            "functions": [
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "revise_information",
+                        "description": "Return to prescriptions to revise information",
+                        "parameters": {"type": "object", "properties": {}},
+                        "transition_to": "get_prescriptions",
+                    },
+                },
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "confirm_information",
+                        "description": "Proceed with confirmed information",
+                        "parameters": {"type": "object", "properties": {}},
+                        "transition_to": "confirm",
+                    },
+                },
+            ],
+        },
+        "confirm": {
+            "task_messages": [
+                {
+                    "role": "system",
+                    "content": "Once confirmed, thank them, then use the complete_intake function to end the conversation.",
+                }
+            ],
+            "functions": [
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "complete_intake",
+                        "description": "Complete the intake process",
+                        "parameters": {"type": "object", "properties": {}},
+                        "transition_to": "end",
+                    },
+                },
+            ],
+        },
+        "end": {
+            "task_messages": [
+                {
+                    "role": "system",
+                    "content": "Thank them for their time and end the conversation.",
+                }
+            ],
+            "functions": [],
+            "post_actions": [{"type": "end_conversation"}],
+        },
+    },
+}
+
+
+async def main():
+    """Main function to set up and run the patient intake bot."""
+    async with aiohttp.ClientSession() as session:
+        (room_url, _) = await configure(session)
+
+        transport = DailyTransport(
+            room_url,
+            None,
+            "Patient Intake Bot",
+            DailyParams(
+                audio_out_enabled=True,
+                vad_enabled=True,
+                vad_analyzer=SileroVADAnalyzer(),
+                vad_audio_passthrough=True,
+            ),
+        )
+
+        stt = DeepgramSTTService(api_key=os.getenv("DEEPGRAM_API_KEY"))
+        tts = CartesiaTTSService(
+            api_key=os.getenv("CARTESIA_API_KEY"),
+            voice_id="79a125e8-cd45-4c13-8a67-188112f4dd22",  # British Lady
+        )
+        llm = OpenAILLMService(api_key=os.getenv("OPENAI_API_KEY"), model="gpt-4o")
+
+        context = OpenAILLMContext()
+        context_aggregator = llm.create_context_aggregator(context)
+
+        pipeline = Pipeline(
+            [
+                transport.input(),  # Transport user input
+                stt,  # STT
+                context_aggregator.user(),  # User responses
+                llm,  # LLM
+                tts,  # TTS
+                transport.output(),  # Transport bot output
+                context_aggregator.assistant(),  # Assistant spoken responses
+            ]
+        )
+
+        task = PipelineTask(pipeline, PipelineParams(allow_interruptions=True))
+
+        # Initialize flow manager with LLM
+        flow_manager = FlowManager(task=task, llm=llm, tts=tts, flow_config=flow_config)
+
+        @transport.event_handler("on_first_participant_joined")
+        async def on_first_participant_joined(transport, participant):
+            await transport.capture_participant_transcription(participant["id"])
+            # Initialize the flow processor
+            await flow_manager.initialize()
+            # Kick off the conversation using the context aggregator
+            await task.queue_frames([context_aggregator.user().get_context_frame()])
+
+        runner = PipelineRunner()
+        await runner.run(task)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
+
+=== ./static/travel_planner.py ===
+#
+# Copyright (c) 2024, Daily
+#
+# SPDX-License-Identifier: BSD 2-Clause License
+#
+
+import asyncio
+import os
+import sys
+from pathlib import Path
+from typing import List
+
+import aiohttp
+from dotenv import load_dotenv
+from loguru import logger
+from pipecat.audio.vad.silero import SileroVADAnalyzer
+from pipecat.pipeline.pipeline import Pipeline
+from pipecat.pipeline.runner import PipelineRunner
+from pipecat.pipeline.task import PipelineParams, PipelineTask
+from pipecat.processors.aggregators.openai_llm_context import OpenAILLMContext
+from pipecat.services.cartesia import CartesiaTTSService
+from pipecat.services.deepgram import DeepgramSTTService
+from pipecat.services.openai import OpenAILLMService
+from pipecat.transports.services.daily import DailyParams, DailyTransport
+from pipecat.utils.text.markdown_text_filter import MarkdownTextFilter
+
+sys.path.append(str(Path(__file__).parent.parent))
+from runner import configure
+
+from pipecat_flows import FlowArgs, FlowConfig, FlowManager, FlowResult
+
+load_dotenv(override=True)
+
+logger.remove(0)
+logger.add(sys.stderr, level="DEBUG")
+
+# Flow Configuration - Travel Planner
+#
+# This configuration defines a vacation planning system with the following states:
+#
+# 1. start
+#    - Initial state where user chooses between beach or mountain vacation
+#    - Functions: choose_beach, choose_mountain
+#    - Pre-action: Welcome message
+#    - Transitions to: choose_beach or choose_mountain
+#
+# 2. choose_beach/choose_mountain
+#    - Handles destination selection for chosen vacation type
+#    - Functions:
+#      * select_destination (node function with location-specific options)
+#      * get_dates (transitions to date selection)
+#    - Pre-action: Destination-specific welcome message
+#
+# 3. get_dates
+#    - Handles travel date selection
+#    - Functions:
+#      * record_dates (node function, can be modified)
+#      * get_activities (transitions to activity selection)
+#
+# 4. get_activities
+#    - Handles activity preference selection
+#    - Functions:
+#      * record_activities (node function, array-based selection)
+#      * verify_itinerary (transitions to verification)
+#
+# 5. verify_itinerary
+#    - Reviews complete vacation plan
+#    - Functions:
+#      * revise_plan (loops back to get_dates)
+#      * confirm_booking (transitions to confirmation)
+#
+# 6. confirm_booking
+#    - Handles final confirmation and tips
+#    - Functions: end
+#    - Pre-action: Confirmation message
+#
+# 7. end
+#    - Final state that closes the conversation
+#    - No functions available
+#    - Post-action: Ends conversation
+
+
+# Type definitions
+class DestinationResult(FlowResult):
+    destination: str
+
+
+class DatesResult(FlowResult):
+    check_in: str
+    check_out: str
+
+
+class ActivitiesResult(FlowResult):
+    activities: List[str]
+
+
+# Function handlers
+async def select_destination(args: FlowArgs) -> DestinationResult:
+    """Handler for destination selection."""
+    destination = args["destination"]
+    # In a real app, this would store the selection
+    return DestinationResult(destination=destination)
+
+
+async def record_dates(args: FlowArgs) -> DatesResult:
+    """Handler for travel date recording."""
+    check_in = args["check_in"]
+    check_out = args["check_out"]
+    # In a real app, this would validate and store the dates
+    return DatesResult(check_in=check_in, check_out=check_out)
+
+
+async def record_activities(args: FlowArgs) -> ActivitiesResult:
+    """Handler for activity selection."""
+    activities = args["activities"]
+    # In a real app, this would validate and store the activities
+    return ActivitiesResult(activities=activities)
+
+
+flow_config: FlowConfig = {
+    "initial_node": "start",
+    "nodes": {
+        "start": {
+            "role_messages": [
+                {
+                    "role": "system",
+                    "content": "You are a travel planning assistant with Summit & Sand Getaways. You must ALWAYS use one of the available functions to progress the conversation. This is a phone conversation and your responses will be converted to audio. Avoid outputting special characters and emojis.",
+                }
+            ],
+            "task_messages": [
+                {
+                    "role": "system",
+                    "content": "For this step, ask if they're interested in planning a beach vacation or a mountain retreat, and wait for them to choose. Start with an enthusiastic greeting and be conversational; you're helping them plan their dream vacation.",
+                }
+            ],
+            "functions": [
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "choose_beach",
+                        "description": "User wants to plan a beach vacation",
+                        "parameters": {"type": "object", "properties": {}},
+                        "transition_to": "choose_beach",
+                    },
+                },
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "choose_mountain",
+                        "description": "User wants to plan a mountain retreat",
+                        "parameters": {"type": "object", "properties": {}},
+                        "transition_to": "choose_mountain",
+                    },
+                },
+            ],
+        },
+        "choose_beach": {
+            "task_messages": [
+                {
+                    "role": "system",
+                    "content": "You are handling beach vacation planning. Use the available functions:\n - Use select_destination when the user chooses their preferred beach location\n - After destination is selected, dates will be collected automatically\n\nAvailable beach destinations are: 'Maui', 'Cancun', or 'Maldives'. After they choose, confirm their selection. Be enthusiastic and paint a picture of each destination.",
+                }
+            ],
+            "functions": [
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "select_destination",
+                        "handler": select_destination,
+                        "description": "Record the selected beach destination",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "destination": {
+                                    "type": "string",
+                                    "enum": ["Maui", "Cancun", "Maldives"],
+                                    "description": "Selected beach destination",
+                                }
+                            },
+                            "required": ["destination"],
+                        },
+                        "transition_to": "get_dates",
+                    },
+                },
+            ],
+        },
+        "choose_mountain": {
+            "task_messages": [
+                {
+                    "role": "system",
+                    "content": "You are handling mountain retreat planning. Use the available functions:\n - Use select_destination when the user chooses their preferred mountain location\n - After destination is selected, dates will be collected automatically\n\nAvailable mountain destinations are: 'Swiss Alps', 'Rocky Mountains', or 'Himalayas'. After they choose, confirm their selection. Be enthusiastic and paint a picture of each destination.",
+                }
+            ],
+            "functions": [
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "select_destination",
+                        "handler": select_destination,
+                        "description": "Record the selected mountain destination",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "destination": {
+                                    "type": "string",
+                                    "enum": ["Swiss Alps", "Rocky Mountains", "Himalayas"],
+                                    "description": "Selected mountain destination",
+                                }
+                            },
+                            "required": ["destination"],
+                        },
+                        "transition_to": "get_dates",
+                    },
+                },
+            ],
+        },
+        "get_dates": {
+            "task_messages": [
+                {
+                    "role": "system",
+                    "content": "Handle travel date selection. Use the available functions:\n - Use record_dates when the user specifies their travel dates (can be used multiple times if they change their mind)\n - After dates are recorded, activities will be collected automatically\n\nAsk for their preferred travel dates within the next 6 months. After recording dates, confirm the selection.",
+                }
+            ],
+            "functions": [
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "record_dates",
+                        "handler": record_dates,
+                        "description": "Record the selected travel dates",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "check_in": {
+                                    "type": "string",
+                                    "format": "date",
+                                    "description": "Check-in date (YYYY-MM-DD)",
+                                },
+                                "check_out": {
+                                    "type": "string",
+                                    "format": "date",
+                                    "description": "Check-out date (YYYY-MM-DD)",
+                                },
+                            },
+                            "required": ["check_in", "check_out"],
+                        },
+                        "transition_to": "get_activities",
+                    },
+                },
+            ],
+        },
+        "get_activities": {
+            "task_messages": [
+                {
+                    "role": "system",
+                    "content": "Handle activity preferences. Use the available functions:\n - Use record_activities to save their activity preferences\n - After activities are recorded, verification will happen automatically\n\nFor beach destinations, suggest: snorkeling, surfing, sunset cruise\nFor mountain destinations, suggest: hiking, skiing, mountain biking\n\nAfter they choose, confirm their selections.",
+                }
+            ],
+            "functions": [
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "record_activities",
+                        "handler": record_activities,
+                        "description": "Record selected activities",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "activities": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
+                                    "minItems": 1,
+                                    "maxItems": 3,
+                                    "description": "Selected activities",
+                                }
+                            },
+                            "required": ["activities"],
+                        },
+                        "transition_to": "verify_itinerary",
+                    },
+                },
+            ],
+        },
+        "verify_itinerary": {
+            "task_messages": [
+                {
+                    "role": "system",
+                    "content": "Review the complete itinerary with the user. Summarize their destination, dates, and chosen activities. Use revise_plan to make changes or confirm_booking if they're happy. Be thorough in reviewing all details and ask for their confirmation.",
+                }
+            ],
+            "functions": [
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "revise_plan",
+                        "description": "Return to date selection to revise the plan",
+                        "parameters": {"type": "object", "properties": {}},
+                        "transition_to": "get_dates",
+                    },
+                },
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "confirm_booking",
+                        "description": "Confirm the booking and proceed to end",
+                        "parameters": {"type": "object", "properties": {}},
+                        "transition_to": "confirm_booking",
+                    },
+                },
+            ],
+        },
+        "confirm_booking": {
+            "task_messages": [
+                {
+                    "role": "system",
+                    "content": "The booking is confirmed. Share some relevant tips about their chosen destination, thank them warmly, and use end to complete the conversation.",
+                }
+            ],
+            "functions": [
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "end",
+                        "description": "End the conversation",
+                        "parameters": {"type": "object", "properties": {}},
+                        "transition_to": "end",
+                    },
+                }
+            ],
+            "pre_actions": [
+                {"type": "tts_say", "text": "Fantastic! Your dream vacation is confirmed!"}
+            ],
+        },
+        "end": {
+            "task_messages": [
+                {
+                    "role": "system",
+                    "content": "Wish them a wonderful trip and end the conversation.",
+                }
+            ],
+            "functions": [],
+            "post_actions": [{"type": "end_conversation"}],
+        },
+    },
+}
+
+
+async def main():
+    """Main function to set up and run the travel planning bot."""
+    async with aiohttp.ClientSession() as session:
+        (room_url, _) = await configure(session)
+
+        transport = DailyTransport(
+            room_url,
+            None,
+            "Planner Bot",
+            DailyParams(
+                audio_out_enabled=True,
+                vad_enabled=True,
+                vad_analyzer=SileroVADAnalyzer(),
+                vad_audio_passthrough=True,
+            ),
+        )
+
+        stt = DeepgramSTTService(api_key=os.getenv("DEEPGRAM_API_KEY"))
+        tts = CartesiaTTSService(
+            api_key=os.getenv("CARTESIA_API_KEY"),
+            voice_id="79a125e8-cd45-4c13-8a67-188112f4dd22",  # British Lady
+            text_filter=MarkdownTextFilter(),
+        )
+        llm = OpenAILLMService(api_key=os.getenv("OPENAI_API_KEY"), model="gpt-4o")
+
+        context = OpenAILLMContext()
+        context_aggregator = llm.create_context_aggregator(context)
+
+        pipeline = Pipeline(
+            [
+                transport.input(),  # Transport user input
+                stt,  # STT
+                context_aggregator.user(),  # User responses
+                llm,  # LLM
+                tts,  # TTS
+                transport.output(),  # Transport bot output
+                context_aggregator.assistant(),  # Assistant spoken responses
+            ]
+        )
+
+        task = PipelineTask(pipeline, PipelineParams(allow_interruptions=True))
+
+        # Initialize flow manager with LLM
+        flow_manager = FlowManager(task=task, llm=llm, tts=tts, flow_config=flow_config)
+
+        @transport.event_handler("on_first_participant_joined")
+        async def on_first_participant_joined(transport, participant):
+            await transport.capture_participant_transcription(participant["id"])
+            # Initialize the flow processor
+            await flow_manager.initialize()
+            # Kick off the conversation using the context aggregator
+            await task.queue_frames([context_aggregator.user().get_context_frame()])
+
+        runner = PipelineRunner()
+        await runner.run(task)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
+
+=== ./static/movie_explorer_openai.py ===
+#
+# Copyright (c) 2024, Daily
+#
+# SPDX-License-Identifier: BSD 2-Clause License
+#
+# Movie Explorer Example
+#
+# This example demonstrates how to create a conversational movie exploration bot using:
+# - TMDB API for real movie data (including cast information)
+# - Pipecat Flows for conversation management
+# - Node functions for API calls (get_movies, get_movie_details, get_similar_movies)
+# - Edge functions for state transitions (explore_movie, greeting, end)
+#
+# The flow allows users to:
+# 1. See what movies are currently playing or coming soon
+# 2. Get detailed information about specific movies (including cast)
+# 3. Find similar movies as recommendations
+#
+# Requirements:
+# - TMDB API key (https://www.themoviedb.org/documentation/api)
+# - Daily room URL
+# - OpenAI API key
+# - Deepgram API key
+
+import asyncio
+import os
+import sys
+from pathlib import Path
+from typing import List, Literal, TypedDict, Union
+
+import aiohttp
+from dotenv import load_dotenv
+from loguru import logger
+from pipecat.audio.vad.silero import SileroVADAnalyzer
+from pipecat.pipeline.pipeline import Pipeline
+from pipecat.pipeline.runner import PipelineRunner
+from pipecat.pipeline.task import PipelineParams, PipelineTask
+from pipecat.processors.aggregators.openai_llm_context import OpenAILLMContext
+from pipecat.services.cartesia import CartesiaTTSService
+from pipecat.services.deepgram import DeepgramSTTService
+from pipecat.services.openai import OpenAILLMService
+from pipecat.transports.services.daily import DailyParams, DailyTransport
+from pipecat.utils.text.markdown_text_filter import MarkdownTextFilter
+
+sys.path.append(str(Path(__file__).parent.parent))
+from runner import configure
+
+from pipecat_flows import FlowArgs, FlowConfig, FlowManager, FlowResult
+
+load_dotenv(override=True)
+
+logger.remove(0)
+logger.add(sys.stderr, level="DEBUG")
+
+# TMDB API setup
+TMDB_API_KEY = os.getenv("TMDB_API_KEY")
+TMDB_BASE_URL = "https://api.themoviedb.org/3"
+
+
+# Type definitions for API responses
+class MovieBasic(TypedDict):
+    id: int
+    title: str
+    overview: str
+
+
+class MovieDetails(TypedDict):
+    title: str
+    runtime: int
+    rating: float
+    overview: str
+    genres: List[str]
+    cast: List[str]  # List of "Actor Name as Character Name"
+
+
+class MoviesResult(FlowResult):
+    movies: List[MovieBasic]
+
+
+class MovieDetailsResult(FlowResult, MovieDetails):
+    pass
+
+
+class SimilarMoviesResult(FlowResult):
+    movies: List[MovieBasic]
+
+
+class ErrorResult(FlowResult):
+    status: Literal["error"]
+    error: str
+
+
+class TMDBApi:
+    """Handles all TMDB API interactions with proper typing and error handling."""
+
+    def __init__(self, api_key: str, base_url: str = "https://api.themoviedb.org/3"):
+        self.api_key = api_key
+        self.base_url = base_url
+
+    async def fetch_current_movies(self, session: aiohttp.ClientSession) -> List[MovieBasic]:
+        """Fetch currently playing movies from TMDB.
+
+        Returns top 5 movies with basic information.
+        """
+        url = f"{self.base_url}/movie/now_playing"
+        params = {"api_key": self.api_key, "language": "en-US", "page": 1}
+
+        async with session.get(url, params=params) as response:
+            if response.status != 200:
+                logger.error(f"TMDB API Error: {response.status}")
+                raise ValueError(f"API returned status {response.status}")
+
+            data = await response.json()
+            if "results" not in data:
+                logger.error(f"Unexpected API response: {data}")
+                raise ValueError("Invalid API response format")
+
+            return [
+                {
+                    "id": movie["id"],
+                    "title": movie["title"],
+                    "overview": movie["overview"][:100] + "...",
+                }
+                for movie in data["results"][:5]
+            ]
+
+    async def fetch_upcoming_movies(self, session: aiohttp.ClientSession) -> List[MovieBasic]:
+        """Fetch upcoming movies from TMDB.
+
+        Returns top 5 upcoming movies with basic information.
+        """
+        url = f"{self.base_url}/movie/upcoming"
+        params = {"api_key": self.api_key, "language": "en-US", "page": 1}
+
+        async with session.get(url, params=params) as response:
+            if response.status != 200:
+                logger.error(f"TMDB API Error: {response.status}")
+                raise ValueError(f"API returned status {response.status}")
+
+            data = await response.json()
+            if "results" not in data:
+                logger.error(f"Unexpected API response: {data}")
+                raise ValueError("Invalid API response format")
+
+            return [
+                {
+                    "id": movie["id"],
+                    "title": movie["title"],
+                    "overview": movie["overview"][:100] + "...",
+                }
+                for movie in data["results"][:5]
+            ]
+
+    async def fetch_movie_credits(self, session: aiohttp.ClientSession, movie_id: int) -> List[str]:
+        """Fetch top cast members for a movie.
+
+        Returns list of strings in format: "Actor Name as Character Name"
+        """
+        url = f"{self.base_url}/movie/{movie_id}/credits"
+        params = {"api_key": self.api_key, "language": "en-US"}
+
+        async with session.get(url, params=params) as response:
+            if response.status != 200:
+                logger.error(f"TMDB API Error: {response.status}")
+                raise ValueError(f"API returned status {response.status}")
+
+            data = await response.json()
+            if "cast" not in data:
+                logger.error(f"Unexpected API response: {data}")
+                raise ValueError("Invalid API response format")
+
+            return [
+                f"{actor['name']} as {actor['character']}"
+                for actor in data["cast"][:5]  # Top 5 cast members
+            ]
+
+    async def fetch_movie_details(
+        self, session: aiohttp.ClientSession, movie_id: int
+    ) -> MovieDetails:
+        """Fetch detailed information about a specific movie, including cast."""
+        # Fetch basic movie details
+        url = f"{self.base_url}/movie/{movie_id}"
+        params = {"api_key": self.api_key, "language": "en-US"}
+
+        async with session.get(url, params=params) as response:
+            if response.status != 200:
+                logger.error(f"TMDB API Error: {response.status}")
+                raise ValueError(f"API returned status {response.status}")
+
+            data = await response.json()
+            required_fields = ["title", "runtime", "vote_average", "overview", "genres"]
+            if not all(field in data for field in required_fields):
+                logger.error(f"Missing required fields in response: {data}")
+                raise ValueError("Invalid API response format")
+
+            # Fetch cast information
+            cast = await self.fetch_movie_credits(session, movie_id)
+
+            return {
+                "title": data["title"],
+                "runtime": data["runtime"],
+                "rating": data["vote_average"],
+                "overview": data["overview"],
+                "genres": [genre["name"] for genre in data["genres"]],
+                "cast": cast,
+            }
+
+    async def fetch_similar_movies(
+        self, session: aiohttp.ClientSession, movie_id: int
+    ) -> List[MovieBasic]:
+        """Fetch movies similar to the specified movie.
+
+        Returns top 3 similar movies with basic information.
+        """
+        url = f"{self.base_url}/movie/{movie_id}/similar"
+        params = {"api_key": self.api_key, "language": "en-US", "page": 1}
+
+        async with session.get(url, params=params) as response:
+            if response.status != 200:
+                logger.error(f"TMDB API Error: {response.status}")
+                raise ValueError(f"API returned status {response.status}")
+
+            data = await response.json()
+            if "results" not in data:
+                logger.error(f"Unexpected API response: {data}")
+                raise ValueError("Invalid API response format")
+
+            return [
+                {
+                    "id": movie["id"],
+                    "title": movie["title"],
+                    "overview": movie["overview"][:100] + "...",
+                }
+                for movie in data["results"][:3]
+            ]
+
+
+# Create TMDB API instance
+tmdb_api = TMDBApi(TMDB_API_KEY)
+
+
+# Function handlers for the LLM
+# These are node functions that perform operations without changing conversation state
+async def get_movies() -> Union[MoviesResult, ErrorResult]:
+    """Handler for fetching current movies."""
+    logger.debug("Calling TMDB API: get_movies")
+    async with aiohttp.ClientSession() as session:
+        try:
+            movies = await tmdb_api.fetch_current_movies(session)
+            logger.debug(f"TMDB API Response: {movies}")
+            return MoviesResult(movies=movies)
+        except Exception as e:
+            logger.error(f"TMDB API Error: {e}")
+            return ErrorResult(status="error", error="Failed to fetch movies")
+
+
+async def get_upcoming_movies() -> Union[MoviesResult, ErrorResult]:
+    """Handler for fetching upcoming movies."""
+    logger.debug("Calling TMDB API: get_upcoming_movies")
+    async with aiohttp.ClientSession() as session:
+        try:
+            movies = await tmdb_api.fetch_upcoming_movies(session)
+            logger.debug(f"TMDB API Response: {movies}")
+            return MoviesResult(movies=movies)
+        except Exception as e:
+            logger.error(f"TMDB API Error: {e}")
+            return ErrorResult(status="error", error="Failed to fetch upcoming movies")
+
+
+async def get_movie_details(args: FlowArgs) -> Union[MovieDetailsResult, ErrorResult]:
+    """Handler for fetching movie details including cast."""
+    movie_id = args["movie_id"]
+    logger.debug(f"Calling TMDB API: get_movie_details for ID {movie_id}")
+    async with aiohttp.ClientSession() as session:
+        try:
+            details = await tmdb_api.fetch_movie_details(session, movie_id)
+            logger.debug(f"TMDB API Response: {details}")
+            return MovieDetailsResult(**details)
+        except Exception as e:
+            logger.error(f"TMDB API Error: {e}")
+            return ErrorResult(
+                status="error", error=f"Failed to fetch details for movie {movie_id}"
+            )
+
+
+async def get_similar_movies(args: FlowArgs) -> Union[SimilarMoviesResult, ErrorResult]:
+    """Handler for fetching similar movies."""
+    movie_id = args["movie_id"]
+    logger.debug(f"Calling TMDB API: get_similar_movies for ID {movie_id}")
+    async with aiohttp.ClientSession() as session:
+        try:
+            similar = await tmdb_api.fetch_similar_movies(session, movie_id)
+            logger.debug(f"TMDB API Response: {similar}")
+            return SimilarMoviesResult(movies=similar)
+        except Exception as e:
+            logger.error(f"TMDB API Error: {e}")
+            return ErrorResult(
+                status="error", error=f"Failed to fetch similar movies for {movie_id}"
+            )
+
+
+# Flow configuration
+flow_config: FlowConfig = {
+    "initial_node": "greeting",
+    "nodes": {
+        "greeting": {
+            "role_messages": [
+                {
+                    "role": "system",
+                    "content": "You are a friendly movie expert. Your responses will be converted to audio, so avoid special characters. Always use the available functions to progress the conversation naturally.",
+                }
+            ],
+            "task_messages": [
+                {
+                    "role": "system",
+                    "content": "Start by greeting the user and asking if they'd like to know about movies currently in theaters or upcoming releases. Wait for their choice before using either get_current_movies or get_upcoming_movies.",
+                }
+            ],
+            "functions": [
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "get_current_movies",
+                        "handler": get_movies,
+                        "description": "Fetch movies currently playing in theaters",
+                        "parameters": {"type": "object", "properties": {}},
+                        "transition_to": "explore_movie",
+                    },
+                },
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "get_upcoming_movies",
+                        "handler": get_upcoming_movies,
+                        "description": "Fetch movies coming soon to theaters",
+                        "parameters": {"type": "object", "properties": {}},
+                        "transition_to": "explore_movie",
+                    },
+                },
+            ],
+        },
+        "explore_movie": {
+            "task_messages": [
+                {
+                    "role": "system",
+                    "content": """Help the user learn more about movies. You can:
+- Use get_movie_details when they express interest in a specific movie
+- Use get_similar_movies to show recommendations
+- Use get_current_movies to see what's playing now
+- Use get_upcoming_movies to see what's coming soon
+- Use end_conversation when they're done exploring
+
+After showing details or recommendations, ask if they'd like to explore another movie or end the conversation.""",
+                }
+            ],
+            "functions": [
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "get_movie_details",
+                        "handler": get_movie_details,
+                        "description": "Get details about a specific movie including cast",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "movie_id": {"type": "integer", "description": "TMDB movie ID"}
+                            },
+                            "required": ["movie_id"],
+                        },
+                    },
+                },
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "get_similar_movies",
+                        "handler": get_similar_movies,
+                        "description": "Get similar movies as recommendations",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "movie_id": {"type": "integer", "description": "TMDB movie ID"}
+                            },
+                            "required": ["movie_id"],
+                        },
+                    },
+                },
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "get_current_movies",
+                        "handler": get_movies,
+                        "description": "Show current movies in theaters",
+                        "parameters": {"type": "object", "properties": {}},
+                    },
+                },
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "get_upcoming_movies",
+                        "handler": get_upcoming_movies,
+                        "description": "Show movies coming soon",
+                        "parameters": {"type": "object", "properties": {}},
+                    },
+                },
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "end_conversation",
+                        "description": "End the conversation",
+                        "parameters": {"type": "object", "properties": {}},
+                        "transition_to": "end",
+                    },
+                },
+            ],
+        },
+        "end": {
+            "task_messages": [
+                {
+                    "role": "system",
+                    "content": "Thank the user warmly and mention they can return anytime to discover more movies.",
+                }
+            ],
+            "functions": [],
+            "post_actions": [{"type": "end_conversation"}],
+        },
+    },
+}
+
+
+async def main():
+    """Main function to set up and run the movie explorer bot."""
+    async with aiohttp.ClientSession() as session:
+        (room_url, _) = await configure(session)
+
+        transport = DailyTransport(
+            room_url,
+            None,
+            "Movie Explorer Bot",
+            DailyParams(
+                audio_out_enabled=True,
+                vad_enabled=True,
+                vad_analyzer=SileroVADAnalyzer(),
+                vad_audio_passthrough=True,
+            ),
+        )
+
+        stt = DeepgramSTTService(api_key=os.getenv("DEEPGRAM_API_KEY"))
+        tts = CartesiaTTSService(
+            api_key=os.getenv("CARTESIA_API_KEY"),
+            voice_id="c45bc5ec-dc68-4feb-8829-6e6b2748095d",  # Movieman
+            text_filter=MarkdownTextFilter(),
+        )
+        llm = OpenAILLMService(api_key=os.getenv("OPENAI_API_KEY"), model="gpt-4o")
+
+        context = OpenAILLMContext()
+        context_aggregator = llm.create_context_aggregator(context)
+
+        pipeline = Pipeline(
+            [
+                transport.input(),  # Transport user input
+                stt,  # STT
+                context_aggregator.user(),  # User responses
+                llm,  # LLM
+                tts,  # TTS
+                transport.output(),  # Transport bot output
+                context_aggregator.assistant(),  # Assistant spoken responses
+            ]
+        )
+
+        task = PipelineTask(pipeline, PipelineParams(allow_interruptions=True))
+
+        # Initialize flow manager
+        flow_manager = FlowManager(task=task, llm=llm, tts=tts, flow_config=flow_config)
+
+        @transport.event_handler("on_first_participant_joined")
+        async def on_first_participant_joined(transport, participant):
+            await transport.capture_participant_transcription(participant["id"])
+            await flow_manager.initialize()
+            await task.queue_frames([context_aggregator.user().get_context_frame()])
+
+        runner = PipelineRunner()
+        await runner.run(task)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
+
+=== ./static/movie_explorer_anthropic.py ===
+#
+# Copyright (c) 2024, Daily
+#
+# SPDX-License-Identifier: BSD 2-Clause License
+#
+# Movie Explorer Example
+#
+# This example demonstrates how to create a conversational movie exploration bot using:
+# - TMDB API for real movie data (including cast information)
+# - Pipecat Flows for conversation management
+# - Node functions for API calls (get_movies, get_movie_details, get_similar_movies)
+# - Edge functions for state transitions (explore_movie, greeting, end)
+#
+# The flow allows users to:
+# 1. See what movies are currently playing or coming soon
+# 2. Get detailed information about specific movies (including cast)
+# 3. Find similar movies as recommendations
+#
+# Requirements:
+# - TMDB API key (https://www.themoviedb.org/documentation/api)
+# - Daily room URL
+# - Anthropic API key (also, pip install pipecat-ai[anthropic])
+# - Deepgram API key
+
+import asyncio
+import os
+import sys
+from pathlib import Path
+from typing import List, Literal, TypedDict, Union
+
+import aiohttp
+from dotenv import load_dotenv
+from loguru import logger
+from pipecat.audio.vad.silero import SileroVADAnalyzer
+from pipecat.pipeline.pipeline import Pipeline
+from pipecat.pipeline.runner import PipelineRunner
+from pipecat.pipeline.task import PipelineParams, PipelineTask
+from pipecat.processors.aggregators.openai_llm_context import OpenAILLMContext
+from pipecat.services.anthropic import AnthropicLLMService
+from pipecat.services.cartesia import CartesiaTTSService
+from pipecat.services.deepgram import DeepgramSTTService
+from pipecat.transports.services.daily import DailyParams, DailyTransport
+from pipecat.utils.text.markdown_text_filter import MarkdownTextFilter
+
+sys.path.append(str(Path(__file__).parent.parent))
+from runner import configure
+
+from pipecat_flows import FlowArgs, FlowConfig, FlowManager, FlowResult
+
+load_dotenv(override=True)
+
+logger.remove(0)
+logger.add(sys.stderr, level="DEBUG")
+
+# TMDB API setup
+TMDB_API_KEY = os.getenv("TMDB_API_KEY")
+TMDB_BASE_URL = "https://api.themoviedb.org/3"
+
+
+# Type definitions for API responses
+class MovieBasic(TypedDict):
+    id: int
+    title: str
+    overview: str
+
+
+class MovieDetails(TypedDict):
+    title: str
+    runtime: int
+    rating: float
+    overview: str
+    genres: List[str]
+    cast: List[str]  # List of "Actor Name as Character Name"
+
+
+class MoviesResult(FlowResult):
+    movies: List[MovieBasic]
+
+
+class MovieDetailsResult(FlowResult, MovieDetails):
+    pass
+
+
+class SimilarMoviesResult(FlowResult):
+    movies: List[MovieBasic]
+
+
+class ErrorResult(FlowResult):
+    status: Literal["error"]
+    error: str
+
+
+class TMDBApi:
+    """Handles all TMDB API interactions with proper typing and error handling."""
+
+    def __init__(self, api_key: str, base_url: str = "https://api.themoviedb.org/3"):
+        self.api_key = api_key
+        self.base_url = base_url
+
+    async def fetch_current_movies(self, session: aiohttp.ClientSession) -> List[MovieBasic]:
+        """Fetch currently playing movies from TMDB.
+
+        Returns top 5 movies with basic information.
+        """
+        url = f"{self.base_url}/movie/now_playing"
+        params = {"api_key": self.api_key, "language": "en-US", "page": 1}
+
+        async with session.get(url, params=params) as response:
+            if response.status != 200:
+                logger.error(f"TMDB API Error: {response.status}")
+                raise ValueError(f"API returned status {response.status}")
+
+            data = await response.json()
+            if "results" not in data:
+                logger.error(f"Unexpected API response: {data}")
+                raise ValueError("Invalid API response format")
+
+            return [
+                {
+                    "id": movie["id"],
+                    "title": movie["title"],
+                    "overview": movie["overview"][:100] + "...",
+                }
+                for movie in data["results"][:5]
+            ]
+
+    async def fetch_upcoming_movies(self, session: aiohttp.ClientSession) -> List[MovieBasic]:
+        """Fetch upcoming movies from TMDB.
+
+        Returns top 5 upcoming movies with basic information.
+        """
+        url = f"{self.base_url}/movie/upcoming"
+        params = {"api_key": self.api_key, "language": "en-US", "page": 1}
+
+        async with session.get(url, params=params) as response:
+            if response.status != 200:
+                logger.error(f"TMDB API Error: {response.status}")
+                raise ValueError(f"API returned status {response.status}")
+
+            data = await response.json()
+            if "results" not in data:
+                logger.error(f"Unexpected API response: {data}")
+                raise ValueError("Invalid API response format")
+
+            return [
+                {
+                    "id": movie["id"],
+                    "title": movie["title"],
+                    "overview": movie["overview"][:100] + "...",
+                }
+                for movie in data["results"][:5]
+            ]
+
+    async def fetch_movie_credits(self, session: aiohttp.ClientSession, movie_id: int) -> List[str]:
+        """Fetch top cast members for a movie.
+
+        Returns list of strings in format: "Actor Name as Character Name"
+        """
+        url = f"{self.base_url}/movie/{movie_id}/credits"
+        params = {"api_key": self.api_key, "language": "en-US"}
+
+        async with session.get(url, params=params) as response:
+            if response.status != 200:
+                logger.error(f"TMDB API Error: {response.status}")
+                raise ValueError(f"API returned status {response.status}")
+
+            data = await response.json()
+            if "cast" not in data:
+                logger.error(f"Unexpected API response: {data}")
+                raise ValueError("Invalid API response format")
+
+            return [
+                f"{actor['name']} as {actor['character']}"
+                for actor in data["cast"][:5]  # Top 5 cast members
+            ]
+
+    async def fetch_movie_details(
+        self, session: aiohttp.ClientSession, movie_id: int
+    ) -> MovieDetails:
+        """Fetch detailed information about a specific movie, including cast."""
+        # Fetch basic movie details
+        url = f"{self.base_url}/movie/{movie_id}"
+        params = {"api_key": self.api_key, "language": "en-US"}
+
+        async with session.get(url, params=params) as response:
+            if response.status != 200:
+                logger.error(f"TMDB API Error: {response.status}")
+                raise ValueError(f"API returned status {response.status}")
+
+            data = await response.json()
+            required_fields = ["title", "runtime", "vote_average", "overview", "genres"]
+            if not all(field in data for field in required_fields):
+                logger.error(f"Missing required fields in response: {data}")
+                raise ValueError("Invalid API response format")
+
+            # Fetch cast information
+            cast = await self.fetch_movie_credits(session, movie_id)
+
+            return {
+                "title": data["title"],
+                "runtime": data["runtime"],
+                "rating": data["vote_average"],
+                "overview": data["overview"],
+                "genres": [genre["name"] for genre in data["genres"]],
+                "cast": cast,
+            }
+
+    async def fetch_similar_movies(
+        self, session: aiohttp.ClientSession, movie_id: int
+    ) -> List[MovieBasic]:
+        """Fetch movies similar to the specified movie.
+
+        Returns top 3 similar movies with basic information.
+        """
+        url = f"{self.base_url}/movie/{movie_id}/similar"
+        params = {"api_key": self.api_key, "language": "en-US", "page": 1}
+
+        async with session.get(url, params=params) as response:
+            if response.status != 200:
+                logger.error(f"TMDB API Error: {response.status}")
+                raise ValueError(f"API returned status {response.status}")
+
+            data = await response.json()
+            if "results" not in data:
+                logger.error(f"Unexpected API response: {data}")
+                raise ValueError("Invalid API response format")
+
+            return [
+                {
+                    "id": movie["id"],
+                    "title": movie["title"],
+                    "overview": movie["overview"][:100] + "...",
+                }
+                for movie in data["results"][:3]
+            ]
+
+
+# Create TMDB API instance
+tmdb_api = TMDBApi(TMDB_API_KEY)
+
+
+# Function handlers for the LLM
+# These are node functions that perform operations without changing conversation state
+# Function handlers for the LLM
+# These are node functions that perform operations without changing conversation state
+async def get_movies() -> Union[MoviesResult, ErrorResult]:
+    """Handler for fetching current movies."""
+    logger.debug("Calling TMDB API: get_movies")
+    async with aiohttp.ClientSession() as session:
+        try:
+            movies = await tmdb_api.fetch_current_movies(session)
+            logger.debug(f"TMDB API Response: {movies}")
+            return MoviesResult(movies=movies)
+        except Exception as e:
+            logger.error(f"TMDB API Error: {e}")
+            return ErrorResult(error="Failed to fetch movies")
+
+
+async def get_upcoming_movies() -> Union[MoviesResult, ErrorResult]:
+    """Handler for fetching upcoming movies."""
+    logger.debug("Calling TMDB API: get_upcoming_movies")
+    async with aiohttp.ClientSession() as session:
+        try:
+            movies = await tmdb_api.fetch_upcoming_movies(session)
+            logger.debug(f"TMDB API Response: {movies}")
+            return MoviesResult(movies=movies)
+        except Exception as e:
+            logger.error(f"TMDB API Error: {e}")
+            return ErrorResult(error="Failed to fetch upcoming movies")
+
+
+async def get_movie_details(args: FlowArgs) -> Union[MovieDetailsResult, ErrorResult]:
+    """Handler for fetching movie details including cast."""
+    movie_id = args["movie_id"]
+    logger.debug(f"Calling TMDB API: get_movie_details for ID {movie_id}")
+    async with aiohttp.ClientSession() as session:
+        try:
+            details = await tmdb_api.fetch_movie_details(session, movie_id)
+            logger.debug(f"TMDB API Response: {details}")
+            return MovieDetailsResult(**details)
+        except Exception as e:
+            logger.error(f"TMDB API Error: {e}")
+            return ErrorResult(error=f"Failed to fetch details for movie {movie_id}")
+
+
+async def get_similar_movies(args: FlowArgs) -> Union[SimilarMoviesResult, ErrorResult]:
+    """Handler for fetching similar movies."""
+    movie_id = args["movie_id"]
+    logger.debug(f"Calling TMDB API: get_similar_movies for ID {movie_id}")
+    async with aiohttp.ClientSession() as session:
+        try:
+            similar = await tmdb_api.fetch_similar_movies(session, movie_id)
+            logger.debug(f"TMDB API Response: {similar}")
+            return SimilarMoviesResult(movies=similar)
+        except Exception as e:
+            logger.error(f"TMDB API Error: {e}")
+            return ErrorResult(error=f"Failed to fetch similar movies for {movie_id}")
+
+
+# Flow configuration
+flow_config: FlowConfig = {
+    "initial_node": "greeting",
+    "nodes": {
+        "greeting": {
+            "role_messages": [
+                {
+                    "role": "system",
+                    "content": "You are a friendly movie expert. Your responses will be converted to audio, so avoid special characters. Always use the available functions to progress the conversation naturally.",
+                }
+            ],
+            "task_messages": [
+                {
+                    "role": "user",
+                    "content": "Start by greeting the user and asking if they'd like to know about movies currently in theaters or upcoming releases. Wait for their choice before using either get_current_movies or get_upcoming_movies.",
+                }
+            ],
+            "functions": [
+                {
+                    "name": "get_current_movies",
+                    "handler": get_movies,
+                    "description": "Fetch movies currently playing in theaters",
+                    "input_schema": {"type": "object", "properties": {}},
+                    "transition_to": "explore_movie",
+                },
+                {
+                    "name": "get_upcoming_movies",
+                    "handler": get_upcoming_movies,
+                    "description": "Fetch movies coming soon to theaters",
+                    "input_schema": {"type": "object", "properties": {}},
+                    "transition_to": "explore_movie",
+                },
+            ],
+        },
+        "explore_movie": {
+            "task_messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": """Help the user learn more about movies. You can:
+- Use get_movie_details when they express interest in a specific movie
+- Use get_similar_movies to show recommendations
+- Use get_current_movies to see what's playing now
+- Use get_upcoming_movies to see what's coming soon
+- Use end_conversation when they're done exploring
+
+After showing details or recommendations, ask if they'd like to explore another movie or end the conversation.""",
+                        }
+                    ],
+                }
+            ],
+            "functions": [
+                {
+                    "name": "get_movie_details",
+                    "handler": get_movie_details,
+                    "description": "Get details about a specific movie including cast",
+                    "input_schema": {
+                        "type": "object",
+                        "properties": {
+                            "movie_id": {"type": "integer", "description": "TMDB movie ID"}
+                        },
+                        "required": ["movie_id"],
+                    },
+                },
+                {
+                    "name": "get_similar_movies",
+                    "handler": get_similar_movies,
+                    "description": "Get similar movies as recommendations",
+                    "input_schema": {
+                        "type": "object",
+                        "properties": {
+                            "movie_id": {"type": "integer", "description": "TMDB movie ID"}
+                        },
+                        "required": ["movie_id"],
+                    },
+                },
+                {
+                    "name": "get_current_movies",
+                    "handler": get_movies,
+                    "description": "Show current movies in theaters",
+                    "input_schema": {"type": "object", "properties": {}},
+                },
+                {
+                    "name": "get_upcoming_movies",
+                    "handler": get_upcoming_movies,
+                    "description": "Show movies coming soon",
+                    "input_schema": {"type": "object", "properties": {}},
+                },
+                {
+                    "name": "end_conversation",
+                    "description": "End the conversation",
+                    "input_schema": {"type": "object", "properties": {}},
+                    "transition_to": "end",
+                },
+            ],
+        },
+        "end": {
+            "task_messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": "Thank the user warmly and mention they can return anytime to discover more movies.",
+                        }
+                    ],
+                }
+            ],
+            "functions": [
+                # Add a dummy function to satisfy Anthropic's requirement
+                {
+                    "name": "end_conversation",
+                    "description": "End the conversation",
+                    "input_schema": {"type": "object", "properties": {}},
+                }
+            ],
+            "post_actions": [{"type": "end_conversation"}],
+        },
+    },
+}
+
+
+async def main():
+    """Main function to set up and run the movie explorer bot."""
+    async with aiohttp.ClientSession() as session:
+        (room_url, _) = await configure(session)
+
+        transport = DailyTransport(
+            room_url,
+            None,
+            "Movie Explorer Bot",
+            DailyParams(
+                audio_out_enabled=True,
+                vad_enabled=True,
+                vad_analyzer=SileroVADAnalyzer(),
+                vad_audio_passthrough=True,
+            ),
+        )
+
+        stt = DeepgramSTTService(api_key=os.getenv("DEEPGRAM_API_KEY"))
+        tts = CartesiaTTSService(
+            api_key=os.getenv("CARTESIA_API_KEY"),
+            voice_id="c45bc5ec-dc68-4feb-8829-6e6b2748095d",  # Movieman
+            text_filter=MarkdownTextFilter(),
+        )
+        llm = AnthropicLLMService(
+            api_key=os.getenv("ANTHROPIC_API_KEY"), model="claude-3-5-sonnet-latest"
+        )
+
+        context = OpenAILLMContext()
+        context_aggregator = llm.create_context_aggregator(context)
+
+        pipeline = Pipeline(
+            [
+                transport.input(),  # Transport user input
+                stt,  # STT
+                context_aggregator.user(),  # User responses
+                llm,  # LLM
+                tts,  # TTS
+                transport.output(),  # Transport bot output
+                context_aggregator.assistant(),  # Assistant spoken responses
+            ]
+        )
+
+        task = PipelineTask(pipeline, PipelineParams(allow_interruptions=True))
+
+        # Initialize flow manager
+        flow_manager = FlowManager(task=task, llm=llm, tts=tts, flow_config=flow_config)
+
+        @transport.event_handler("on_first_participant_joined")
+        async def on_first_participant_joined(transport, participant):
+            await transport.capture_participant_transcription(participant["id"])
+            await flow_manager.initialize()
+            await task.queue_frames([context_aggregator.user().get_context_frame()])
+
+        runner = PipelineRunner()
+        await runner.run(task)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
+
+=== ./static/movie_explorer_gemini.py ===
+#
+# Copyright (c) 2024, Daily
+#
+# SPDX-License-Identifier: BSD 2-Clause License
+#
+# Movie Explorer Example
+#
+# This example demonstrates how to create a conversational movie exploration bot using:
+# - TMDB API for real movie data (including cast information)
+# - Pipecat Flows for conversation management
+# - Node functions for API calls (get_movies, get_movie_details, get_similar_movies)
+# - Edge functions for state transitions (explore_movie, greeting, end)
+#
+# The flow allows users to:
+# 1. See what movies are currently playing or coming soon
+# 2. Get detailed information about specific movies (including cast)
+# 3. Find similar movies as recommendations
+#
+# Requirements:
+# - TMDB API key (https://www.themoviedb.org/documentation/api)
+# - Daily room URL
+# - Google API key (also, pip install pipecat-ai[google])
+# - Deepgram API key
+
+import asyncio
+import os
+import sys
+from pathlib import Path
+from typing import List, Literal, TypedDict, Union
+
+import aiohttp
+from dotenv import load_dotenv
+from loguru import logger
+from pipecat.audio.vad.silero import SileroVADAnalyzer
+from pipecat.pipeline.pipeline import Pipeline
+from pipecat.pipeline.runner import PipelineRunner
+from pipecat.pipeline.task import PipelineParams, PipelineTask
+from pipecat.processors.aggregators.openai_llm_context import OpenAILLMContext
+from pipecat.services.cartesia import CartesiaTTSService
+from pipecat.services.deepgram import DeepgramSTTService
+from pipecat.services.google import GoogleLLMService
+from pipecat.transports.services.daily import DailyParams, DailyTransport
+from pipecat.utils.text.markdown_text_filter import MarkdownTextFilter
+
+sys.path.append(str(Path(__file__).parent.parent))
+from runner import configure
+
+from pipecat_flows import FlowArgs, FlowConfig, FlowManager, FlowResult
+
+load_dotenv(override=True)
+
+logger.remove(0)
+logger.add(sys.stderr, level="DEBUG")
+
+# TMDB API setup
+TMDB_API_KEY = os.getenv("TMDB_API_KEY")
+TMDB_BASE_URL = "https://api.themoviedb.org/3"
+
+
+# Type definitions for API responses
+class MovieBasic(TypedDict):
+    id: int
+    title: str
+    overview: str
+
+
+class MovieDetails(TypedDict):
+    title: str
+    runtime: int
+    rating: float
+    overview: str
+    genres: List[str]
+    cast: List[str]  # List of "Actor Name as Character Name"
+
+
+class MoviesResult(FlowResult):
+    movies: List[MovieBasic]
+
+
+class MovieDetailsResult(FlowResult, MovieDetails):
+    pass
+
+
+class SimilarMoviesResult(FlowResult):
+    movies: List[MovieBasic]
+
+
+class ErrorResult(FlowResult):
+    status: Literal["error"]
+    error: str
+
+
+class TMDBApi:
+    """Handles all TMDB API interactions with proper typing and error handling."""
+
+    def __init__(self, api_key: str, base_url: str = "https://api.themoviedb.org/3"):
+        self.api_key = api_key
+        self.base_url = base_url
+
+    async def fetch_current_movies(self, session: aiohttp.ClientSession) -> List[MovieBasic]:
+        """Fetch currently playing movies from TMDB.
+
+        Returns top 5 movies with basic information.
+        """
+        url = f"{self.base_url}/movie/now_playing"
+        params = {"api_key": self.api_key, "language": "en-US", "page": 1}
+
+        async with session.get(url, params=params) as response:
+            if response.status != 200:
+                logger.error(f"TMDB API Error: {response.status}")
+                raise ValueError(f"API returned status {response.status}")
+
+            data = await response.json()
+            if "results" not in data:
+                logger.error(f"Unexpected API response: {data}")
+                raise ValueError("Invalid API response format")
+
+            return [
+                {
+                    "id": movie["id"],
+                    "title": movie["title"],
+                    "overview": movie["overview"][:100] + "...",
+                }
+                for movie in data["results"][:5]
+            ]
+
+    async def fetch_upcoming_movies(self, session: aiohttp.ClientSession) -> List[MovieBasic]:
+        """Fetch upcoming movies from TMDB.
+
+        Returns top 5 upcoming movies with basic information.
+        """
+        url = f"{self.base_url}/movie/upcoming"
+        params = {"api_key": self.api_key, "language": "en-US", "page": 1}
+
+        async with session.get(url, params=params) as response:
+            if response.status != 200:
+                logger.error(f"TMDB API Error: {response.status}")
+                raise ValueError(f"API returned status {response.status}")
+
+            data = await response.json()
+            if "results" not in data:
+                logger.error(f"Unexpected API response: {data}")
+                raise ValueError("Invalid API response format")
+
+            return [
+                {
+                    "id": movie["id"],
+                    "title": movie["title"],
+                    "overview": movie["overview"][:100] + "...",
+                }
+                for movie in data["results"][:5]
+            ]
+
+    async def fetch_movie_credits(self, session: aiohttp.ClientSession, movie_id: int) -> List[str]:
+        """Fetch top cast members for a movie.
+
+        Returns list of strings in format: "Actor Name as Character Name"
+        """
+        url = f"{self.base_url}/movie/{movie_id}/credits"
+        params = {"api_key": self.api_key, "language": "en-US"}
+
+        async with session.get(url, params=params) as response:
+            if response.status != 200:
+                logger.error(f"TMDB API Error: {response.status}")
+                raise ValueError(f"API returned status {response.status}")
+
+            data = await response.json()
+            if "cast" not in data:
+                logger.error(f"Unexpected API response: {data}")
+                raise ValueError("Invalid API response format")
+
+            return [
+                f"{actor['name']} as {actor['character']}"
+                for actor in data["cast"][:5]  # Top 5 cast members
+            ]
+
+    async def fetch_movie_details(
+        self, session: aiohttp.ClientSession, movie_id: int
+    ) -> MovieDetails:
+        """Fetch detailed information about a specific movie, including cast."""
+        # Fetch basic movie details
+        url = f"{self.base_url}/movie/{movie_id}"
+        params = {"api_key": self.api_key, "language": "en-US"}
+
+        async with session.get(url, params=params) as response:
+            if response.status != 200:
+                logger.error(f"TMDB API Error: {response.status}")
+                raise ValueError(f"API returned status {response.status}")
+
+            data = await response.json()
+            required_fields = ["title", "runtime", "vote_average", "overview", "genres"]
+            if not all(field in data for field in required_fields):
+                logger.error(f"Missing required fields in response: {data}")
+                raise ValueError("Invalid API response format")
+
+            # Fetch cast information
+            cast = await self.fetch_movie_credits(session, movie_id)
+
+            return {
+                "title": data["title"],
+                "runtime": data["runtime"],
+                "rating": data["vote_average"],
+                "overview": data["overview"],
+                "genres": [genre["name"] for genre in data["genres"]],
+                "cast": cast,
+            }
+
+    async def fetch_similar_movies(
+        self, session: aiohttp.ClientSession, movie_id: int
+    ) -> List[MovieBasic]:
+        """Fetch movies similar to the specified movie.
+
+        Returns top 3 similar movies with basic information.
+        """
+        url = f"{self.base_url}/movie/{movie_id}/similar"
+        params = {"api_key": self.api_key, "language": "en-US", "page": 1}
+
+        async with session.get(url, params=params) as response:
+            if response.status != 200:
+                logger.error(f"TMDB API Error: {response.status}")
+                raise ValueError(f"API returned status {response.status}")
+
+            data = await response.json()
+            if "results" not in data:
+                logger.error(f"Unexpected API response: {data}")
+                raise ValueError("Invalid API response format")
+
+            return [
+                {
+                    "id": movie["id"],
+                    "title": movie["title"],
+                    "overview": movie["overview"][:100] + "...",
+                }
+                for movie in data["results"][:3]
+            ]
+
+
+# Create TMDB API instance
+tmdb_api = TMDBApi(TMDB_API_KEY)
+
+
+# Function handlers for the LLM
+# These are node functions that perform operations without changing conversation state
+async def get_movies() -> Union[MoviesResult, ErrorResult]:
+    """Handler for fetching current movies."""
+    logger.debug("Calling TMDB API: get_movies")
+    async with aiohttp.ClientSession() as session:
+        try:
+            movies = await tmdb_api.fetch_current_movies(session)
+            logger.debug(f"TMDB API Response: {movies}")
+            return MoviesResult(movies=movies)
+        except Exception as e:
+            logger.error(f"TMDB API Error: {e}")
+            return ErrorResult(error="Failed to fetch movies")
+
+
+async def get_upcoming_movies() -> Union[MoviesResult, ErrorResult]:
+    """Handler for fetching upcoming movies."""
+    logger.debug("Calling TMDB API: get_upcoming_movies")
+    async with aiohttp.ClientSession() as session:
+        try:
+            movies = await tmdb_api.fetch_upcoming_movies(session)
+            logger.debug(f"TMDB API Response: {movies}")
+            return MoviesResult(movies=movies)
+        except Exception as e:
+            logger.error(f"TMDB API Error: {e}")
+            return ErrorResult(error="Failed to fetch upcoming movies")
+
+
+async def get_movie_details(args: FlowArgs) -> Union[MovieDetailsResult, ErrorResult]:
+    """Handler for fetching movie details including cast."""
+    movie_id = args["movie_id"]
+    logger.debug(f"Calling TMDB API: get_movie_details for ID {movie_id}")
+    async with aiohttp.ClientSession() as session:
+        try:
+            details = await tmdb_api.fetch_movie_details(session, movie_id)
+            logger.debug(f"TMDB API Response: {details}")
+            return MovieDetailsResult(**details)
+        except Exception as e:
+            logger.error(f"TMDB API Error: {e}")
+            return ErrorResult(error=f"Failed to fetch details for movie {movie_id}")
+
+
+async def get_similar_movies(args: FlowArgs) -> Union[SimilarMoviesResult, ErrorResult]:
+    """Handler for fetching similar movies."""
+    movie_id = args["movie_id"]
+    logger.debug(f"Calling TMDB API: get_similar_movies for ID {movie_id}")
+    async with aiohttp.ClientSession() as session:
+        try:
+            similar = await tmdb_api.fetch_similar_movies(session, movie_id)
+            logger.debug(f"TMDB API Response: {similar}")
+            return SimilarMoviesResult(movies=similar)
+        except Exception as e:
+            logger.error(f"TMDB API Error: {e}")
+            return ErrorResult(error=f"Failed to fetch similar movies for {movie_id}")
+
+
+# Flow configuration
+flow_config: FlowConfig = {
+    "initial_node": "greeting",
+    "nodes": {
+        "greeting": {
+            "role_messages": [
+                {
+                    "role": "system",
+                    "content": "You are a friendly movie expert. Your responses will be converted to audio, so avoid special characters. Always use the available functions to progress the conversation naturally.",
+                }
+            ],
+            "task_messages": [
+                {
+                    "role": "system",
+                    "content": "Start by greeting the user and asking if they'd like to know about movies currently in theaters or upcoming releases. Wait for their choice before using either get_current_movies or get_upcoming_movies.",
+                }
+            ],
+            "functions": [
+                {
+                    "function_declarations": [
+                        {
+                            "name": "get_current_movies",
+                            "handler": get_movies,
+                            "description": "Fetch movies currently playing in theaters",
+                            "parameters": None, # Specify None for no parameters
+                            "transition_to": "explore_movie",
+                        },
+                        {
+                            "name": "get_upcoming_movies",
+                            "handler": get_upcoming_movies,
+                            "description": "Fetch movies coming soon to theaters",
+                            "parameters": None, # Specify None for no parameters
+                            "transition_to": "explore_movie",
+                        },
+                    ]
+                }
+            ],
+        },
+        "explore_movie": {
+            "task_messages": [
+                {
+                    "role": "system",
+                    "content": """Help the user learn more about movies. You can:
+- Use get_movie_details when they express interest in a specific movie
+- Use get_similar_movies to show recommendations
+- Use get_current_movies to see what's playing now
+- Use get_upcoming_movies to see what's coming soon
+- Use end_conversation when they're done exploring
+
+After showing details or recommendations, ask if they'd like to explore another movie or end the conversation.""",
+                }
+            ],
+            "functions": [
+                {
+                    "function_declarations": [
+                        {
+                            "name": "get_movie_details",
+                            "handler": get_movie_details,
+                            "description": "Get details about a specific movie including cast",
+                            "parameters": {
+                                "type": "object",
+                                "properties": {
+                                    "movie_id": {"type": "integer", "description": "TMDB movie ID"}
+                                },
+                                "required": ["movie_id"],
+                            },
+                        },
+                        {
+                            "name": "get_similar_movies",
+                            "handler": get_similar_movies,
+                            "description": "Get similar movies as recommendations",
+                            "parameters": {
+                                "type": "object",
+                                "properties": {
+                                    "movie_id": {"type": "integer", "description": "TMDB movie ID"}
+                                },
+                                "required": ["movie_id"],
+                            },
+                        },
+                        {
+                            "name": "get_current_movies",
+                            "handler": get_movies,
+                            "description": "Show current movies in theaters",
+                            "parameters": None, # Specify None for no parameters
+                        },
+                        {
+                            "name": "get_upcoming_movies",
+                            "handler": get_upcoming_movies,
+                            "description": "Show movies coming soon",
+                            "parameters": None, # Specify None for no parameters,
+                        },
+                        {
+                            "name": "end_conversation",
+                            "description": "End the conversation",
+                            "parameters": None, # Specify None for no parameters,
+                            "transition_to": "end",
+                        },
+                    ]
+                }
+            ],
+        },
+        "end": {
+            "task_messages": [
+                {
+                    "role": "system",
+                    "content": "Thank the user warmly and mention they can return anytime to discover more movies.",
+                }
+            ],
+            "functions": [],
+            "post_actions": [{"type": "end_conversation"}],
+        },
+    },
+}
+
+
+async def main():
+    """Main function to set up and run the movie explorer bot."""
+    async with aiohttp.ClientSession() as session:
+        (room_url, _) = await configure(session)
+
+        transport = DailyTransport(
+            room_url,
+            None,
+            "Movie Explorer Bot",
+            DailyParams(
+                audio_out_enabled=True,
+                vad_enabled=True,
+                vad_analyzer=SileroVADAnalyzer(),
+                vad_audio_passthrough=True,
+            ),
+        )
+
+        stt = DeepgramSTTService(api_key=os.getenv("DEEPGRAM_API_KEY"))
+        tts = CartesiaTTSService(
+            api_key=os.getenv("CARTESIA_API_KEY"),
+            voice_id="c45bc5ec-dc68-4feb-8829-6e6b2748095d",  # Movieman
+            text_filter=MarkdownTextFilter(),
+        )
+        llm = GoogleLLMService(api_key=os.getenv("GOOGLE_API_KEY"), model="gemini-2.0-flash-exp")
+
+        context = OpenAILLMContext()
+        context_aggregator = llm.create_context_aggregator(context)
+
+        pipeline = Pipeline(
+            [
+                transport.input(),  # Transport user input
+                stt,  # STT
+                context_aggregator.user(),  # User responses
+                llm,  # LLM
+                tts,  # TTS
+                transport.output(),  # Transport bot output
+                context_aggregator.assistant(),  # Assistant spoken responses
+            ]
+        )
+
+        task = PipelineTask(pipeline, PipelineParams(allow_interruptions=True))
+
+        # Initialize flow manager
+        flow_manager = FlowManager(task=task, llm=llm, tts=tts, flow_config=flow_config)
+
+        @transport.event_handler("on_first_participant_joined")
+        async def on_first_participant_joined(transport, participant):
+            await transport.capture_participant_transcription(participant["id"])
+            await flow_manager.initialize()
+            await task.queue_frames([context_aggregator.user().get_context_frame()])
+
+        runner = PipelineRunner()
+        await runner.run(task)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
+
+=== ./static/food_ordering.py ===
+#
+# Copyright (c) 2024, Daily
+#
+# SPDX-License-Identifier: BSD 2-Clause License
+#
+
+import asyncio
+import os
+import sys
+from pathlib import Path
+
+import aiohttp
+from dotenv import load_dotenv
+from loguru import logger
+from pipecat.audio.vad.silero import SileroVADAnalyzer
+from pipecat.pipeline.pipeline import Pipeline
+from pipecat.pipeline.runner import PipelineRunner
+from pipecat.pipeline.task import PipelineParams, PipelineTask
+from pipecat.processors.aggregators.openai_llm_context import OpenAILLMContext
+from pipecat.services.cartesia import CartesiaTTSService
+from pipecat.services.deepgram import DeepgramSTTService
+from pipecat.services.openai import OpenAILLMService
+from pipecat.transports.services.daily import DailyParams, DailyTransport
+
+from pipecat_flows import FlowArgs, FlowConfig, FlowManager, FlowResult
+
+sys.path.append(str(Path(__file__).parent.parent))
+from runner import configure
+
+load_dotenv(override=True)
+
+logger.remove(0)
+logger.add(sys.stderr, level="DEBUG")
+
+# Flow Configuration - Food ordering
+#
+# This configuration defines a food ordering system with the following states:
+#
+# 1. start
+#    - Initial state where user chooses between pizza or sushi
+#    - Functions:
+#      * choose_pizza (transitions to choose_pizza)
+#      * choose_sushi (transitions to choose_sushi)
+#
+# 2. choose_pizza
+#    - Handles pizza order details
+#    - Functions:
+#      * select_pizza_order (node function with size and type)
+#      * confirm_order (transitions to confirm)
+#    - Pricing:
+#      * Small: $10
+#      * Medium: $15
+#      * Large: $20
+#
+# 3. choose_sushi
+#    - Handles sushi order details
+#    - Functions:
+#      * select_sushi_order (node function with count and type)
+#      * confirm_order (transitions to confirm)
+#    - Pricing:
+#      * $8 per roll
+#
+# 4. confirm
+#    - Reviews order details with the user
+#    - Functions:
+#      * complete_order (transitions to end)
+#
+# 5. end
+#    - Final state that closes the conversation
+#    - No functions available
+#    - Post-action: Ends conversation
+
+
+# Type definitions
+class PizzaOrderResult(FlowResult):
+    size: str
+    type: str
+    price: float
+
+
+class SushiOrderResult(FlowResult):
+    count: int
+    type: str
+    price: float
+
+
+# Function handlers
+async def select_pizza_order(args: FlowArgs) -> PizzaOrderResult:
+    """Handle pizza size and type selection."""
+    size = args["size"]
+    pizza_type = args["type"]
+
+    # Simple pricing
+    base_price = {"small": 10.00, "medium": 15.00, "large": 20.00}
+    price = base_price[size]
+
+    return {"size": size, "type": pizza_type, "price": price}
+
+
+async def select_sushi_order(args: FlowArgs) -> SushiOrderResult:
+    """Handle sushi roll count and type selection."""
+    count = args["count"]
+    roll_type = args["type"]
+
+    # Simple pricing: $8 per roll
+    price = count * 8.00
+
+    return {"count": count, "type": roll_type, "price": price}
+
+
+flow_config: FlowConfig = {
+    "initial_node": "start",
+    "nodes": {
+        "start": {
+            "role_messages": [
+                {
+                    "role": "system",
+                    "content": "You are an order-taking assistant. You must ALWAYS use the available functions to progress the conversation. This is a phone conversation and your responses will be converted to audio. Keep the conversation friendly, casual, and polite. Avoid outputting special characters and emojis.",
+                }
+            ],
+            "task_messages": [
+                {
+                    "role": "system",
+                    "content": "For this step, ask the user if they want pizza or sushi, and wait for them to use a function to choose. Start off by greeting them. Be friendly and casual; you're taking an order for food over the phone.",
+                }
+            ],
+            "functions": [
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "choose_pizza",
+                        "description": "User wants to order pizza. Let's get that order started.",
+                        "parameters": {"type": "object", "properties": {}},
+                        "transition_to": "choose_pizza",
+                    },
+                },
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "choose_sushi",
+                        "description": "User wants to order sushi. Let's get that order started.",
+                        "parameters": {"type": "object", "properties": {}},
+                        "transition_to": "choose_sushi",
+                    },
+                },
+            ],
+        },
+        "choose_pizza": {
+            "task_messages": [
+                {
+                    "role": "system",
+                    "content": """You are handling a pizza order. Use the available functions:
+- Use select_pizza_order when the user specifies both size AND type
+- Use confirm_order when the user confirms they are satisfied with their selection
+
+Pricing:
+- Small: $10
+- Medium: $15
+- Large: $20
+
+After selection, confirm both the size and type, state the price, and ask if they want to confirm their order. Remember to be friendly and casual.""",
+                }
+            ],
+            "functions": [
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "select_pizza_order",
+                        "handler": select_pizza_order,
+                        "description": "Record the pizza order details",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "size": {
+                                    "type": "string",
+                                    "enum": ["small", "medium", "large"],
+                                    "description": "Size of the pizza",
+                                },
+                                "type": {
+                                    "type": "string",
+                                    "enum": ["pepperoni", "cheese", "supreme", "vegetarian"],
+                                    "description": "Type of pizza",
+                                },
+                            },
+                            "required": ["size", "type"],
+                        },
+                    },
+                },
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "confirm_order",
+                        "description": "Proceed to order confirmation",
+                        "parameters": {"type": "object", "properties": {}},
+                        "transition_to": "confirm",
+                    },
+                },
+            ],
+        },
+        "choose_sushi": {
+            "task_messages": [
+                {
+                    "role": "system",
+                    "content": """You are handling a sushi order. Use the available functions:
+- Use select_sushi_order when the user specifies both count AND type
+- Use confirm_order when the user confirms they are satisfied with their selection
+
+Pricing:
+- $8 per roll
+
+After selection, confirm both the count and type, state the price, and ask if they want to confirm their order. Remember to be friendly and casual.""",
+                }
+            ],
+            "functions": [
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "select_sushi_order",
+                        "handler": select_sushi_order,
+                        "description": "Record the sushi order details",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "count": {
+                                    "type": "integer",
+                                    "minimum": 1,
+                                    "maximum": 10,
+                                    "description": "Number of rolls to order",
+                                },
+                                "type": {
+                                    "type": "string",
+                                    "enum": ["california", "spicy tuna", "rainbow", "dragon"],
+                                    "description": "Type of sushi roll",
+                                },
+                            },
+                            "required": ["count", "type"],
+                        },
+                    },
+                },
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "confirm_order",
+                        "description": "Proceed to order confirmation",
+                        "parameters": {"type": "object", "properties": {}},
+                        "transition_to": "confirm",
+                    },
+                },
+            ],
+        },
+        "confirm": {
+            "task_messages": [
+                {
+                    "role": "system",
+                    "content": """Read back the complete order details to the user and ask for final confirmation. Use the available functions:
+- Use complete_order when the user confirms
+- Use revise_order if they want to change something
+
+Be friendly and clear when reading back the order details.""",
+                }
+            ],
+            "functions": [
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "complete_order",
+                        "description": "User confirms the order is correct",
+                        "parameters": {"type": "object", "properties": {}},
+                        "transition_to": "end",
+                    },
+                },
+            ],
+        },
+        "end": {
+            "task_messages": [
+                {
+                    "role": "system",
+                    "content": "Concisely end the conversation—1-3 words is appropriate. Just say 'Bye' or something similarly short.",
+                }
+            ],
+            "functions": [],
+            "post_actions": [{"type": "end_conversation"}],
+        },
+    },
+}
+
+
+async def main():
+    """Main function to set up and run the food ordering bot."""
+    async with aiohttp.ClientSession() as session:
+        (room_url, _) = await configure(session)
+
+        # Initialize services
+        transport = DailyTransport(
+            room_url,
+            None,
+            "Food Ordering Bot",
+            DailyParams(
+                audio_out_enabled=True,
+                vad_enabled=True,
+                vad_analyzer=SileroVADAnalyzer(),
+                vad_audio_passthrough=True,
+            ),
+        )
+
+        stt = DeepgramSTTService(api_key=os.getenv("DEEPGRAM_API_KEY"))
+        tts = CartesiaTTSService(
+            api_key=os.getenv("CARTESIA_API_KEY"),
+            voice_id="820a3788-2b37-4d21-847a-b65d8a68c99a",  # Salesman
+        )
+        llm = OpenAILLMService(api_key=os.getenv("OPENAI_API_KEY"), model="gpt-4o")
+
+
+        context = OpenAILLMContext()
+        context_aggregator = llm.create_context_aggregator(context)
+
+        # Create pipeline
+        pipeline = Pipeline(
+            [
+                transport.input(),
+                stt,
+                context_aggregator.user(),
+                llm,
+                tts,
+                transport.output(),
+                context_aggregator.assistant(),
+            ]
+        )
+
+        task = PipelineTask(pipeline, PipelineParams(allow_interruptions=True))
+
+        # Initialize flow manager in static mode
+        flow_manager = FlowManager(task=task, llm=llm, tts=tts, flow_config=flow_config)
+
+        @transport.event_handler("on_first_participant_joined")
+        async def on_first_participant_joined(transport, participant):
+            await transport.capture_participant_transcription(participant["id"])
+            logger.debug("Initializing flow")
+            await flow_manager.initialize()
+            logger.debug("Starting conversation")
+            await task.queue_frames([context_aggregator.user().get_context_frame()])
+
+        runner = PipelineRunner()
+        await runner.run(task)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
+
+=== ./static/restaurant_reservation.py ===
+#
+# Copyright (c) 2024, Daily
+#
+# SPDX-License-Identifier: BSD 2-Clause License
+#
+
+import asyncio
+import os
+import sys
+from pathlib import Path
+
+import aiohttp
+from dotenv import load_dotenv
+from loguru import logger
+from pipecat.audio.vad.silero import SileroVADAnalyzer
+from pipecat.pipeline.pipeline import Pipeline
+from pipecat.pipeline.runner import PipelineRunner
+from pipecat.pipeline.task import PipelineParams, PipelineTask
+from pipecat.processors.aggregators.openai_llm_context import OpenAILLMContext
+from pipecat.services.cartesia import CartesiaTTSService
+from pipecat.services.deepgram import DeepgramSTTService
+from pipecat.services.openai import OpenAILLMService
+from pipecat.transports.services.daily import DailyParams, DailyTransport
+
+sys.path.append(str(Path(__file__).parent.parent))
+from runner import configure
+
+from pipecat_flows import FlowArgs, FlowConfig, FlowManager, FlowResult
+
+load_dotenv(override=True)
+
+logger.remove(0)
+logger.add(sys.stderr, level="DEBUG")
+
+# Flow Configuration - Restaurant Reservation System
+#
+# This configuration defines a streamlined restaurant reservation system with the following states:
+#
+# 1. start
+#    - Initial state collecting party size information
+#    - Functions:
+#      * record_party_size (node function, validates 1-12 people)
+#      * get_time (edge function, transitions to time selection)
+#    - Expected flow: Greet -> Ask party size -> Record -> Transition to time
+#
+# 2. get_time
+#    - Collects preferred reservation time
+#    - Operating hours: 5 PM - 10 PM
+#    - Functions:
+#      * record_time (node function, collects time in HH:MM format)
+#      * confirm (edge function, transitions to confirmation)
+#    - Expected flow: Ask preferred time -> Record time -> Proceed to confirmation
+#
+# 3. confirm
+#    - Reviews reservation details with guest
+#    - Functions:
+#      * end (edge function, transitions to end)
+#    - Expected flow: Review details -> Confirm -> End conversation
+#
+# 4. end
+#    - Final state that closes the conversation
+#    - No functions available
+#    - Post-action: Ends conversation
+#
+# This simplified flow demonstrates both node functions (which perform operations within
+# a state) and edge functions (which transition between states), while maintaining a
+# clear and efficient reservation process.
+
+
+# Type definitions
+class PartySizeResult(FlowResult):
+    size: int
+
+
+class TimeResult(FlowResult):
+    time: str
+
+
+# Function handlers
+async def record_party_size(args: FlowArgs) -> FlowResult:
+    """Handler for recording party size."""
+    size = args["size"]
+    # In a real app, this would store the reservation details
+    return PartySizeResult(size=size)
+
+
+async def record_time(args: FlowArgs) -> FlowResult:
+    """Handler for recording reservation time."""
+    time = args["time"]
+    # In a real app, this would validate availability and store the time
+    return TimeResult(time=time)
+
+
+flow_config: FlowConfig = {
+    "initial_node": "start",
+    "nodes": {
+        "start": {
+            "role_messages": [
+                {
+                    "role": "system",
+                    "content": "You are a restaurant reservation assistant for La Maison, an upscale French restaurant. You must ALWAYS use one of the available functions to progress the conversation. This is a phone conversations and your responses will be converted to audio. Avoid outputting special characters and emojis. Be causal and friendly.",
+                }
+            ],
+            "task_messages": [
+                {
+                    "role": "system",
+                    "content": "Warmly greet the customer and ask how many people are in their party.",
+                }
+            ],
+            "functions": [
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "record_party_size",
+                        "handler": record_party_size,
+                        "description": "Record the number of people in the party",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "size": {"type": "integer", "minimum": 1, "maximum": 12}
+                            },
+                            "required": ["size"],
+                        },
+                        "transition_to": "get_time",
+                    },
+                },
+            ],
+        },
+        "get_time": {
+            "task_messages": [
+                {
+                    "role": "system",
+                    "content": "Ask what time they'd like to dine. Restaurant is open 5 PM to 10 PM. After they provide a time, confirm it's within operating hours before recording. Use 24-hour format for internal recording (e.g., 17:00 for 5 PM).",
+                }
+            ],
+            "functions": [
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "record_time",
+                        "handler": record_time,
+                        "description": "Record the requested time",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "time": {
+                                    "type": "string",
+                                    "pattern": "^(17|18|19|20|21|22):([0-5][0-9])$",
+                                    "description": "Reservation time in 24-hour format (17:00-22:00)",
+                                }
+                            },
+                            "required": ["time"],
+                        },
+                        "transition_to": "confirm",
+                    },
+                },
+            ],
+        },
+        "confirm": {
+            "task_messages": [
+                {
+                    "role": "system",
+                    "content": "Confirm the reservation details and end the conversation.",
+                }
+            ],
+            "functions": [
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "end",
+                        "description": "End the conversation",
+                        "parameters": {"type": "object", "properties": {}},
+                        "transition_to": "end",
+                    },
+                }
+            ],
+        },
+        "end": {
+            "task_messages": [{"role": "system", "content": "Thank them and end the conversation."}],
+            "functions": [],
+            "post_actions": [{"type": "end_conversation"}],
+        },
+    },
+}
+
+
+async def main():
+    async with aiohttp.ClientSession() as session:
+        (room_url, _) = await configure(session)
+
+        transport = DailyTransport(
+            room_url,
+            None,
+            "Reservation bot",
+            DailyParams(
+                audio_out_enabled=True,
+                vad_enabled=True,
+                vad_analyzer=SileroVADAnalyzer(),
+                vad_audio_passthrough=True,
+            ),
+        )
+
+        stt = DeepgramSTTService(api_key=os.getenv("DEEPGRAM_API_KEY"))
+        tts = CartesiaTTSService(
+            api_key=os.getenv("CARTESIA_API_KEY"),
+            voice_id="79a125e8-cd45-4c13-8a67-188112f4dd22",  # British Lady
+        )
+        llm = OpenAILLMService(api_key=os.getenv("OPENAI_API_KEY"), model="gpt-4o")
+
+        context = OpenAILLMContext()
+        context_aggregator = llm.create_context_aggregator(context)
+
+        pipeline = Pipeline(
+            [
+                transport.input(),  # Transport user input
+                stt,  # STT
+                context_aggregator.user(),  # User responses
+                llm,  # LLM
+                tts,  # TTS
+                transport.output(),  # Transport bot output
+                context_aggregator.assistant(),  # Assistant spoken responses
+            ]
+        )
+
+        task = PipelineTask(pipeline, PipelineParams(allow_interruptions=True))
+
+        # Initialize flow manager with LLM
+        flow_manager = FlowManager(task=task, llm=llm, tts=tts, flow_config=flow_config)
+
+        @transport.event_handler("on_first_participant_joined")
+        async def on_first_participant_joined(transport, participant):
+            await transport.capture_participant_transcription(participant["id"])
+            # Initialize the flow processor
+            await flow_manager.initialize()
+            # Kick off the conversation using the context aggregator
+            await task.queue_frames([context_aggregator.user().get_context_frame()])
+
+        runner = PipelineRunner()
+        await runner.run(task)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
+

@@ -1,0 +1,4 @@
+pipecat-ai[daily,openai,deepgram,flows]
+pipecat-ai-flows
+aiohttp
+python-dotenv
