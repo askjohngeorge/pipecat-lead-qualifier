@@ -1,6 +1,10 @@
 import asyncio
 import os
 from aiohttp import ClientSession
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.task import PipelineParams, PipelineTask
 from pipecat.pipeline.runner import PipelineRunner
@@ -255,9 +259,9 @@ async def main():
         # Initialize transport
         transport = DailyTransport(
             room_url=DAILY_ROOM_URL,
-            participant=None,
-            assistant_name="Lead Qualification Bot",
-            daily_params=DailyParams(
+            token=None,
+            bot_name="Lead Qualification Bot",
+            params=DailyParams(
                 audio_out_enabled=True,
                 vad_enabled=True,
             ),
