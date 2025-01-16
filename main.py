@@ -1,4 +1,5 @@
 import asyncio
+import os
 from aiohttp import ClientSession
 from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.task import PipelineParams, PipelineTask
@@ -246,16 +247,14 @@ flow_config: FlowConfig = {
 async def main():
     """Setup and run the lead qualification agent."""
     async with ClientSession() as session:
-        # Replace these with your actual service configurations
-        daily_room_url = (
-            "https://your-daily-room-url"  # Replace with your Daily room URL
-        )
-        openai_api_key = "your-openai-api-key"  # Replace with your OpenAI API key
-        deepgram_api_key = "your-deepgram-api-key"  # Replace with your Deepgram API key
+        # Load configurations from environment variables
+        DAILY_ROOM_URL = os.getenv("DAILY_ROOM_URL")
+        OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+        DEEPGRAM_API_KEY = os.getenv("DEEPGRAM_API_KEY")
 
         # Initialize transport
         transport = DailyTransport(
-            room_url=daily_room_url,
+            room_url=DAILY_ROOM_URL,
             participant=None,
             assistant_name="Lead Qualification Bot",
             daily_params=DailyParams(
@@ -265,9 +264,9 @@ async def main():
         )
 
         # Initialize services
-        stt = DeepgramSTTService(api_key=deepgram_api_key)
-        tts = DeepgramTTSService(api_key=deepgram_api_key, voice="aura-helios-en")
-        llm = OpenAILLMService(api_key=openai_api_key, model="gpt-4o")
+        stt = DeepgramSTTService(api_key=DEEPGRAM_API_KEY)
+        tts = DeepgramTTSService(api_key=DEEPGRAM_API_KEY, voice="aura-helios-en")
+        llm = OpenAILLMService(api_key=OPENAI_API_KEY, model="gpt-4o")
 
         # Create a context aggregator
         context = OpenAILLMContext()
