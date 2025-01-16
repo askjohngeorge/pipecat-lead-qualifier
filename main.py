@@ -91,15 +91,18 @@ flow_config: FlowConfig = {
             ],
             "functions": [
                 {
-                    "name": "collect_name",
-                    "handler": collect_name,
-                    "description": "Collect caller's name",
-                    "input_schema": {
-                        "type": "object",
-                        "properties": {"name": {"type": "string"}},
-                        "required": ["name"],
+                    "type": "function",
+                    "function": {
+                        "name": "collect_name",
+                        "handler": collect_name,
+                        "description": "Collect caller's name",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {"name": {"type": "string"}},
+                            "required": ["name"],
+                        },
+                        "transition_to": "identify_use_case",
                     },
-                    "transition_to": "identify_use_case",
                 }
             ],
         },
@@ -116,15 +119,18 @@ flow_config: FlowConfig = {
             ],
             "functions": [
                 {
-                    "name": "identify_use_case",
-                    "handler": identify_use_case,
-                    "description": "Identify specific use case",
-                    "input_schema": {
-                        "type": "object",
-                        "properties": {"use_case": {"type": "string"}},
-                        "required": ["use_case"],
+                    "type": "function",
+                    "function": {
+                        "name": "identify_use_case",
+                        "handler": identify_use_case,
+                        "description": "Identify specific use case",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {"use_case": {"type": "string"}},
+                            "required": ["use_case"],
+                        },
+                        "transition_to": "establish_timescales",
                     },
-                    "transition_to": "establish_timescales",
                 }
             ],
         },
@@ -141,18 +147,21 @@ flow_config: FlowConfig = {
             ],
             "functions": [
                 {
-                    "name": "establish_timescales",
-                    "handler": establish_timescales,
-                    "description": "Establish project timescales",
-                    "input_schema": {
-                        "type": "object",
-                        "properties": {
-                            "start_date": {"type": "string"},
-                            "deadline": {"type": "string"},
+                    "type": "function",
+                    "function": {
+                        "name": "establish_timescales",
+                        "handler": establish_timescales,
+                        "description": "Establish project timescales",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "start_date": {"type": "string"},
+                                "deadline": {"type": "string"},
+                            },
+                            "required": ["start_date", "deadline"],
                         },
-                        "required": ["start_date", "deadline"],
+                        "transition_to": "determine_budget",
                     },
-                    "transition_to": "determine_budget",
                 }
             ],
         },
@@ -168,15 +177,18 @@ flow_config: FlowConfig = {
             ],
             "functions": [
                 {
-                    "name": "determine_budget",
-                    "handler": determine_budget,
-                    "description": "Determine budget range",
-                    "input_schema": {
-                        "type": "object",
-                        "properties": {"budget": {"type": "string"}},
-                        "required": ["budget"],
+                    "type": "function",
+                    "function": {
+                        "name": "determine_budget",
+                        "handler": determine_budget,
+                        "description": "Determine budget range",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {"budget": {"type": "string"}},
+                            "required": ["budget"],
+                        },
+                        "transition_to": "assess_feedback",
                     },
-                    "transition_to": "assess_feedback",
                 }
             ],
         },
@@ -192,15 +204,18 @@ flow_config: FlowConfig = {
             ],
             "functions": [
                 {
-                    "name": "assess_feedback",
-                    "handler": assess_feedback,
-                    "description": "Assess AI interaction experience",
-                    "input_schema": {
-                        "type": "object",
-                        "properties": {"feedback": {"type": "string"}},
-                        "required": ["feedback"],
+                    "type": "function",
+                    "function": {
+                        "name": "assess_feedback",
+                        "handler": assess_feedback,
+                        "description": "Assess AI interaction experience",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {"feedback": {"type": "string"}},
+                            "required": ["feedback"],
+                        },
+                        "transition_to": "offer_call_option",
                     },
-                    "transition_to": "offer_call_option",
                 }
             ],
         },
@@ -216,17 +231,23 @@ flow_config: FlowConfig = {
             ],
             "functions": [
                 {
-                    "name": "offer_call_option",
-                    "handler": offer_call_option,
-                    "description": "Offer discovery call options",
-                    "input_schema": {
-                        "type": "object",
-                        "properties": {
-                            "option": {"type": "string", "enum": ["book", "contact"]}
+                    "type": "function",
+                    "function": {
+                        "name": "offer_call_option",
+                        "handler": offer_call_option,
+                        "description": "Offer discovery call options",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "option": {
+                                    "type": "string",
+                                    "enum": ["book", "contact"],
+                                }
+                            },
+                            "required": ["option"],
                         },
-                        "required": ["option"],
+                        "transition_to": "close_call",
                     },
-                    "transition_to": "close_call",
                 }
             ],
         },
