@@ -2,6 +2,8 @@ import asyncio
 import os
 from aiohttp import ClientSession
 from dotenv import load_dotenv
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 # Load environment variables from .env file
 load_dotenv()
@@ -16,6 +18,46 @@ from pipecat.services.openai import OpenAILLMService
 from pipecat.services.deepgram import DeepgramSTTService, DeepgramTTSService
 from pipecat_flows import FlowManager, FlowArgs, FlowConfig, FlowResult
 from runner import configure
+from calcom_api import CalComAPI, BookingDetails
+
+# Initialize Cal.com API
+calcom_api = CalComAPI()
+
+
+async def handle_booking_request(args: FlowArgs) -> FlowResult:
+    """Handle the booking request with a fixed date."""
+    # Fixed date: January 19, 2025 at 12:00 PM UTC
+    booking_time = datetime(2025, 1, 19, 12, 0, tzinfo=ZoneInfo("UTC")).isoformat()
+
+    # Get the collected information from previous nodes
+    name = "Roger Rabbit"
+    company = "Who Framed Co."
+
+    booking_details: BookingDetails = {
+        "name": name,
+        "email": "test@example.com",  # You might want to collect this in a previous node
+        "company": company,
+        "phone": "123-456-7890",  # You might want to collect this in a previous node
+        "timezone": "UTC",
+        "startTime": booking_time,
+        "notes": "Booking from AI Lead Qualifier",
+    }
+
+    booking_response = await calcom_api.create_booking(booking_details)
+
+    if booking_response["success"]:
+        return FlowResult(
+            status="success",
+            message="Great! I've booked an appointment for you on January 19, 2025 at 12:00 PM UTC.",
+            data=booking_response["booking"],
+        )
+    else:
+        return FlowResult(
+            status="error",
+            message="I apologize, but I couldn't book the appointment. "
+            + booking_response.get("error", ""),
+            data=None,
+        )
 
 
 # Define the flow configuration
@@ -42,100 +84,101 @@ flow_config: FlowConfig = {
                         "name": "collect_name",
                         "description": "Record the caller's name",
                         "parameters": {"type": "object", "properties": {}},
-                        "transition_to": "identify_use_case",
-                    },
-                },
-            ],
-        },
-        "identify_use_case": {
-            "task_messages": [
-                {
-                    "role": "system",
-                    "content": "Ask about their voice AI needs.",
-                }
-            ],
-            "functions": [
-                {
-                    "type": "function",
-                    "function": {
-                        "name": "identify_use_case",
-                        "description": "Record their use case needs",
-                        "parameters": {"type": "object", "properties": {}},
-                        "transition_to": "establish_timescales",
-                    },
-                },
-            ],
-        },
-        "establish_timescales": {
-            "task_messages": [
-                {
-                    "role": "system",
-                    "content": "Ask about their desired timeline. Ask for both start date and deadline.",
-                }
-            ],
-            "functions": [
-                {
-                    "type": "function",
-                    "function": {
-                        "name": "establish_timescales",
-                        "description": "Record project timeline",
-                        "parameters": {"type": "object", "properties": {}},
-                        "transition_to": "determine_budget",
-                    },
-                },
-            ],
-        },
-        "determine_budget": {
-            "task_messages": [
-                {
-                    "role": "system",
-                    "content": "Ask about their budget for the voice AI solution. If they're unsure, explain our tiered options.",
-                }
-            ],
-            "functions": [
-                {
-                    "type": "function",
-                    "function": {
-                        "name": "determine_budget",
-                        "description": "Record their budget range",
-                        "parameters": {"type": "object", "properties": {}},
-                        "transition_to": "assess_feedback",
-                    },
-                },
-            ],
-        },
-        "assess_feedback": {
-            "task_messages": [
-                {
-                    "role": "system",
-                    "content": "Ask for their feedback on this AI interaction experience.",
-                }
-            ],
-            "functions": [
-                {
-                    "type": "function",
-                    "function": {
-                        "name": "assess_feedback",
-                        "description": "Record their interaction feedback",
-                        "parameters": {"type": "object", "properties": {}},
                         "transition_to": "offer_call_option",
                     },
                 },
             ],
         },
+        # "identify_use_case": {
+        #     "task_messages": [
+        #         {
+        #             "role": "system",
+        #             "content": "Ask about their voice AI needs.",
+        #         }
+        #     ],
+        #     "functions": [
+        #         {
+        #             "type": "function",
+        #             "function": {
+        #                 "name": "identify_use_case",
+        #                 "description": "Record their use case needs",
+        #                 "parameters": {"type": "object", "properties": {}},
+        #                 "transition_to": "establish_timescales",
+        #             },
+        #         },
+        #     ],
+        # },
+        # "establish_timescales": {
+        #     "task_messages": [
+        #         {
+        #             "role": "system",
+        #             "content": "Ask about their desired timeline. Ask for both start date and deadline.",
+        #         }
+        #     ],
+        #     "functions": [
+        #         {
+        #             "type": "function",
+        #             "function": {
+        #                 "name": "establish_timescales",
+        #                 "description": "Record project timeline",
+        #                 "parameters": {"type": "object", "properties": {}},
+        #                 "transition_to": "determine_budget",
+        #             },
+        #         },
+        #     ],
+        # },
+        # "determine_budget": {
+        #     "task_messages": [
+        #         {
+        #             "role": "system",
+        #             "content": "Ask about their budget for the voice AI solution. If they're unsure, explain our tiered options.",
+        #         }
+        #     ],
+        #     "functions": [
+        #         {
+        #             "type": "function",
+        #             "function": {
+        #                 "name": "determine_budget",
+        #                 "description": "Record their budget range",
+        #                 "parameters": {"type": "object", "properties": {}},
+        #                 "transition_to": "assess_feedback",
+        #             },
+        #         },
+        #     ],
+        # },
+        # "assess_feedback": {
+        #     "task_messages": [
+        #         {
+        #             "role": "system",
+        #             "content": "Ask for their feedback on this AI interaction experience.",
+        #         }
+        #     ],
+        #     "functions": [
+        #         {
+        #             "type": "function",
+        #             "function": {
+        #                 "name": "assess_feedback",
+        #                 "description": "Record their interaction feedback",
+        #                 "parameters": {"type": "object", "properties": {}},
+        #                 "transition_to": "offer_call_option",
+        #             },
+        #         },
+        #     ],
+        # },
         "offer_call_option": {
             "task_messages": [
                 {
                     "role": "system",
-                    "content": "Offer them the choice between booking a video call with John George or receiving follow-up via email.",
+                    "content": "Ask if they would like to book an appointment for January 19, 2025 at 12:00 PM UTC with John George.",
                 }
             ],
             "functions": [
                 {
                     "type": "function",
                     "function": {
-                        "name": "offer_call_option",
-                        "description": "Record their preferred follow-up method",
+                        "name": "handle_booking_request",
+                        "description": "Handle the booking request",
+                        "handler": handle_booking_request,
                         "parameters": {"type": "object", "properties": {}},
                         "transition_to": "close_call",
                     },
