@@ -1,10 +1,11 @@
 import os
 import json
-from typing import TypedDict, Optional, List, Dict, Union
+from typing import TypedDict, Optional, List, Dict, Union, Tuple
 from datetime import datetime, timedelta
 import aiohttp
 from dotenv import load_dotenv
 from loguru import logger
+from zoneinfo import ZoneInfo
 
 # Load environment variables
 load_dotenv()
@@ -64,117 +65,228 @@ class BookingResponse(TypedDict):
     error: Optional[str]
 
 
+class TimeSlot(TypedDict):
+    date: str  # e.g., "2024-01-19"
+    time: str  # e.g., "10:00 AM"
+    datetime: str  # Full ISO string
+    is_morning: bool
+
+
+class FormattedAvailability(TypedDict):
+    dates: List[str]
+    slots_by_date: Dict[str, List[TimeSlot]]
+
+
 class CalComAPI:
     def __init__(self):
         self.config = Config()
+        self._last_availability_check: Optional[FormattedAvailability] = None
 
-    async def get_availability(self, days: int = 5) -> AvailabilityResponse:
-        """Fetch available time slots for the configured event type."""
-        try:
-            start_time = datetime.now().isoformat()
-            end_time = (datetime.now() + timedelta(days=days)).isoformat()
+    def _format_time(self, dt_str: str, timezone: str = "UTC") -> Tuple[str, str, bool]:
+        """Format datetime string into date and time components."""
+        dt = datetime.fromisoformat(dt_str.replace("Z", "+00:00"))
+        if timezone != "UTC":
+            dt = dt.astimezone(ZoneInfo(timezone))
 
-            params = {
-                "startTime": start_time,
-                "endTime": end_time,
-                "eventTypeId": str(self.config.EVENT_TYPE_ID),
-                "eventTypeSlug": self.config.EVENT_SLUG,
-                "duration": str(self.config.EVENT_DURATION),
-                "usernameList[]": self.config.USERNAME,
-            }
+        date = dt.strftime("%A, %B %d")  # e.g., "Thursday, January 19"
+        time = dt.strftime("%I:%M %p")  # e.g., "10:00 AM"
+        is_morning = dt.hour < 12
 
-            logger.info("Cal.com Availability Request:")
-            logger.info(f"URL: {self.config.BASE_URL}/slots/available")
-            logger.info(f"Params: {json.dumps(params, indent=2)}")
-            logger.info(
-                f"Headers: {json.dumps({'Authorization': 'Bearer [REDACTED]', 'Content-Type': 'application/json'}, indent=2)}"
-            )
+        return date, time, is_morning
 
-            async with aiohttp.ClientSession() as session:
-                async with session.get(
-                    f"{self.config.BASE_URL}/slots/available",
-                    params=params,
-                    headers={
-                        "Authorization": f"Bearer {self.config.API_KEY}",
-                        "Content-Type": "application/json",
+    def _parse_availability(
+        self, slots_data: Dict[str, List[Slot]], timezone: str = "UTC"
+    ) -> FormattedAvailability:
+        """Parse and format the availability data into a more usable structure."""
+        formatted: Dict[str, List[TimeSlot]] = {}
+
+        for date_str, slots in slots_data.items():
+            for slot in slots:
+                date, time, is_morning = self._format_time(slot["time"], timezone)
+
+                if date not in formatted:
+                    formatted[date] = []
+
+                formatted[date].append(
+                    {
+                        "date": date,
+                        "time": time,
+                        "datetime": slot["time"],
+                        "is_morning": is_morning,
+                    }
+                )
+
+        # Sort dates
+        dates = sorted(
+            formatted.keys(), key=lambda x: datetime.strptime(x, "%A, %B %d")
+        )
+
+        return {"dates": dates, "slots_by_date": formatted}
+
+    def get_morning_afternoon_slots(
+        self, date: str
+    ) -> Tuple[Optional[TimeSlot], Optional[TimeSlot]]:
+        """Get a morning and afternoon slot for a given date from the last availability check."""
+        if not self._last_availability_check:
+            return None, None
+
+        slots = self._last_availability_check["slots_by_date"].get(date, [])
+        morning_slot = next((slot for slot in slots if slot["is_morning"]), None)
+        afternoon_slot = next((slot for slot in slots if not slot["is_morning"]), None)
+
+        return morning_slot, afternoon_slot
+
+    async def get_availability(
+        self, days: int = 5, timezone: str = "UTC", retry_count: int = 2
+    ) -> AvailabilityResponse:
+        """Fetch available time slots for the configured event type with retries."""
+        last_error = None
+
+        for attempt in range(retry_count):
+            try:
+                start_time = datetime.now().isoformat()
+                end_time = (datetime.now() + timedelta(days=days)).isoformat()
+
+                params = {
+                    "startTime": start_time,
+                    "endTime": end_time,
+                    "eventTypeId": str(self.config.EVENT_TYPE_ID),
+                    "eventTypeSlug": self.config.EVENT_SLUG,
+                    "duration": str(self.config.EVENT_DURATION),
+                    "usernameList[]": self.config.USERNAME,
+                }
+
+                logger.info(
+                    f"Cal.com Availability Request (Attempt {attempt + 1}/{retry_count}):"
+                )
+                logger.info(f"URL: {self.config.BASE_URL}/slots/available")
+                logger.info(f"Params: {json.dumps(params, indent=2)}")
+                logger.info(
+                    f"Headers: {json.dumps({'Authorization': 'Bearer [REDACTED]', 'Content-Type': 'application/json'}, indent=2)}"
+                )
+
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(
+                        f"{self.config.BASE_URL}/slots/available",
+                        params=params,
+                        headers={
+                            "Authorization": f"Bearer {self.config.API_KEY}",
+                            "Content-Type": "application/json",
+                        },
+                    ) as response:
+                        if not response.ok:
+                            error_text = await response.text()
+                            logger.error(
+                                f"Failed to fetch availability (Attempt {attempt + 1}): {error_text}"
+                            )
+                            last_error = (
+                                f"Failed to fetch availability: {response.status}"
+                            )
+                            continue
+
+                        data = await response.json()
+                        if data.get("status") == "success" and "slots" in data.get(
+                            "data", {}
+                        ):
+                            logger.success(
+                                f"Successfully fetched availability (Attempt {attempt + 1})"
+                            )
+                            # Store the formatted availability for later use
+                            self._last_availability_check = self._parse_availability(
+                                data["data"]["slots"], timezone
+                            )
+                            return {
+                                "success": True,
+                                "availability": data["data"]["slots"],
+                            }
+
+                        logger.error(
+                            f"Invalid response format from Cal.com API (Attempt {attempt + 1})"
+                        )
+                        last_error = "Invalid response format"
+                        continue
+
+            except Exception as e:
+                logger.exception(
+                    f"Failed to fetch availability (Attempt {attempt + 1}): {str(e)}"
+                )
+                last_error = f"Failed to fetch availability: {str(e)}"
+                continue
+
+        return {
+            "success": False,
+            "error": last_error or "Failed to fetch availability after all retries",
+        }
+
+    async def create_booking(
+        self, details: BookingDetails, retry_count: int = 2
+    ) -> BookingResponse:
+        """Create a new booking with the provided details with retries."""
+        last_error = None
+
+        for attempt in range(retry_count):
+            try:
+                booking_data = {
+                    "eventTypeId": self.config.EVENT_TYPE_ID,
+                    "start": details["startTime"],
+                    "attendee": {
+                        "name": details["name"],
+                        "email": details["email"],
+                        "timeZone": details["timezone"],
                     },
-                ) as response:
-                    if not response.ok:
-                        error_text = await response.text()
-                        logger.error(f"Failed to fetch availability: {error_text}")
-                        return {
-                            "success": False,
-                            "error": f"Failed to fetch availability: {response.status}",
-                        }
-
-                    data = await response.json()
-                    if data.get("status") == "success" and "slots" in data.get(
-                        "data", {}
-                    ):
-                        logger.success("Successfully fetched availability")
-                        return {"success": True, "availability": data["data"]["slots"]}
-                    logger.error("Invalid response format from Cal.com API")
-                    return {"success": False, "error": "Invalid response format"}
-
-        except Exception as e:
-            logger.exception(f"Failed to fetch availability: {str(e)}")
-            return {
-                "success": False,
-                "error": f"Failed to fetch availability: {str(e)}",
-            }
-
-    async def create_booking(self, details: BookingDetails) -> BookingResponse:
-        """Create a new booking with the provided details."""
-        try:
-            booking_data = {
-                "eventTypeId": self.config.EVENT_TYPE_ID,
-                "start": details["startTime"],
-                "attendee": {
-                    "name": details["name"],
-                    "email": details["email"],
-                    "timeZone": details["timezone"],
-                },
-                "bookingFieldsResponses": {
-                    "company": details["company"],
-                    "phone": details["phone"],
-                },
-            }
-
-            if details.get("notes"):
-                booking_data["bookingFieldsResponses"]["notes"] = details["notes"]
-
-            logger.info("Cal.com Booking Request:")
-            logger.info(f"URL: {self.config.BASE_URL}/bookings")
-            logger.info(f"Data: {json.dumps(booking_data, indent=2)}")
-            logger.info(
-                f"Headers: {json.dumps({'Authorization': 'Bearer [REDACTED]', 'Content-Type': 'application/json', 'cal-api-version': '2024-08-13'}, indent=2)}"
-            )
-
-            async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    f"{self.config.BASE_URL}/bookings",
-                    headers={
-                        "Authorization": f"Bearer {self.config.API_KEY}",
-                        "Content-Type": "application/json",
-                        "cal-api-version": "2024-08-13",
+                    "bookingFieldsResponses": {
+                        "company": details["company"],
+                        "phone": details["phone"],
                     },
-                    json=booking_data,
-                ) as response:
-                    if not response.ok:
-                        error_text = await response.text()
-                        logger.error(f"Failed to create booking: {error_text}")
-                        return {
-                            "success": False,
-                            "error": f"Failed to create booking: {response.status}",
-                        }
+                }
 
-                    booking = await response.json()
-                    logger.success("Successfully created booking")
-                    return {"success": True, "booking": booking}
+                if details.get("notes"):
+                    booking_data["bookingFieldsResponses"]["notes"] = details["notes"]
 
-        except Exception as e:
-            logger.exception(f"Failed to create booking: {str(e)}")
-            return {"success": False, "error": f"Failed to create booking: {str(e)}"}
+                logger.info(
+                    f"Cal.com Booking Request (Attempt {attempt + 1}/{retry_count}):"
+                )
+                logger.info(f"URL: {self.config.BASE_URL}/bookings")
+                logger.info(f"Data: {json.dumps(booking_data, indent=2)}")
+                logger.info(
+                    f"Headers: {json.dumps({'Authorization': 'Bearer [REDACTED]', 'Content-Type': 'application/json', 'cal-api-version': '2024-08-13'}, indent=2)}"
+                )
+
+                async with aiohttp.ClientSession() as session:
+                    async with session.post(
+                        f"{self.config.BASE_URL}/bookings",
+                        headers={
+                            "Authorization": f"Bearer {self.config.API_KEY}",
+                            "Content-Type": "application/json",
+                            "cal-api-version": "2024-08-13",
+                        },
+                        json=booking_data,
+                    ) as response:
+                        if not response.ok:
+                            error_text = await response.text()
+                            logger.error(
+                                f"Failed to create booking (Attempt {attempt + 1}): {error_text}"
+                            )
+                            last_error = f"Failed to create booking: {response.status}"
+                            continue
+
+                        booking = await response.json()
+                        logger.success(
+                            f"Successfully created booking (Attempt {attempt + 1})"
+                        )
+                        return {"success": True, "booking": booking}
+
+            except Exception as e:
+                logger.exception(
+                    f"Failed to create booking (Attempt {attempt + 1}): {str(e)}"
+                )
+                last_error = f"Failed to create booking: {str(e)}"
+                continue
+
+        return {
+            "success": False,
+            "error": last_error or "Failed to create booking after all retries",
+        }
 
 
 # Example usage:

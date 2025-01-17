@@ -24,40 +24,112 @@ from calcom_api import CalComAPI, BookingDetails
 calcom_api = CalComAPI()
 
 
-async def handle_booking_request(args: FlowArgs) -> FlowResult:
-    """Handle the booking request with a fixed date."""
-    # Fixed date: January 19, 2025 at 12:00 PM UTC
-    booking_time = datetime(2025, 1, 19, 12, 0, tzinfo=ZoneInfo("UTC")).isoformat()
+async def handle_availability_check(args: FlowArgs) -> FlowResult:
+    """Check availability and present options to the user."""
+    availability = await calcom_api.get_availability(days=7)
 
-    # Get the collected information from previous nodes
-    name = "Roger Rabbit"
-    company = "Who Framed Co."
+    if not availability["success"]:
+        # First attempt failed, try again
+        availability = await calcom_api.get_availability(days=7)
+        if not availability["success"]:
+            return FlowResult(
+                status="error",
+                message="I sincerely apologize, but we're experiencing some technical difficulties with our scheduling system. Would it be alright if I had our scheduling team call you back within the next hour to set up the demo? They can be reached directly at our scheduling line if you prefer: 555-0123.",
+                data={"availability_check_failed": True},
+            )
+
+    # Get the first two available dates
+    formatted = calcom_api._last_availability_check
+    if not formatted or not formatted["dates"]:
+        return FlowResult(
+            status="error",
+            message="I apologize, but I'm not seeing any available slots in the next 7 days. Would it be alright if I had our scheduling team call you to find a time that works for you?",
+            data={"no_availability": True},
+        )
+
+    # Take the first two available dates
+    available_dates = formatted["dates"][:2]
+    date_options = " or ".join(available_dates)
+
+    return FlowResult(
+        status="success",
+        message=f"I see we have availability on {date_options}. Which day would work better for you?",
+        data={"available_dates": available_dates},
+    )
+
+
+async def handle_time_slot_selection(args: FlowArgs) -> FlowResult:
+    """Present time slots for the selected date."""
+    selected_date = args.get("selected_date")
+
+    if not selected_date:
+        return FlowResult(
+            status="error",
+            message="I apologize, but I didn't catch which date you preferred. Could you please let me know if you'd prefer {available_dates}?",
+            data={"missing_date": True},
+        )
+
+    morning_slot, afternoon_slot = calcom_api.get_morning_afternoon_slots(selected_date)
+
+    if not morning_slot and not afternoon_slot:
+        return FlowResult(
+            status="error",
+            message="I apologize, but it seems those time slots are no longer available. Let me check availability again.",
+            data={"retry_availability": True},
+        )
+
+    time_options = []
+    if morning_slot:
+        time_options.append(morning_slot["time"])
+    if afternoon_slot:
+        time_options.append(afternoon_slot["time"])
+
+    time_options_str = " or ".join(time_options)
+    return FlowResult(
+        status="success",
+        message=f"Great. On {selected_date}, I have slots at {time_options_str}. Which would you prefer?",
+        data={"morning_slot": morning_slot, "afternoon_slot": afternoon_slot},
+    )
+
+
+async def handle_booking_confirmation(args: FlowArgs) -> FlowResult:
+    """Attempt to book the selected time slot."""
+    selected_slot = args.get("selected_slot")
+
+    if not selected_slot:
+        return FlowResult(
+            status="error",
+            message="I apologize, but I didn't catch which time slot you preferred. Could you please let me know which time works better for you?",
+            data={"missing_time": True},
+        )
 
     booking_details: BookingDetails = {
-        "name": name,
-        "email": "test@example.com",  # You might want to collect this in a previous node
-        "company": company,
-        "phone": "123-456-7890",  # You might want to collect this in a previous node
+        "name": args.get("name", "Unknown"),
+        "email": "test@example.com",  # In production, get from args
+        "company": args.get("company", "Unknown"),
+        "phone": "123-456-7890",  # In production, get from args
         "timezone": "UTC",
-        "startTime": booking_time,
+        "startTime": selected_slot["datetime"],
         "notes": "Booking from AI Lead Qualifier",
     }
 
-    booking_response = await calcom_api.create_booking(booking_details)
+    # First booking attempt
+    booking = await calcom_api.create_booking(booking_details)
+    if not booking["success"]:
+        # Second booking attempt
+        booking = await calcom_api.create_booking(booking_details)
+        if not booking["success"]:
+            return FlowResult(
+                status="error",
+                message="I sincerely apologize, but our booking system seems to be having issues right now. To make sure you get this time slot, I can have our scheduling team call you back within the next 30 minutes to confirm it. Alternatively, you can book directly through our scheduling line at 555-0123. Which would you prefer?",
+                data={"booking_failed": True},
+            )
 
-    if booking_response["success"]:
-        return FlowResult(
-            status="success",
-            message="Great! I've booked an appointment for you on January 19, 2025 at 12:00 PM UTC.",
-            data=booking_response["booking"],
-        )
-    else:
-        return FlowResult(
-            status="error",
-            message="I apologize, but I couldn't book the appointment. "
-            + booking_response.get("error", ""),
-            data=None,
-        )
+    return FlowResult(
+        status="success",
+        message=f"Excellent! I've confirmed your demo for {selected_slot['date']} at {selected_slot['time']}. You'll receive a calendar invitation shortly with all the details. Is there anything else you'd like to know about the demo?",
+        data={"booking": booking["booking"]},
+    )
 
 
 # Define the flow configuration
@@ -83,103 +155,101 @@ flow_config: FlowConfig = {
                     "function": {
                         "name": "collect_name",
                         "description": "Record the caller's name",
-                        "parameters": {"type": "object", "properties": {}},
-                        "transition_to": "offer_call_option",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "name": {
+                                    "type": "string",
+                                    "description": "The caller's name",
+                                }
+                            },
+                            "required": ["name"],
+                        },
+                        "transition_to": "check_availability",
                     },
                 },
             ],
         },
-        # "identify_use_case": {
-        #     "task_messages": [
-        #         {
-        #             "role": "system",
-        #             "content": "Ask about their voice AI needs.",
-        #         }
-        #     ],
-        #     "functions": [
-        #         {
-        #             "type": "function",
-        #             "function": {
-        #                 "name": "identify_use_case",
-        #                 "description": "Record their use case needs",
-        #                 "parameters": {"type": "object", "properties": {}},
-        #                 "transition_to": "establish_timescales",
-        #             },
-        #         },
-        #     ],
-        # },
-        # "establish_timescales": {
-        #     "task_messages": [
-        #         {
-        #             "role": "system",
-        #             "content": "Ask about their desired timeline. Ask for both start date and deadline.",
-        #         }
-        #     ],
-        #     "functions": [
-        #         {
-        #             "type": "function",
-        #             "function": {
-        #                 "name": "establish_timescales",
-        #                 "description": "Record project timeline",
-        #                 "parameters": {"type": "object", "properties": {}},
-        #                 "transition_to": "determine_budget",
-        #             },
-        #         },
-        #     ],
-        # },
-        # "determine_budget": {
-        #     "task_messages": [
-        #         {
-        #             "role": "system",
-        #             "content": "Ask about their budget for the voice AI solution. If they're unsure, explain our tiered options.",
-        #         }
-        #     ],
-        #     "functions": [
-        #         {
-        #             "type": "function",
-        #             "function": {
-        #                 "name": "determine_budget",
-        #                 "description": "Record their budget range",
-        #                 "parameters": {"type": "object", "properties": {}},
-        #                 "transition_to": "assess_feedback",
-        #             },
-        #         },
-        #     ],
-        # },
-        # "assess_feedback": {
-        #     "task_messages": [
-        #         {
-        #             "role": "system",
-        #             "content": "Ask for their feedback on this AI interaction experience.",
-        #         }
-        #     ],
-        #     "functions": [
-        #         {
-        #             "type": "function",
-        #             "function": {
-        #                 "name": "assess_feedback",
-        #                 "description": "Record their interaction feedback",
-        #                 "parameters": {"type": "object", "properties": {}},
-        #                 "transition_to": "offer_call_option",
-        #             },
-        #         },
-        #     ],
-        # },
-        "offer_call_option": {
+        "check_availability": {
             "task_messages": [
                 {
                     "role": "system",
-                    "content": "Ask if they would like to book an appointment for January 19, 2025 at 12:00 PM UTC with John George.",
+                    "content": "Use assumptive closing technique to naturally transition to booking a demo. Say something like 'Let's get you set up with a quick demo so you can see firsthand how this will help your business. Let me check our calendar...'",
                 }
             ],
             "functions": [
                 {
                     "type": "function",
                     "function": {
-                        "name": "handle_booking_request",
-                        "description": "Handle the booking request",
-                        "handler": handle_booking_request,
+                        "name": "handle_availability_check",
+                        "description": "Check calendar availability",
+                        "handler": handle_availability_check,
                         "parameters": {"type": "object", "properties": {}},
+                        "transition_to": "present_time_slots",
+                    },
+                },
+            ],
+        },
+        "present_time_slots": {
+            "task_messages": [
+                {
+                    "role": "system",
+                    "content": "Based on the user's date preference, present available time slots. If they haven't chosen a date yet, ask them to choose from the available dates first.",
+                }
+            ],
+            "functions": [
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "handle_time_slot_selection",
+                        "description": "Present time slots for selected date",
+                        "handler": handle_time_slot_selection,
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "selected_date": {
+                                    "type": "string",
+                                    "description": "The date selected by the user",
+                                }
+                            },
+                            "required": ["selected_date"],
+                        },
+                        "transition_to": "confirm_booking",
+                    },
+                },
+            ],
+        },
+        "confirm_booking": {
+            "task_messages": [
+                {
+                    "role": "system",
+                    "content": "Attempt to book the selected time slot. If successful, confirm the booking enthusiastically. If it fails, handle gracefully with alternative booking options.",
+                }
+            ],
+            "functions": [
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "handle_booking_confirmation",
+                        "description": "Confirm and create the booking",
+                        "handler": handle_booking_confirmation,
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "selected_slot": {
+                                    "type": "object",
+                                    "description": "The time slot selected by the user",
+                                    "properties": {
+                                        "date": {"type": "string"},
+                                        "time": {"type": "string"},
+                                        "datetime": {"type": "string"},
+                                        "is_morning": {"type": "boolean"},
+                                    },
+                                    "required": ["date", "time", "datetime"],
+                                }
+                            },
+                            "required": ["selected_slot"],
+                        },
                         "transition_to": "close_call",
                     },
                 },
@@ -189,7 +259,7 @@ flow_config: FlowConfig = {
             "task_messages": [
                 {
                     "role": "system",
-                    "content": "Thank them for their time and end the conversation warmly.",
+                    "content": "Thank them warmly and end the conversation professionally. If there were any booking issues, make sure to clearly state the next steps.",
                 }
             ],
             "functions": [],
