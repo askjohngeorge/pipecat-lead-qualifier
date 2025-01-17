@@ -18,18 +18,6 @@ from pipecat_flows import FlowManager, FlowArgs, FlowConfig, FlowResult
 from runner import configure
 
 
-# Define result types
-class NameResult(FlowResult):
-    name: str
-
-
-# Define handlers
-async def collect_name(args: FlowArgs) -> NameResult:
-    """Collect caller's name."""
-    name = args["name"]
-    return {"name": name}
-
-
 # Define the flow configuration
 flow_config: FlowConfig = {
     "initial_node": "rapport_building",
