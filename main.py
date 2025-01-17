@@ -32,9 +32,9 @@ async def collect_name(args: FlowArgs) -> NameResult:
 
 # Define the flow configuration
 flow_config: FlowConfig = {
-    "initial_node": "greeting",
+    "initial_node": "rapport_building",
     "nodes": {
-        "greeting": {
+        "rapport_building": {
             "role_messages": [
                 {
                     "role": "system",
@@ -52,11 +52,103 @@ flow_config: FlowConfig = {
                     "type": "function",
                     "function": {
                         "name": "collect_name",
-                        "description": "Get the caller's name",
-                        "parameters": {
-                            "type": "object",
-                            "properties": {},
-                        },
+                        "description": "Record the caller's name",
+                        "parameters": {"type": "object", "properties": {}},
+                        "transition_to": "identify_use_case",
+                    },
+                },
+            ],
+        },
+        "identify_use_case": {
+            "task_messages": [
+                {
+                    "role": "system",
+                    "content": "Ask about their voice AI needs.",
+                }
+            ],
+            "functions": [
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "identify_use_case",
+                        "description": "Record their use case needs",
+                        "parameters": {"type": "object", "properties": {}},
+                        "transition_to": "establish_timescales",
+                    },
+                },
+            ],
+        },
+        "establish_timescales": {
+            "task_messages": [
+                {
+                    "role": "system",
+                    "content": "Ask about their desired timeline. Ask for both start date and deadline.",
+                }
+            ],
+            "functions": [
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "establish_timescales",
+                        "description": "Record project timeline",
+                        "parameters": {"type": "object", "properties": {}},
+                        "transition_to": "determine_budget",
+                    },
+                },
+            ],
+        },
+        "determine_budget": {
+            "task_messages": [
+                {
+                    "role": "system",
+                    "content": "Ask about their budget for the voice AI solution. If they're unsure, explain our tiered options.",
+                }
+            ],
+            "functions": [
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "determine_budget",
+                        "description": "Record their budget range",
+                        "parameters": {"type": "object", "properties": {}},
+                        "transition_to": "assess_feedback",
+                    },
+                },
+            ],
+        },
+        "assess_feedback": {
+            "task_messages": [
+                {
+                    "role": "system",
+                    "content": "Ask for their feedback on this AI interaction experience.",
+                }
+            ],
+            "functions": [
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "assess_feedback",
+                        "description": "Record their interaction feedback",
+                        "parameters": {"type": "object", "properties": {}},
+                        "transition_to": "offer_call_option",
+                    },
+                },
+            ],
+        },
+        "offer_call_option": {
+            "task_messages": [
+                {
+                    "role": "system",
+                    "content": "Offer them the choice between booking a video call with John George or receiving follow-up via email.",
+                }
+            ],
+            "functions": [
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "offer_call_option",
+                        "description": "Record their preferred follow-up method",
+                        "parameters": {"type": "object", "properties": {}},
                         "transition_to": "close_call",
                     },
                 },
