@@ -4,6 +4,7 @@ from typing import TypedDict, Optional, List, Dict, Union
 from datetime import datetime, timedelta
 import aiohttp
 from dotenv import load_dotenv
+from loguru import logger
 
 # Load environment variables
 load_dotenv()
@@ -82,6 +83,13 @@ class CalComAPI:
                 "usernameList[]": self.config.USERNAME,
             }
 
+            logger.info("Cal.com Availability Request:")
+            logger.info(f"URL: {self.config.BASE_URL}/slots/available")
+            logger.info(f"Params: {json.dumps(params, indent=2)}")
+            logger.info(
+                f"Headers: {json.dumps({'Authorization': 'Bearer [REDACTED]', 'Content-Type': 'application/json'}, indent=2)}"
+            )
+
             async with aiohttp.ClientSession() as session:
                 async with session.get(
                     f"{self.config.BASE_URL}/slots/available",
@@ -93,7 +101,7 @@ class CalComAPI:
                 ) as response:
                     if not response.ok:
                         error_text = await response.text()
-                        print(f"Failed to fetch availability: {error_text}")
+                        logger.error(f"Failed to fetch availability: {error_text}")
                         return {
                             "success": False,
                             "error": f"Failed to fetch availability: {response.status}",
@@ -103,11 +111,13 @@ class CalComAPI:
                     if data.get("status") == "success" and "slots" in data.get(
                         "data", {}
                     ):
+                        logger.success("Successfully fetched availability")
                         return {"success": True, "availability": data["data"]["slots"]}
+                    logger.error("Invalid response format from Cal.com API")
                     return {"success": False, "error": "Invalid response format"}
 
         except Exception as e:
-            print(f"Failed to fetch availability: {str(e)}")
+            logger.exception(f"Failed to fetch availability: {str(e)}")
             return {
                 "success": False,
                 "error": f"Failed to fetch availability: {str(e)}",
@@ -133,6 +143,13 @@ class CalComAPI:
             if details.get("notes"):
                 booking_data["bookingFieldsResponses"]["notes"] = details["notes"]
 
+            logger.info("Cal.com Booking Request:")
+            logger.info(f"URL: {self.config.BASE_URL}/bookings")
+            logger.info(f"Data: {json.dumps(booking_data, indent=2)}")
+            logger.info(
+                f"Headers: {json.dumps({'Authorization': 'Bearer [REDACTED]', 'Content-Type': 'application/json', 'cal-api-version': '2024-08-13'}, indent=2)}"
+            )
+
             async with aiohttp.ClientSession() as session:
                 async with session.post(
                     f"{self.config.BASE_URL}/bookings",
@@ -145,17 +162,18 @@ class CalComAPI:
                 ) as response:
                     if not response.ok:
                         error_text = await response.text()
-                        print(f"Failed to create booking: {error_text}")
+                        logger.error(f"Failed to create booking: {error_text}")
                         return {
                             "success": False,
                             "error": f"Failed to create booking: {response.status}",
                         }
 
                     booking = await response.json()
+                    logger.success("Successfully created booking")
                     return {"success": True, "booking": booking}
 
         except Exception as e:
-            print(f"Failed to create booking: {str(e)}")
+            logger.exception(f"Failed to create booking: {str(e)}")
             return {"success": False, "error": f"Failed to create booking: {str(e)}"}
 
 
