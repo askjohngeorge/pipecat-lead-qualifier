@@ -1,4 +1,4 @@
-import { PipecatWidget } from "./components/PipecatWidget";
+import { PipecatWidget } from "../components/PipecatWidget";
 
 export default function Home() {
   return (

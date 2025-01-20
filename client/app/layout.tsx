@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { PipecatProvider } from "./components/PipecatProvider";
+import { PipecatProvider } from "../providers/PipecatProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
