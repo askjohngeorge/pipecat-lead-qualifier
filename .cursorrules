@@ -1,0 +1,17 @@
+We're using pnpm as our package manager.
+
+The project structure is as follows:
+
+```
+pipecat-lead-qualifier/
+├── client
+├── server
+├── docs
+```
+
+The next.js project is instantiated in client, so this is where client-side packages and that code should go.
+
+The server is where the Pipecat server SDK-related bot code should go.
+
+The docs are where any documentation should go.
+
