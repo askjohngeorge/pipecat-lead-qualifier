@@ -318,7 +318,12 @@ async def main():
 
         task = PipelineTask(
             pipeline,
-            PipelineParams(allow_interruptions=True, observers=[rtvi.observer()]),
+            PipelineParams(
+                allow_interruptions=True,
+                enable_metrics=True,
+                enable_usage_metrics=True,
+                observers=[rtvi.observer()],
+            ),
         )
 
         # Initialize flow manager

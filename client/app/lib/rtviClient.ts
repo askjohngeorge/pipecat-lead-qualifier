@@ -21,7 +21,7 @@ export function getClient() {
       params: {
         baseUrl: process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3000",
         endpoints: {
-          connect: "/api/connect",
+          connect: "/connect",
         },
         // Pass the Daily room URL through the connect params
         dailyUrl: process.env.NEXT_PUBLIC_DAILY_ROOM_URL,
