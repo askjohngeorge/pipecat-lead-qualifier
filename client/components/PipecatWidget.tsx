@@ -5,7 +5,7 @@ import {
   useRTVIClientTransportState,
   RTVIClientAudio,
 } from "@pipecat-ai/client-react";
-import { useCallback, useState } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { AIVoiceInput } from "./ui/ai-voice-input";
 
 export function PipecatWidget() {
@@ -13,6 +13,13 @@ export function PipecatWidget() {
   const transportState = useRTVIClientTransportState();
   const isConnected = ["connected", "ready"].includes(transportState);
   const [isConnecting, setIsConnecting] = useState(false);
+
+  // Reset connecting state when transport state changes
+  useEffect(() => {
+    if (isConnected || transportState === "disconnected") {
+      setIsConnecting(false);
+    }
+  }, [transportState, isConnected]);
 
   const handleStateChange = useCallback(
     async (isActive: boolean) => {
