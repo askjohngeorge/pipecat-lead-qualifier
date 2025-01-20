@@ -3,51 +3,52 @@
 import {
   useRTVIClient,
   useRTVIClientTransportState,
-  // RTVIClientVideo,
   RTVIClientAudio,
 } from "@pipecat-ai/client-react";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
+import { AIVoiceInput } from "./ui/ai-voice-input";
 
 export function PipecatWidget() {
   const client = useRTVIClient();
   const transportState = useRTVIClientTransportState();
   const isConnected = ["connected", "ready"].includes(transportState);
+  const [isConnecting, setIsConnecting] = useState(false);
 
-  const handleConnect = useCallback(async () => {
-    if (!client) {
-      console.error("RTVI client is not initialized");
-      return;
-    }
-
-    try {
-      if (isConnected) {
-        await client.disconnect();
-      } else {
-        await client.connect();
+  const handleStateChange = useCallback(
+    async (isActive: boolean) => {
+      if (!client) {
+        console.error("RTVI client is not initialized");
+        return;
       }
-    } catch (error) {
-      console.error("Connection error:", error);
-    }
-  }, [client, isConnected]);
+
+      try {
+        if (isActive && !isConnected && !isConnecting) {
+          setIsConnecting(true);
+          await client.connect();
+        } else if (!isActive && isConnected) {
+          await client.disconnect();
+        }
+      } catch (error) {
+        console.error(
+          isActive ? "Connection error:" : "Disconnection error:",
+          error
+        );
+        setIsConnecting(false);
+      }
+    },
+    [client, isConnected, isConnecting]
+  );
 
   return (
     <div className="fixed bottom-8 right-8 flex flex-col items-end gap-4">
-      {/* {isConnected && (
-        <div className="w-80 h-48 bg-gray-200 rounded-lg overflow-hidden">
-          <RTVIClientVideo participant="bot" fit="cover" />
-        </div>
-      )} */}
-      <button
-        onClick={handleConnect}
-        disabled={
-          !client || ["connecting", "disconnecting"].includes(transportState)
-        }
-        className={`p-4 rounded-full text-white ${
-          isConnected ? "bg-red-500" : "bg-blue-500"
-        } disabled:opacity-50`}
-      >
-        {isConnected ? "End Call" : "Start Call"}
-      </button>
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg">
+        <AIVoiceInput
+          isActive={isConnected || isConnecting}
+          onChange={handleStateChange}
+          className="w-auto"
+          demoMode={false}
+        />
+      </div>
       <RTVIClientAudio />
     </div>
   );

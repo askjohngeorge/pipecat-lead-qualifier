@@ -11,6 +11,8 @@ interface AIVoiceInputProps {
   demoMode?: boolean;
   demoInterval?: number;
   className?: string;
+  isActive?: boolean;
+  onChange?: (isActive: boolean) => void;
 }
 
 export function AIVoiceInput({
@@ -19,9 +21,13 @@ export function AIVoiceInput({
   visualizerBars = 48,
   demoMode = false,
   demoInterval = 3000,
-  className
+  className,
+  isActive,
+  onChange,
 }: AIVoiceInputProps) {
-  const [submitted, setSubmitted] = useState(false);
+  const [internalSubmitted, setInternalSubmitted] = useState(false);
+  const submitted = isActive !== undefined ? isActive : internalSubmitted;
+
   const [time, setTime] = useState(0);
   const [isClient, setIsClient] = useState(false);
   const [isDemo, setIsDemo] = useState(demoMode);
@@ -38,7 +44,7 @@ export function AIVoiceInput({
       intervalId = setInterval(() => {
         setTime((t) => t + 1);
       }, 1000);
-    } else {
+    } else if (time > 0) {
       onStop?.(time);
       setTime(0);
     }
@@ -51,9 +57,17 @@ export function AIVoiceInput({
 
     let timeoutId: NodeJS.Timeout;
     const runAnimation = () => {
-      setSubmitted(true);
+      if (onChange) {
+        onChange(true);
+      } else {
+        setInternalSubmitted(true);
+      }
       timeoutId = setTimeout(() => {
-        setSubmitted(false);
+        if (onChange) {
+          onChange(false);
+        } else {
+          setInternalSubmitted(false);
+        }
         timeoutId = setTimeout(runAnimation, 1000);
       }, demoInterval);
     };
@@ -63,20 +77,31 @@ export function AIVoiceInput({
       clearTimeout(timeoutId);
       clearTimeout(initialTimeout);
     };
-  }, [isDemo, demoInterval]);
+  }, [isDemo, demoInterval, onChange]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+    return `${mins.toString().padStart(2, "0")}:${secs
+      .toString()
+      .padStart(2, "0")}`;
   };
 
   const handleClick = () => {
     if (isDemo) {
       setIsDemo(false);
-      setSubmitted(false);
+      if (onChange) {
+        onChange(false);
+      } else {
+        setInternalSubmitted(false);
+      }
     } else {
-      setSubmitted((prev) => !prev);
+      const newState = !submitted;
+      if (onChange) {
+        onChange(newState);
+      } else {
+        setInternalSubmitted(newState);
+      }
     }
   };
 
