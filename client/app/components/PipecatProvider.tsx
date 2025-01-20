@@ -1,15 +1,17 @@
 "use client";
 
-import { RTVIClientProvider, RTVIClientAudio } from "@pipecat-ai/client-react";
-import { createRTVIClient } from "../lib/rtviClient";
+import { RTVIClientProvider } from "@pipecat-ai/client-react";
+import { getClient } from "../lib/rtviClient";
+import { type PropsWithChildren, useEffect, useState } from "react";
 
-const client = createRTVIClient();
+export function PipecatProvider({ children }: PropsWithChildren) {
+  const [client, setClient] = useState<ReturnType<typeof getClient>>(null);
 
-export function PipecatProvider({ children }: { children: React.ReactNode }) {
-  return (
-    <RTVIClientProvider client={client}>
-      {children}
-      <RTVIClientAudio />
-    </RTVIClientProvider>
-  );
+  useEffect(() => {
+    setClient(getClient());
+  }, []);
+
+  if (!client) return <>{children}</>;
+
+  return <RTVIClientProvider client={client}>{children}</RTVIClientProvider>;
 }
