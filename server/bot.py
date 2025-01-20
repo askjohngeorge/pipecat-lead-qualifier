@@ -17,8 +17,9 @@ from pipecat.processors.aggregators.openai_llm_context import OpenAILLMContext
 from pipecat.services.openai import OpenAILLMService
 from pipecat.services.deepgram import DeepgramSTTService, DeepgramTTSService
 from pipecat_flows import FlowManager, FlowArgs, FlowConfig, FlowResult
-from runner import configure
+from bot_runner import configure
 from calcom_api import CalComAPI, BookingDetails
+from pipecat.processors.frameworks.rtvi import RTVIConfig, RTVIProcessor
 
 # Initialize Cal.com API
 calcom_api = CalComAPI()
@@ -298,10 +299,14 @@ async def main():
         context = OpenAILLMContext()
         context_aggregator = llm.create_context_aggregator(context)
 
+        # Initialize RTVI processor
+        rtvi = RTVIProcessor(config=RTVIConfig(config=[]))
+
         # Create pipeline
         pipeline = Pipeline(
             [
                 transport.input(),
+                rtvi,
                 stt,
                 context_aggregator.user(),
                 llm,
@@ -311,10 +316,23 @@ async def main():
             ]
         )
 
-        task = PipelineTask(pipeline, PipelineParams(allow_interruptions=True))
+        task = PipelineTask(
+            pipeline,
+            PipelineParams(allow_interruptions=True, observers=[rtvi.observer()]),
+        )
 
         # Initialize flow manager
-        flow_manager = FlowManager(task=task, llm=llm, tts=tts, flow_config=flow_config)
+        flow_manager = FlowManager(
+            task=task,
+            llm=llm,
+            context_aggregator=context_aggregator,
+            tts=tts,
+            flow_config=flow_config,
+        )
+
+        @rtvi.event_handler("on_client_ready")
+        async def on_client_ready(rtvi):
+            await rtvi.set_bot_ready()
 
         @transport.event_handler("on_first_participant_joined")
         async def on_first_participant_joined(transport, participant):
