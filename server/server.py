@@ -28,8 +28,16 @@ from pipecat.transports.services.helpers.daily_rest import (
     DailyRoomParams,
 )
 
-# Configure loguru
-logger.add(sys.stderr, level="DEBUG")
+# Configure loguru - remove default handler and add our own
+logger.remove()  # Remove default handler
+logger.add(
+    sys.stderr,
+    level="DEBUG",
+    format="<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>",
+    enqueue=True,  # Ensure thread-safe logging
+    backtrace=True,  # Add exception context
+    diagnose=True,  # Add variables to traceback
+)
 
 # Load environment variables from .env file
 load_dotenv(override=True)
