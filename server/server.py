@@ -9,6 +9,7 @@ direct browser access and RTVI client connections. It handles:
 """
 
 import argparse
+import asyncio
 import os
 import subprocess
 import sys
@@ -78,12 +79,23 @@ async def lifespan(app: FastAPI):
         daily_api_url=os.getenv("DAILY_API_URL", "https://api.daily.co/v1"),
         aiohttp_session=aiohttp_session,
     )
-    yield
-    # Start background cleanup task
-    asyncio.create_task(cleanup_finished_processes())
-    # Cleanup tasks
-    await aiohttp_session.close()
-    cleanup()
+
+    # Start background cleanup task before yield
+    cleanup_task = asyncio.create_task(cleanup_finished_processes())
+
+    try:
+        yield
+    finally:
+        # Cancel cleanup task
+        cleanup_task.cancel()
+        try:
+            await cleanup_task
+        except asyncio.CancelledError:
+            pass
+
+        # Cleanup tasks
+        await aiohttp_session.close()
+        cleanup()
 
 
 # Initialize FastAPI app with lifespan manager
