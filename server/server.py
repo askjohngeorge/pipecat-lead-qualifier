@@ -43,12 +43,30 @@ bot_procs = {}
 daily_helpers = {}
 
 
+async def cleanup_finished_processes():
+    while True:
+        try:
+            for pid in list(bot_procs.keys()):
+                proc, room_url = bot_procs[pid]
+                if proc.poll() is not None:
+                    logger.info(
+                        f"Cleaning up finished bot process {pid} for room {room_url}"
+                    )
+                    try:
+                        await daily_helpers["rest"].delete_room_by_url(room_url)
+                        logger.success(f"Successfully deleted room {room_url}")
+                    except Exception as e:
+                        logger.error(f"Failed to delete room {room_url}: {str(e)}")
+                    del bot_procs[pid]
+        except Exception as e:
+            logger.error(f"Error during cleanup: {str(e)}")
+        await asyncio.sleep(5)
+
+
 def cleanup():
-    """Cleanup function to terminate all bot processes."""
+    """Terminate all bot processes and cleanup resources."""
     for entry in bot_procs.values():
-        proc = entry[0]
-        proc.terminate()
-        proc.wait()
+        proc, room_url = entry
 
 
 @asynccontextmanager
@@ -61,6 +79,9 @@ async def lifespan(app: FastAPI):
         aiohttp_session=aiohttp_session,
     )
     yield
+    # Start background cleanup task
+    asyncio.create_task(cleanup_finished_processes())
+    # Cleanup tasks
     await aiohttp_session.close()
     cleanup()
 

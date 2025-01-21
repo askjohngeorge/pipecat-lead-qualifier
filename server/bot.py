@@ -345,6 +345,10 @@ async def main():
             await flow_manager.initialize()
             await task.queue_frames([context_aggregator.user().get_context_frame()])
 
+        @transport.event_handler("on_participant_left")
+        async def on_participant_left(transport, participant, reason):
+            await runner.stop_when_done()
+
         runner = PipelineRunner()
         await runner.run(task)
 
