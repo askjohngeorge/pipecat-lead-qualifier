@@ -11,6 +11,7 @@ direct browser access and RTVI client connections. It handles:
 import argparse
 import os
 import subprocess
+import sys
 from contextlib import asynccontextmanager
 from typing import Any, Dict
 
@@ -19,11 +20,15 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
+from loguru import logger
 
 from pipecat.transports.services.helpers.daily_rest import (
     DailyRESTHelper,
     DailyRoomParams,
 )
+
+# Configure loguru
+logger.add(sys.stderr, level="DEBUG")
 
 # Load environment variables from .env file
 load_dotenv(override=True)
@@ -91,9 +96,9 @@ async def create_room_and_token() -> tuple[str, str]:
 @app.get("/")
 async def start_agent(request: Request):
     """Endpoint for direct browser access to the bot."""
-    print("Creating room")
+    logger.info("Creating room")
     room_url, token = await create_room_and_token()
-    print(f"Room URL: {room_url}")
+    logger.info(f"Room URL: {room_url}")
 
     # Check if there is already an existing process running in this room
     num_bots_in_room = sum(
@@ -124,9 +129,9 @@ async def start_agent(request: Request):
 @app.post("/connect")
 async def rtvi_connect(request: Request) -> Dict[Any, Any]:
     """RTVI connect endpoint that creates a room and returns connection credentials."""
-    print("Creating room for RTVI connection")
+    logger.info("Creating room for RTVI connection")
     room_url, token = await create_room_and_token()
-    print(f"Room URL: {room_url}")
+    logger.info(f"Room URL: {room_url}")
 
     # Start the bot process
     try:
