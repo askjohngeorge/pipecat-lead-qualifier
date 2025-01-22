@@ -22,10 +22,24 @@ from pipecat.services.deepgram import DeepgramSTTService, DeepgramTTSService
 from config.loader import load_config
 
 
+def get_initial_messages(config):
+    """Get initial messages based on config type."""
+    if config.type == "simple":
+        return [msg.dict() for msg in config.system_messages]
+    else:  # flow type
+        initial_node = config.flow_config.nodes[config.flow_config.initial_node]
+        messages = []
+        if initial_node.role_messages:
+            messages.extend([msg.dict() for msg in initial_node.role_messages])
+        if initial_node.task_messages:
+            messages.extend([msg.dict() for msg in initial_node.task_messages])
+        return messages
+
+
 async def main():
-    """Setup and run the simple voice assistant."""
+    """Setup and run the voice assistant."""
     # Parse command line arguments
-    parser = argparse.ArgumentParser(description="Simple Voice Assistant Bot")
+    parser = argparse.ArgumentParser(description="Voice Assistant Bot")
     parser.add_argument("-u", "--url", type=str, required=True, help="Daily room URL")
     parser.add_argument(
         "-t", "--token", type=str, required=True, help="Daily room token"
@@ -65,7 +79,7 @@ async def main():
         llm = OpenAILLMService(api_key=os.getenv("OPENAI_API_KEY"), model="gpt-4")
 
         # Set up conversation context using config
-        messages = [msg.dict() for msg in config.system_messages]
+        messages = get_initial_messages(config)
         context = OpenAILLMContext(messages)
         context_aggregator = llm.create_context_aggregator(context)
 

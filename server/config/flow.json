@@ -1,0 +1,168 @@
+{
+  "type": "flow",
+  "name": "Lead Qualification Bot",
+  "flow_config": {
+    "initial_node": "rapport_building",
+    "nodes": {
+      "rapport_building": {
+        "role_messages": [
+          {
+            "role": "system",
+            "content": "You are David, a helpful voice assistant for John George Voice AI Solutions. You are in the rapport building phase. Focus on being warm and friendly while gathering the caller's name."
+          }
+        ],
+        "task_messages": [
+          {
+            "role": "system",
+            "content": "Build rapport and establish caller's name:\n- Engage in a friendly discussion based on their initial response\n- Show genuine interest in their situation\n- Ask for their full name naturally\n- Use their name in following interactions"
+          }
+        ],
+        "functions": [
+          {
+            "type": "transition",
+            "function": {
+              "name": "transition_to_use_case",
+              "description": "Transition to use case identification after establishing rapport",
+              "transition_to": "use_case_identification"
+            }
+          }
+        ]
+      },
+      "use_case_identification": {
+        "role_messages": [
+          {
+            "role": "system",
+            "content": "You are David, focusing on understanding the caller's specific use case for voice AI. Be thorough but concise in your questioning."
+          }
+        ],
+        "task_messages": [
+          {
+            "role": "system",
+            "content": "Identify specific use case:\n- Ask about their voice AI needs\n- Focus on one use case (customer service, sales, bookings, etc.)\n- Get specific details about their requirements"
+          }
+        ],
+        "functions": [
+          {
+            "type": "transition",
+            "function": {
+              "name": "transition_to_timescales",
+              "description": "Transition to project timescales discussion",
+              "transition_to": "project_timescales"
+            }
+          }
+        ]
+      },
+      "project_timescales": {
+        "role_messages": [
+          {
+            "role": "system",
+            "content": "You are David, now focusing on understanding the caller's project timeline requirements."
+          }
+        ],
+        "task_messages": [
+          {
+            "role": "system",
+            "content": "Establish project timescales:\n- Ask about desired start date\n- Inquire about project deadline\n- Understand their timing constraints"
+          }
+        ],
+        "functions": [
+          {
+            "type": "transition",
+            "function": {
+              "name": "transition_to_budget",
+              "description": "Transition to budget discussion",
+              "transition_to": "budget_discussion"
+            }
+          }
+        ]
+      },
+      "budget_discussion": {
+        "role_messages": [
+          {
+            "role": "system",
+            "content": "You are David, now focusing on understanding the caller's budget expectations. Be tactful and professional when discussing financial matters."
+          }
+        ],
+        "task_messages": [
+          {
+            "role": "system",
+            "content": "Determine budget range:\n- Ask about their budget openly\n- If needed, provide typical ranges\n- Explain setup vs ongoing costs"
+          }
+        ],
+        "functions": [
+          {
+            "type": "transition",
+            "function": {
+              "name": "transition_to_experience",
+              "description": "Transition to AI experience assessment",
+              "transition_to": "ai_experience"
+            }
+          }
+        ]
+      },
+      "ai_experience": {
+        "role_messages": [
+          {
+            "role": "system",
+            "content": "You are David, now gathering feedback about the caller's experience with this conversation."
+          }
+        ],
+        "task_messages": [
+          {
+            "role": "system",
+            "content": "Assess AI interaction experience:\n- Ask about conversation quality\n- Gather feedback on responsiveness\n- Understand their comfort level"
+          }
+        ],
+        "functions": [
+          {
+            "type": "transition",
+            "function": {
+              "name": "transition_to_next_steps",
+              "description": "Transition to discussing next steps",
+              "transition_to": "next_steps"
+            }
+          }
+        ]
+      },
+      "next_steps": {
+        "role_messages": [
+          {
+            "role": "system",
+            "content": "You are David, now helping the caller move forward with next steps. Focus on booking a discovery call or directing them to email contact."
+          }
+        ],
+        "task_messages": [
+          {
+            "role": "system",
+            "content": "Offer discovery call options:\n- Suggest video call or email contact\n- Use navigation tools based on preference\n- Close conversation professionally"
+          }
+        ],
+        "functions": [
+          {
+            "type": "navigation",
+            "function": {
+              "name": "navigate_to_booking",
+              "description": "Navigate to booking page",
+              "page": "book"
+            }
+          },
+          {
+            "type": "navigation",
+            "function": {
+              "name": "navigate_to_contact",
+              "description": "Navigate to contact page",
+              "page": "contact"
+            }
+          },
+          {
+            "type": "end",
+            "function": {
+              "name": "end_call",
+              "description": "End the conversation"
+            }
+          }
+        ]
+      }
+    }
+  }
+}
