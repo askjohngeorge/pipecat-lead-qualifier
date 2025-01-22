@@ -1,13 +1,8 @@
 import asyncio
 import os
-import sys
-from pathlib import Path
+import argparse
 from aiohttp import ClientSession
 from dotenv import load_dotenv
-
-# Add parent directory to Python path to import bot_runner
-sys.path.append(str(Path(__file__).parent.parent))
-from bot_runner import configure
 
 # Load environment variables from .env file
 load_dotenv()
@@ -26,14 +21,19 @@ from pipecat.services.deepgram import DeepgramSTTService, DeepgramTTSService
 
 async def main():
     """Setup and run the simple voice assistant."""
-    async with ClientSession() as session:
-        # Get room configuration from runner
-        (room_url, token) = await configure(session)
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description="Simple Voice Assistant Bot")
+    parser.add_argument("-u", "--url", type=str, required=True, help="Daily room URL")
+    parser.add_argument(
+        "-t", "--token", type=str, required=True, help="Daily room token"
+    )
+    args = parser.parse_args()
 
+    async with ClientSession() as session:
         # Initialize transport with VAD and noise filtering
         transport = DailyTransport(
-            room_url,
-            token,
+            args.url,
+            args.token,
             "Simple Voice Assistant",
             DailyParams(
                 audio_out_enabled=True,
