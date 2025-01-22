@@ -1,4 +1,4 @@
-pipecat-ai[daily,openai,deepgram,silero,cartesia]
+pipecat-ai[daily,openai,deepgram,silero,cartesia,krisp]
 pipecat-ai-flows
 aiohttp
 python-dotenv

@@ -8,7 +8,7 @@ import argparse
 import os
 
 import aiohttp
-from pipecat.transports.services.daily import DailyRESTHelper
+from pipecat.transports.services.helpers.daily_rest import DailyRESTHelper
 
 
 async def configure(aiohttp_session: aiohttp.ClientSession):
