@@ -8,16 +8,31 @@ import argparse
 import os
 
 import aiohttp
-from pipecat.transports.services.helpers.daily_rest import DailyRESTHelper
+from pipecat.transports.services.daily import DailyRESTHelper
 
 
 async def configure(aiohttp_session: aiohttp.ClientSession):
-    (url, token, _) = await configure_with_args(aiohttp_session)
+    """Configure and return Daily room URL and token."""
+    url = os.getenv("DAILY_SAMPLE_ROOM_URL")
+    key = os.getenv("DAILY_API_KEY")
+
+    if not url or not key:
+        raise Exception("Missing Daily configuration")
+
+    daily_rest_helper = DailyRESTHelper(
+        daily_api_key=key,
+        daily_api_url="https://api.daily.co/v1",
+        aiohttp_session=aiohttp_session,
+    )
+
+    # Create token with 1-hour expiry
+    token = await daily_rest_helper.get_token(url, 60 * 60)
     return (url, token)
 
 
 async def configure_with_args(
-    aiohttp_session: aiohttp.ClientSession, parser: argparse.ArgumentParser | None = None
+    aiohttp_session: aiohttp.ClientSession,
+    parser: argparse.ArgumentParser | None = None,
 ):
     if not parser:
         parser = argparse.ArgumentParser(description="Daily AI SDK Bot Sample")

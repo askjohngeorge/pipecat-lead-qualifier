@@ -5,6 +5,12 @@ from dotenv import load_dotenv
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
+from calcom_api import CalComAPI, BookingDetails
+
+# Add parent directory to Python path to import bot_runner
+sys.path.append(str(Path(__file__).parent.parent))
+from bot_runner import configure
+
 # Load environment variables from .env file
 load_dotenv()
 
@@ -17,8 +23,6 @@ from pipecat.processors.aggregators.openai_llm_context import OpenAILLMContext
 from pipecat.services.openai import OpenAILLMService
 from pipecat.services.deepgram import DeepgramSTTService, DeepgramTTSService
 from pipecat_flows import FlowManager, FlowArgs, FlowConfig, FlowResult
-from bot_runner import configure
-from calcom_api import CalComAPI, BookingDetails
 from pipecat.processors.frameworks.rtvi import RTVIConfig, RTVIProcessor
 
 # Initialize Cal.com API

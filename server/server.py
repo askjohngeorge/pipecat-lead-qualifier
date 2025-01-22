@@ -1,4 +1,4 @@
-"""RTVI Bot Server Implementation for Lead Qualification.
+"""RTVI Bot Server Implementation.
 
 This FastAPI server manages RTVI bot instances and provides endpoints for both
 direct browser access and RTVI client connections. It handles:
@@ -14,7 +14,7 @@ import os
 import subprocess
 import sys
 from contextlib import asynccontextmanager
-from typing import Any, Dict
+from typing import Any, Dict, Literal
 
 import aiohttp
 from dotenv import load_dotenv
@@ -50,6 +50,9 @@ bot_procs = {}
 
 # Store Daily API helpers
 daily_helpers = {}
+
+# Global bot type configuration
+BOT_TYPE: Literal["simple", "flow"] = "simple"
 
 
 async def cleanup_finished_processes():
@@ -137,7 +140,7 @@ async def create_room_and_token() -> tuple[str, str]:
 @app.get("/")
 async def start_agent(request: Request):
     """Endpoint for direct browser access to the bot."""
-    logger.info("Creating room")
+    logger.info(f"Creating room for {BOT_TYPE} bot")
     room_url, token = await create_room_and_token()
     logger.info(f"Room URL: {room_url}")
 
@@ -152,10 +155,11 @@ async def start_agent(request: Request):
             status_code=500, detail=f"Max bot limit reached for room: {room_url}"
         )
 
-    # Spawn a new bot process
+    # Spawn a new bot process based on bot_type
     try:
+        bot_module = "flow/bot" if BOT_TYPE == "flow" else "simple/simple_bot"
         proc = subprocess.Popen(
-            [f"python3 -m bot -u {room_url} -t {token}"],
+            [f"python3 -m {bot_module} -u {room_url} -t {token}"],
             shell=True,
             bufsize=1,
             cwd=os.path.dirname(os.path.abspath(__file__)),
@@ -170,14 +174,15 @@ async def start_agent(request: Request):
 @app.post("/connect")
 async def rtvi_connect(request: Request) -> Dict[Any, Any]:
     """RTVI connect endpoint that creates a room and returns connection credentials."""
-    logger.info("Creating room for RTVI connection")
+    logger.info(f"Creating room for RTVI connection with {BOT_TYPE} bot")
     room_url, token = await create_room_and_token()
     logger.info(f"Room URL: {room_url}")
 
     # Start the bot process
     try:
+        bot_module = "flow/bot" if BOT_TYPE == "flow" else "simple/simple_bot"
         proc = subprocess.Popen(
-            [f"python3 -m bot -u {room_url} -t {token}"],
+            [f"python3 -m {bot_module} -u {room_url} -t {token}"],
             shell=True,
             bufsize=1,
             cwd=os.path.dirname(os.path.abspath(__file__)),
@@ -211,14 +216,23 @@ if __name__ == "__main__":
     default_host = os.getenv("HOST", "0.0.0.0")
     default_port = int(os.getenv("FAST_API_PORT", "7860"))
 
-    parser = argparse.ArgumentParser(
-        description="Lead Qualification Bot FastAPI server"
-    )
+    parser = argparse.ArgumentParser(description="Bot FastAPI server")
     parser.add_argument("--host", type=str, default=default_host, help="Host address")
     parser.add_argument("--port", type=int, default=default_port, help="Port number")
     parser.add_argument("--reload", action="store_true", help="Reload code on change")
+    parser.add_argument(
+        "--bot-type",
+        type=str,
+        choices=["simple", "flow"],
+        default="flow",
+        help="Type of bot to run (simple or flow)",
+    )
 
     config = parser.parse_args()
+
+    # Set global bot type
+    BOT_TYPE = config.bot_type
+    logger.info(f"Starting server with {BOT_TYPE} bot")
 
     # Start the FastAPI server
     uvicorn.run(
