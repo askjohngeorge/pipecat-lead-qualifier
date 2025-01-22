@@ -21,5 +21,5 @@ class FlowConfig(BaseModel):
 class BotConfig(BaseModel):
     type: str
     name: str
-    system_messages: Optional[List[Message]]
-    flow_config: Optional[FlowConfig]
+    system_messages: Optional[List[Message]] = None
+    flow_config: Optional[FlowConfig] = None

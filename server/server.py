@@ -27,6 +27,8 @@ from pipecat.transports.services.helpers.daily_rest import (
     DailyRESTHelper,
     DailyRoomParams,
 )
+from bot_runner import configure
+from unified_bot import main as unified_main
 
 # Configure loguru - remove default handler and add our own
 logger.remove()  # Remove default handler
@@ -209,35 +211,44 @@ def get_status(pid: int):
     return JSONResponse({"bot_id": pid, "status": status})
 
 
-if __name__ == "__main__":
-    import uvicorn
-
-    # Parse command line arguments for server configuration
-    default_host = os.getenv("HOST", "0.0.0.0")
-    default_port = int(os.getenv("FAST_API_PORT", "7860"))
-
-    parser = argparse.ArgumentParser(description="Bot FastAPI server")
-    parser.add_argument("--host", type=str, default=default_host, help="Host address")
-    parser.add_argument("--port", type=int, default=default_port, help="Port number")
-    parser.add_argument("--reload", action="store_true", help="Reload code on change")
+async def main():
+    """Run the appropriate bot type based on config."""
+    parser = argparse.ArgumentParser(description="Bot Runner")
     parser.add_argument(
-        "--bot-type",
+        "-t",
+        "--type",
         type=str,
         choices=["simple", "flow"],
-        default="flow",
-        help="Type of bot to run (simple or flow)",
+        default="simple",
+        help="Type of bot to run",
     )
+    args = parser.parse_args()
 
-    config = parser.parse_args()
+    # Get config file based on type
+    config_file = f"config/{args.type}.json"
 
-    # Set global bot type
-    BOT_TYPE = config.bot_type
-    logger.info(f"Starting server with {BOT_TYPE} bot")
+    # Create aiohttp session and Daily helper
+    async with aiohttp.ClientSession() as session:
+        daily_rest = DailyRESTHelper(
+            daily_api_key=os.getenv("DAILY_API_KEY", ""),
+            daily_api_url=os.getenv("DAILY_API_URL", "https://api.daily.co/v1"),
+            aiohttp_session=session,
+        )
 
-    # Start the FastAPI server
-    uvicorn.run(
-        "server:app",
-        host=config.host,
-        port=config.port,
-        reload=config.reload,
-    )
+        # Create room and get token
+        room = await daily_rest.create_room(DailyRoomParams())
+        if not room.url:
+            raise Exception("Failed to create room")
+
+        token = await daily_rest.get_token(room.url)
+        if not token:
+            raise Exception(f"Failed to get token for room: {room.url}")
+
+        # Run unified bot with appropriate arguments
+        await unified_main(
+            ["--url", room.url, "--token", token, "--config", config_file]
+        )
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
