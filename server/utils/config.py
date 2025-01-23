@@ -1,14 +1,14 @@
 """Configuration management module for server components."""
 
 import os
-from typing import TypedDict, Literal
+from typing import TypedDict, Literal, NotRequired
 from dotenv import load_dotenv
 
 
 class DailyConfig(TypedDict):
     api_key: str
     api_url: str
-    room_url: str
+    room_url: NotRequired[str]
 
 
 class CalComConfig(TypedDict):
@@ -41,8 +41,11 @@ class AppConfig:
         self.daily: DailyConfig = {
             "api_key": required["DAILY_API_KEY"],
             "api_url": os.getenv("DAILY_API_URL", "https://api.daily.co/v1"),
-            "room_url": os.getenv("DAILY_SAMPLE_ROOM_URL"),
         }
+
+        # Add room_url only if it's provided
+        if room_url := os.getenv("DAILY_SAMPLE_ROOM_URL"):
+            self.daily["room_url"] = room_url
 
         self.calcom: CalComConfig = {
             "api_key": required["CALCOM_API_KEY"],

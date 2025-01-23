@@ -5,7 +5,7 @@ from aiohttp import ClientSession
 from dotenv import load_dotenv
 
 from utils.calcom_api import CalComAPI, BookingDetails
-from runner import configure
+from runner import configure_with_args
 from utils.config import AppConfig
 
 # Load environment variables from .env file
@@ -279,7 +279,7 @@ async def main():
     """Setup and run the lead qualification agent."""
     async with ClientSession() as session:
         # Get room configuration from runner
-        (room_url, _) = await configure(session)
+        (room_url, token, _) = await configure_with_args(session)
 
         # Initialize services
         transport = DailyTransport(
