@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 from loguru import logger
 from zoneinfo import ZoneInfo
 
-from ..utils.config import AppConfig
+from .config import AppConfig
 
 # Load environment variables
 load_dotenv()
