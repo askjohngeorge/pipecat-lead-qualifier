@@ -10,9 +10,13 @@ from calcom_api import CalComAPI, BookingDetails
 # Add parent directory to Python path to import bot_runner
 sys.path.append(str(Path(__file__).parent.parent))
 from server.runner import configure
+from utils.config import AppConfig
 
 # Load environment variables from .env file
 load_dotenv()
+
+# Initialize configuration
+config = AppConfig()
 
 from pipecat.audio.vad.silero import SileroVADAnalyzer
 from pipecat.pipeline.pipeline import Pipeline
@@ -294,11 +298,11 @@ async def main():
             ),
         )
 
-        stt = DeepgramSTTService(api_key=os.getenv("DEEPGRAM_API_KEY"))
+        stt = DeepgramSTTService(api_key=config.deepgram_api_key)
         tts = DeepgramTTSService(
-            api_key=os.getenv("DEEPGRAM_API_KEY"), voice="aura-helios-en"
+            api_key=config.deepgram_api_key, voice="aura-helios-en"
         )
-        llm = OpenAILLMService(api_key=os.getenv("OPENAI_API_KEY"), model="gpt-4o")
+        llm = OpenAILLMService(api_key=config.openai_api_key, model="gpt-4o")
 
         context = OpenAILLMContext()
         context_aggregator = llm.create_context_aggregator(context)

@@ -7,6 +7,8 @@ from dotenv import load_dotenv
 from loguru import logger
 from zoneinfo import ZoneInfo
 
+from ..utils.config import AppConfig
+
 # Load environment variables
 load_dotenv()
 
@@ -22,6 +24,10 @@ required_env_vars = [
 for var in required_env_vars:
     if not os.getenv(var):
         raise ValueError(f"{var} is required")
+
+
+# Initialize configuration
+config = AppConfig()
 
 
 # Configuration
@@ -79,7 +85,7 @@ class FormattedAvailability(TypedDict):
 
 class CalComAPI:
     def __init__(self):
-        self.config = Config()
+        self.config = config.calcom
         self._last_availability_check: Optional[FormattedAvailability] = None
 
     def _format_time(self, dt_str: str, timezone: str = "UTC") -> Tuple[str, str, bool]:
@@ -150,10 +156,10 @@ class CalComAPI:
                 params = {
                     "startTime": start_time,
                     "endTime": end_time,
-                    "eventTypeId": str(self.config.EVENT_TYPE_ID),
-                    "eventTypeSlug": self.config.EVENT_SLUG,
-                    "duration": str(self.config.EVENT_DURATION),
-                    "usernameList[]": self.config.USERNAME,
+                    "eventTypeId": str(self.config["event_type_id"]),
+                    "eventTypeSlug": self.config["event_slug"],
+                    "duration": str(self.config["event_duration"]),
+                    "usernameList[]": self.config["username"],
                 }
 
                 logger.info(
@@ -167,10 +173,10 @@ class CalComAPI:
 
                 async with aiohttp.ClientSession() as session:
                     async with session.get(
-                        f"{self.config.BASE_URL}/slots/available",
+                        "https://api.cal.com/v2/slots/available",
                         params=params,
                         headers={
-                            "Authorization": f"Bearer {self.config.API_KEY}",
+                            "Authorization": f"Bearer {self.config['api_key']}",
                             "Content-Type": "application/json",
                         },
                     ) as response:
@@ -227,7 +233,7 @@ class CalComAPI:
         for attempt in range(retry_count):
             try:
                 booking_data = {
-                    "eventTypeId": self.config.EVENT_TYPE_ID,
+                    "eventTypeId": self.config["event_type_id"],
                     "start": details["startTime"],
                     "attendee": {
                         "name": details["name"],
@@ -246,7 +252,7 @@ class CalComAPI:
                 logger.info(
                     f"Cal.com Booking Request (Attempt {attempt + 1}/{retry_count}):"
                 )
-                logger.info(f"URL: {self.config.BASE_URL}/bookings")
+                logger.info(f"URL: https://api.cal.com/v2/bookings")
                 logger.info(f"Data: {json.dumps(booking_data, indent=2)}")
                 logger.info(
                     f"Headers: {json.dumps({'Authorization': 'Bearer [REDACTED]', 'Content-Type': 'application/json', 'cal-api-version': '2024-08-13'}, indent=2)}"
@@ -254,9 +260,9 @@ class CalComAPI:
 
                 async with aiohttp.ClientSession() as session:
                     async with session.post(
-                        f"{self.config.BASE_URL}/bookings",
+                        "https://api.cal.com/v2/bookings",
                         headers={
-                            "Authorization": f"Bearer {self.config.API_KEY}",
+                            "Authorization": f"Bearer {self.config['api_key']}",
                             "Content-Type": "application/json",
                             "cal-api-version": "2024-08-13",
                         },

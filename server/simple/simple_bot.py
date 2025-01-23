@@ -2,10 +2,15 @@ import asyncio
 import os
 import argparse
 from aiohttp import ClientSession
-from dotenv import load_dotenv
+from pathlib import Path
+import sys
 
-# Load environment variables from .env file
-load_dotenv()
+# Add parent directory to Python path to import utils
+sys.path.append(str(Path(__file__).parent.parent))
+from utils.config import AppConfig
+
+# Initialize configuration
+config = AppConfig()
 
 from pipecat.audio.vad.silero import SileroVADAnalyzer
 
@@ -45,11 +50,11 @@ async def main():
         )
 
         # Initialize services
-        stt = DeepgramSTTService(api_key=os.getenv("DEEPGRAM_API_KEY"))
+        stt = DeepgramSTTService(api_key=config.deepgram_api_key)
         tts = DeepgramTTSService(
-            api_key=os.getenv("DEEPGRAM_API_KEY"), voice="aura-helios-en"
+            api_key=config.deepgram_api_key, voice="aura-helios-en"
         )
-        llm = OpenAILLMService(api_key=os.getenv("OPENAI_API_KEY"), model="gpt-4o")
+        llm = OpenAILLMService(api_key=config.openai_api_key, model="gpt-4o")
 
         # Set up conversation context
         messages = [

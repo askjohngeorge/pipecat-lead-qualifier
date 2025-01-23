@@ -17,7 +17,6 @@ from contextlib import asynccontextmanager
 from typing import Any, Dict, Literal
 
 import aiohttp
-from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
@@ -27,6 +26,11 @@ from pipecat.transports.services.helpers.daily_rest import (
     DailyRESTHelper,
     DailyRoomParams,
 )
+
+from utils.config import AppConfig
+
+# Initialize configuration
+config = AppConfig()
 
 # Configure loguru - remove default handler and add our own
 logger.remove()  # Remove default handler
@@ -38,9 +42,6 @@ logger.add(
     backtrace=True,  # Add exception context
     diagnose=True,  # Add variables to traceback
 )
-
-# Load environment variables from .env file
-load_dotenv(override=True)
 
 # Maximum number of bot instances allowed per room
 MAX_BOTS_PER_ROOM = 1
@@ -86,8 +87,8 @@ async def lifespan(app: FastAPI):
     """FastAPI lifespan manager that handles startup and shutdown tasks."""
     aiohttp_session = aiohttp.ClientSession()
     daily_helpers["rest"] = DailyRESTHelper(
-        daily_api_key=os.getenv("DAILY_API_KEY", ""),
-        daily_api_url=os.getenv("DAILY_API_URL", "https://api.daily.co/v1"),
+        daily_api_key=config.daily["api_key"],
+        daily_api_url=config.daily["api_url"],
         aiohttp_session=aiohttp_session,
     )
 
@@ -224,7 +225,7 @@ if __name__ == "__main__":
         "--bot-type",
         type=str,
         choices=["simple", "flow"],
-        default="flow",
+        default="simple",
         help="Type of bot to run (simple or flow)",
     )
 
