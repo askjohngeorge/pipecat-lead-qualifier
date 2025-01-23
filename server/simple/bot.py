@@ -94,14 +94,6 @@ You are David, a helpful voice assistant for John George Voice AI Solutions. You
             [self.context_aggregator.user().get_context_frame()]
         )
 
-    async def _setup_transport_impl(self):
-        """Implementation-specific transport setup."""
-        pass
-
-    def _create_pipeline_impl(self):
-        """Implementation-specific pipeline setup."""
-        pass
-
 
 async def main():
     """Setup and run the simple voice assistant."""

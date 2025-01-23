@@ -43,6 +43,16 @@ class BaseBot(ABC):
         """Implementation-specific service setup."""
         pass
 
+    @abstractmethod
+    async def _create_transport(self, factory: TransportFactory, url: str, token: str):
+        """Implementation-specific transport creation."""
+        pass
+
+    @abstractmethod
+    async def _handle_first_participant(self):
+        """Implementation-specific first participant handling."""
+        pass
+
     async def setup_transport(self, url: str, token: str):
         """Initialize and configure transport with common setup."""
         # Create transport using factory
@@ -62,19 +72,11 @@ class BaseBot(ABC):
         # Allow subclasses to do additional setup
         await self._setup_transport_impl()
 
-    @abstractmethod
-    async def _create_transport(self, factory: TransportFactory, url: str, token: str):
-        """Implementation-specific transport creation."""
-        pass
-
-    @abstractmethod
-    async def _handle_first_participant(self):
-        """Implementation-specific first participant handling."""
-        pass
-
-    @abstractmethod
     async def _setup_transport_impl(self):
-        """Implementation-specific transport setup."""
+        """Optional implementation-specific transport setup.
+
+        Override this method if the bot needs additional transport setup beyond the common setup.
+        """
         pass
 
     def create_pipeline(self):
@@ -108,9 +110,11 @@ class BaseBot(ABC):
         # Allow subclasses to do additional setup
         self._create_pipeline_impl()
 
-    @abstractmethod
     def _create_pipeline_impl(self):
-        """Implementation-specific pipeline setup."""
+        """Optional implementation-specific pipeline setup.
+
+        Override this method if the bot needs additional pipeline setup beyond the common setup.
+        """
         pass
 
     async def start(self):
