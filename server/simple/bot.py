@@ -1,3 +1,5 @@
+"""Simple bot implementation using the base bot framework."""
+
 import asyncio
 import argparse
 from aiohttp import ClientSession
@@ -7,45 +9,26 @@ import sys
 # Add parent directory to Python path to import utils
 sys.path.append(str(Path(__file__).parent.parent))
 from utils.config import AppConfig
+from utils.bot_framework import BaseBot
+from utils.events import EventFramework
 from utils.transports import TransportFactory
 from utils.pipelines import PipelineBuilder
 
-# Initialize configuration
-config = AppConfig()
-
-# from pipecat.audio.filters.krisp_filter import KrispFilter
 from pipecat.pipeline.task import PipelineParams, PipelineTask
 from pipecat.pipeline.runner import PipelineRunner
 from pipecat.processors.aggregators.openai_llm_context import OpenAILLMContext
-from pipecat.services.openai import OpenAILLMService
-from pipecat.services.deepgram import DeepgramSTTService, DeepgramTTSService
+from pipecat.processors.frameworks.rtvi import RTVIConfig, RTVIProcessor
 
 
-async def main():
-    """Setup and run the simple voice assistant."""
-    parser = argparse.ArgumentParser(description="Simple Voice Assistant Bot")
-    parser.add_argument("-u", "--url", type=str, required=True, help="Daily room URL")
-    parser.add_argument(
-        "-t", "--token", type=str, required=True, help="Daily room token"
-    )
-    args = parser.parse_args()
+class SimpleBot(BaseBot):
+    """Simple bot implementation with single LLM prompt chain."""
 
-    async with ClientSession() as session:
-        # Initialize services
-        stt = DeepgramSTTService(api_key=config.deepgram_api_key)
-        tts = DeepgramTTSService(
-            api_key=config.deepgram_api_key, voice="aura-helios-en"
-        )
-        llm = OpenAILLMService(api_key=config.openai_api_key, model="gpt-4o")
-
-        # Initialize transport using factory
-        transport_factory = TransportFactory(config)
-        transport = transport_factory.create_simple_assistant_transport(
-            args.url, args.token
-        )
-
-        # Set up conversation context
-        messages = [
+    def __init__(self, config: AppConfig):
+        super().__init__(config)
+        self.context = None
+        self.context_aggregator = None
+        self.rtvi = None
+        self.messages = [
             {
                 "role": "system",
                 "content": """# [Identity]
@@ -100,37 +83,85 @@ You are David, a helpful voice assistant for John George Voice AI Solutions. You
    - End the call by calling the endCall function.""",
             }
         ]
-        context = OpenAILLMContext(messages)
 
-        # Build pipeline using builder
-        pipeline = PipelineBuilder(transport, stt, tts, llm).build()
+    async def setup_services(self):
+        """Initialize required services."""
+        self.context = OpenAILLMContext(self.messages)
+        self.context_aggregator = self.services.llm.create_context_aggregator(
+            self.context
+        )
 
-        # Create pipeline task
-        task = PipelineTask(
+        # Initialize RTVI
+        rtvi_config = RTVIConfig(config=[])
+        self.rtvi = RTVIProcessor(config=rtvi_config)
+
+        @self.rtvi.event_handler("on_client_ready")
+        async def on_client_ready(rtvi):
+            await rtvi.set_bot_ready()
+
+    async def setup_transport(self, url: str, token: str):
+        """Initialize and configure transport."""
+        transport_factory = TransportFactory(self.config)
+        self.transport = transport_factory.create_simple_assistant_transport(url, token)
+
+        # Set up event handlers
+        event_framework = EventFramework(self.transport)
+        await event_framework.register_default_handlers(self.cleanup)
+
+        @self.transport.event_handler("on_first_participant_joined")
+        async def on_first_participant_joined(transport, participant):
+            await transport.capture_participant_transcription(participant["id"])
+            self.messages.append(
+                {"role": "system", "content": "Please introduce yourself to the user."}
+            )
+            await self.task.queue_frames(
+                [self.context_aggregator.user().get_context_frame()]
+            )
+
+    def create_pipeline(self):
+        """Build the processing pipeline."""
+        pipeline_builder = PipelineBuilder(
+            self.transport,
+            self.services.stt,
+            self.services.tts,
+            self.services.llm,
+            context=self.context,
+        )
+        pipeline = pipeline_builder.add_rtvi(self.rtvi).build()
+
+        self.task = PipelineTask(
             pipeline,
             PipelineParams(
                 allow_interruptions=True,
                 enable_metrics=True,
                 enable_usage_metrics=True,
+                observers=[self.rtvi.observer()],
             ),
         )
+        self.runner = PipelineRunner()
 
-        @transport.event_handler("on_first_participant_joined")
-        async def on_first_participant_joined(transport, participant):
-            await transport.capture_participant_transcription(participant["id"])
-            messages.append(
-                {"role": "system", "content": "Please introduce yourself to the user."}
-            )
-            context_aggregator = llm.create_context_aggregator(context)
-            await task.queue_frames([context_aggregator.user().get_context_frame()])
 
-        @transport.event_handler("on_participant_left")
-        async def on_participant_left(transport, participant, reason):
-            await runner.stop_when_done()
+async def main():
+    """Setup and run the simple voice assistant."""
+    parser = argparse.ArgumentParser(description="Simple Voice Assistant Bot")
+    parser.add_argument("-u", "--url", type=str, required=True, help="Daily room URL")
+    parser.add_argument(
+        "-t", "--token", type=str, required=True, help="Daily room token"
+    )
+    args = parser.parse_args()
 
-        # Run the pipeline
-        runner = PipelineRunner()
-        await runner.run(task)
+    # Initialize bot
+    config = AppConfig()
+    bot = SimpleBot(config)
+
+    async with ClientSession() as session:
+        # Set up the bot
+        await bot.setup_services()
+        await bot.setup_transport(args.url, args.token)
+        bot.create_pipeline()
+
+        # Run the bot
+        await bot.start()
 
 
 if __name__ == "__main__":
