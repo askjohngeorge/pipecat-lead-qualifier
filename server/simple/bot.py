@@ -10,14 +10,7 @@ import sys
 sys.path.append(str(Path(__file__).parent.parent))
 from utils.config import AppConfig
 from utils.bot_framework import BaseBot
-from utils.events import EventFramework
-from utils.transports import TransportFactory
-from utils.pipelines import PipelineBuilder
-
-from pipecat.pipeline.task import PipelineParams, PipelineTask
-from pipecat.pipeline.runner import PipelineRunner
 from pipecat.processors.aggregators.openai_llm_context import OpenAILLMContext
-from pipecat.processors.frameworks.rtvi import RTVIConfig, RTVIProcessor
 
 
 class SimpleBot(BaseBot):
@@ -25,9 +18,6 @@ class SimpleBot(BaseBot):
 
     def __init__(self, config: AppConfig):
         super().__init__(config)
-        self.context = None
-        self.context_aggregator = None
-        self.rtvi = None
         self.messages = [
             {
                 "role": "system",
@@ -84,61 +74,33 @@ You are David, a helpful voice assistant for John George Voice AI Solutions. You
             }
         ]
 
-    async def setup_services(self):
-        """Initialize required services."""
+    async def _setup_services_impl(self):
+        """Implementation-specific service setup."""
         self.context = OpenAILLMContext(self.messages)
         self.context_aggregator = self.services.llm.create_context_aggregator(
             self.context
         )
 
-        # Initialize RTVI
-        rtvi_config = RTVIConfig(config=[])
-        self.rtvi = RTVIProcessor(config=rtvi_config)
+    async def _create_transport(self, factory, url: str, token: str):
+        """Implementation-specific transport creation."""
+        return factory.create_simple_assistant_transport(url, token)
 
-        @self.rtvi.event_handler("on_client_ready")
-        async def on_client_ready(rtvi):
-            await rtvi.set_bot_ready()
-
-    async def setup_transport(self, url: str, token: str):
-        """Initialize and configure transport."""
-        transport_factory = TransportFactory(self.config)
-        self.transport = transport_factory.create_simple_assistant_transport(url, token)
-
-        # Set up event handlers
-        event_framework = EventFramework(self.transport)
-        await event_framework.register_default_handlers(self.cleanup)
-
-        @self.transport.event_handler("on_first_participant_joined")
-        async def on_first_participant_joined(transport, participant):
-            await transport.capture_participant_transcription(participant["id"])
-            self.messages.append(
-                {"role": "system", "content": "Please introduce yourself to the user."}
-            )
-            await self.task.queue_frames(
-                [self.context_aggregator.user().get_context_frame()]
-            )
-
-    def create_pipeline(self):
-        """Build the processing pipeline."""
-        pipeline_builder = PipelineBuilder(
-            self.transport,
-            self.services.stt,
-            self.services.tts,
-            self.services.llm,
-            context=self.context,
+    async def _handle_first_participant(self):
+        """Implementation-specific first participant handling."""
+        self.messages.append(
+            {"role": "system", "content": "Please introduce yourself to the user."}
         )
-        pipeline = pipeline_builder.add_rtvi(self.rtvi).build()
-
-        self.task = PipelineTask(
-            pipeline,
-            PipelineParams(
-                allow_interruptions=True,
-                enable_metrics=True,
-                enable_usage_metrics=True,
-                observers=[self.rtvi.observer()],
-            ),
+        await self.task.queue_frames(
+            [self.context_aggregator.user().get_context_frame()]
         )
-        self.runner = PipelineRunner()
+
+    async def _setup_transport_impl(self):
+        """Implementation-specific transport setup."""
+        pass
+
+    def _create_pipeline_impl(self):
+        """Implementation-specific pipeline setup."""
+        pass
 
 
 async def main():

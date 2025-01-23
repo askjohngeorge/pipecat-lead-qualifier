@@ -1,3 +1,5 @@
+"""Flow-based bot implementation using the base bot framework."""
+
 import asyncio
 import sys
 import signal
@@ -6,22 +8,12 @@ from dotenv import load_dotenv
 
 from utils.calcom_api import CalComAPI, BookingDetails
 from utils.config import AppConfig
-from utils.transports import TransportFactory
-from utils.pipelines import PipelineBuilder
+from utils.bot_framework import BaseBot
+from pipecat.processors.aggregators.openai_llm_context import OpenAILLMContext
+from pipecat_flows import FlowManager, FlowArgs, FlowConfig, FlowResult
 
 # Load environment variables from .env file
 load_dotenv()
-
-# Initialize configuration
-config = AppConfig()
-
-from pipecat.pipeline.task import PipelineParams, PipelineTask
-from pipecat.pipeline.runner import PipelineRunner
-from pipecat.processors.aggregators.openai_llm_context import OpenAILLMContext
-from pipecat.services.openai import OpenAILLMService
-from pipecat.services.deepgram import DeepgramSTTService, DeepgramTTSService
-from pipecat_flows import FlowManager, FlowArgs, FlowConfig, FlowResult
-from pipecat.processors.frameworks.rtvi import RTVIConfig, RTVIProcessor
 
 # Initialize Cal.com API
 calcom_api = CalComAPI()
@@ -135,141 +127,88 @@ async def handle_booking_confirmation(args: FlowArgs) -> FlowResult:
     )
 
 
-# Define the flow configuration
-flow_config: FlowConfig = {
-    "initial_node": "rapport_building",
-    "nodes": {
-        "rapport_building": {
-            "role_messages": [
-                {
-                    "role": "system",
-                    "content": "You are a lead qualification agent. Your responses will be converted to audio. Keep responses natural and friendly.",
-                }
-            ],
-            "task_messages": [
-                {
-                    "role": "system",
-                    "content": "Greet the caller warmly and ask for their name.",
-                }
-            ],
-            "functions": [
-                {
-                    "type": "function",
-                    "function": {
-                        "name": "collect_name",
-                        "description": "Record the caller's name",
-                        "parameters": {
-                            "type": "object",
-                            "properties": {
-                                "name": {
-                                    "type": "string",
-                                    "description": "The caller's name",
-                                }
-                            },
-                            "required": ["name"],
-                        },
-                        "transition_to": "check_availability",
-                    },
-                },
-            ],
-        },
-        "check_availability": {
-            "task_messages": [
-                {
-                    "role": "system",
-                    "content": "Use assumptive closing technique to naturally transition to booking a demo. Say something like 'Let's get you set up with a quick demo so you can see firsthand how this will help your business. Let me check our calendar...'",
-                }
-            ],
-            "functions": [
-                {
-                    "type": "function",
-                    "function": {
-                        "name": "handle_availability_check",
-                        "description": "Check calendar availability",
-                        "handler": handle_availability_check,
-                        "parameters": {"type": "object", "properties": {}},
-                        "transition_to": "present_time_slots",
-                    },
-                },
-            ],
-        },
-        "present_time_slots": {
-            "task_messages": [
-                {
-                    "role": "system",
-                    "content": "Based on the user's date preference, present available time slots. If they haven't chosen a date yet, ask them to choose from the available dates first.",
-                }
-            ],
-            "functions": [
-                {
-                    "type": "function",
-                    "function": {
-                        "name": "handle_time_slot_selection",
-                        "description": "Present time slots for selected date",
-                        "handler": handle_time_slot_selection,
-                        "parameters": {
-                            "type": "object",
-                            "properties": {
-                                "selected_date": {
-                                    "type": "string",
-                                    "description": "The date selected by the user",
-                                }
-                            },
-                            "required": ["selected_date"],
-                        },
-                        "transition_to": "confirm_booking",
-                    },
-                },
-            ],
-        },
-        "confirm_booking": {
-            "task_messages": [
-                {
-                    "role": "system",
-                    "content": "Attempt to book the selected time slot. If successful, confirm the booking enthusiastically. If it fails, handle gracefully with alternative booking options.",
-                }
-            ],
-            "functions": [
-                {
-                    "type": "function",
-                    "function": {
-                        "name": "handle_booking_confirmation",
-                        "description": "Confirm and create the booking",
-                        "handler": handle_booking_confirmation,
-                        "parameters": {
-                            "type": "object",
-                            "properties": {
-                                "selected_slot": {
+class FlowBot(BaseBot):
+    """Flow-based bot implementation."""
+
+    def __init__(self, config: AppConfig):
+        super().__init__(config)
+        self.flow_config = {
+            "initial_node": "rapport_building",
+            "nodes": {
+                "rapport_building": {
+                    "role_messages": [
+                        {
+                            "role": "system",
+                            "content": "You are a lead qualification agent. Your responses will be converted to audio. Keep responses natural and friendly.",
+                        }
+                    ],
+                    "task_messages": [
+                        {
+                            "role": "system",
+                            "content": "Greet the caller warmly and ask for their name.",
+                        }
+                    ],
+                    "functions": [
+                        {
+                            "type": "function",
+                            "function": {
+                                "name": "collect_name",
+                                "description": "Record the caller's name",
+                                "parameters": {
                                     "type": "object",
-                                    "description": "The time slot selected by the user",
                                     "properties": {
-                                        "date": {"type": "string"},
-                                        "time": {"type": "string"},
-                                        "datetime": {"type": "string"},
-                                        "is_morning": {"type": "boolean"},
+                                        "name": {
+                                            "type": "string",
+                                            "description": "The caller's name",
+                                        }
                                     },
-                                    "required": ["date", "time", "datetime"],
-                                }
+                                    "required": ["name"],
+                                },
+                                "transition_to": "check_availability",
                             },
-                            "required": ["selected_slot"],
                         },
-                        "transition_to": "close_call",
-                    },
-                },
-            ],
-        },
-        "close_call": {
-            "task_messages": [
-                {
-                    "role": "system",
-                    "content": "Thank them warmly and end the conversation professionally. If there were any booking issues, make sure to clearly state the next steps.",
+                    ],
                 }
-            ],
-            "functions": [],
-            "post_actions": [{"type": "end_conversation"}],
-        },
-    },
-}
+            },
+        }
+        self.flow_manager = None
+
+    async def _setup_services_impl(self):
+        """Implementation-specific service setup."""
+        initial_messages = self.flow_config["nodes"]["rapport_building"][
+            "role_messages"
+        ]
+        self.context = OpenAILLMContext(messages=initial_messages)
+        self.context_aggregator = self.services.llm.create_context_aggregator(
+            self.context
+        )
+
+    async def _create_transport(self, factory, url: str, token: str):
+        """Implementation-specific transport creation."""
+        return factory.create_lead_qualifier_transport(url, token)
+
+    async def _handle_first_participant(self):
+        """Implementation-specific first participant handling."""
+        await self.flow_manager.initialize()
+
+    async def _setup_transport_impl(self):
+        """Implementation-specific transport setup."""
+
+        # Set up participant left handler
+        @self.transport.event_handler("on_participant_left")
+        async def on_participant_left(transport, participant, reason):
+            await self.runner.stop_when_done()
+
+    def _create_pipeline_impl(self):
+        """Implementation-specific pipeline setup."""
+        # Initialize flow manager
+        self.flow_manager = FlowManager(
+            task=self.task,
+            llm=self.services.llm,
+            context_aggregator=self.pipeline_builder.context_aggregator,
+            tts=self.services.tts,
+            flow_config=self.flow_config,
+        )
 
 
 async def cleanup(runner, transport, task):
@@ -295,72 +234,26 @@ async def main():
         print("Error: Both --url and --token are required")
         sys.exit(1)
 
-    # Initialize services
-    stt = DeepgramSTTService(api_key=config.deepgram_api_key)
-    tts = DeepgramTTSService(api_key=config.deepgram_api_key)
-    llm = OpenAILLMService(api_key=config.openai_api_key)
-
-    # Initialize transport using factory
-    transport_factory = TransportFactory(config)
-    transport = transport_factory.create_lead_qualifier_transport(args.url, args.token)
-
-    # Initialize RTVI
-    rtvi_config = RTVIConfig(config=[])
-    rtvi = RTVIProcessor(config=rtvi_config)
-
-    # Initialize context with initial messages
-    initial_messages = flow_config["nodes"]["rapport_building"]["role_messages"]
-    context = OpenAILLMContext(messages=initial_messages)
-
-    # Build pipeline using builder
-    pipeline_builder = PipelineBuilder(transport, stt, tts, llm, context=context)
-    pipeline = pipeline_builder.add_rtvi(rtvi).build()
-
-    task = PipelineTask(
-        pipeline,
-        PipelineParams(
-            allow_interruptions=True,
-            enable_metrics=True,
-            enable_usage_metrics=True,
-            observers=[rtvi.observer()],
-        ),
-    )
-
-    # Initialize flow manager
-    flow_manager = FlowManager(
-        task=task,
-        llm=llm,
-        context_aggregator=pipeline_builder.context_aggregator,
-        tts=tts,
-        flow_config=flow_config,
-    )
-
-    @rtvi.event_handler("on_client_ready")
-    async def on_client_ready(rtvi):
-        await rtvi.set_bot_ready()
-
-    @transport.event_handler("on_first_participant_joined")
-    async def on_first_participant_joined(transport, participant):
-        await transport.capture_participant_transcription(participant["id"])
-        await flow_manager.initialize()
-        # No need to queue additional context frames here since the flow manager will handle it
-
-    @transport.event_handler("on_participant_left")
-    async def on_participant_left(transport, participant, reason):
-        await runner.stop_when_done()
+    # Initialize bot
+    config = AppConfig()
+    bot = FlowBot(config)
 
     # Set up signal handlers for graceful shutdown
     loop = asyncio.get_event_loop()
     for sig in (signal.SIGINT, signal.SIGTERM):
         loop.add_signal_handler(
-            sig, lambda: asyncio.create_task(cleanup(runner, transport, task))
+            sig,
+            lambda: asyncio.create_task(cleanup(bot.runner, bot.transport, bot.task)),
         )
 
     try:
-        runner = PipelineRunner()
-        await runner.run(task)
+        # Set up and run the bot
+        await bot.setup_services()
+        await bot.setup_transport(args.url, args.token)
+        bot.create_pipeline()
+        await bot.start()
     except asyncio.CancelledError:
-        await cleanup(runner, transport, task)
+        await cleanup(bot.runner, bot.transport, bot.task)
     finally:
         # Remove signal handlers
         for sig in (signal.SIGINT, signal.SIGTERM):
