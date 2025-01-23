@@ -21,18 +21,24 @@ class EventFramework:
 
         @self.transport.event_handler("on_first_participant_joined")
         async def handle_join(transport, participant):
-            await transport.capture_participant_transcription()
+            await transport.capture_participant_transcription(participant["id"])
 
-        @self.transport.event_handler("on_last_participant_left")
-        async def handle_leave(transport):
-            if cleanup_callback:
-                await cleanup_callback()
+        @self.transport.event_handler("on_participant_left")
+        async def handle_leave(transport, participant, reason=None):
+            try:
+                if cleanup_callback:
+                    await cleanup_callback()
+            except Exception as e:
+                print(f"Error during cleanup: {str(e)}")
 
         @self.transport.event_handler("on_error")
         async def handle_error(transport, error):
             print(f"Transport error occurred: {error}")
-            if cleanup_callback:
-                await cleanup_callback()
+            try:
+                if cleanup_callback:
+                    await cleanup_callback()
+            except Exception as e:
+                print(f"Error during cleanup: {str(e)}")
 
     def register_custom_handler(
         self, event_name: str, handler: Callable[..., Awaitable[Any]]

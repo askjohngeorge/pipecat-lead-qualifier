@@ -3,6 +3,9 @@
 from typing import Optional
 from dataclasses import dataclass
 
+from pipecat.services.deepgram import DeepgramSTTService, DeepgramTTSService
+from pipecat.services.openai import OpenAILLMService
+
 
 @dataclass
 class ServiceRegistry:
@@ -18,12 +21,6 @@ class ServiceRegistry:
 
     def _init_services(self, config):
         """Initialize core services with configuration."""
-        from pipecat.services import (
-            DeepgramSTTService,
-            DeepgramTTSService,
-            OpenAILLMService,
-        )
-
-        self.stt = DeepgramSTTService(config.deepgram_api_key)
-        self.tts = DeepgramTTSService(config.deepgram_api_key)
-        self.llm = OpenAILLMService(config.openai_api_key)
+        self.stt = DeepgramSTTService(api_key=config.deepgram_api_key)
+        self.tts = DeepgramTTSService(api_key=config.deepgram_api_key)
+        self.llm = OpenAILLMService(api_key=config.openai_api_key)

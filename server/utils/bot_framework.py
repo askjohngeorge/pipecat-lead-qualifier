@@ -1,7 +1,6 @@
 """Base bot framework for shared functionality."""
 
 from abc import ABC, abstractmethod
-from typing import Optional
 from .services import ServiceRegistry
 
 
@@ -44,4 +43,4 @@ class BaseBot(ABC):
         if self.runner:
             await self.runner.stop_when_done()
         if self.transport:
-            await self.transport.leave()
+            await self.transport.close()
