@@ -1,6 +1,6 @@
 import os
 import json
-from typing import TypedDict, Optional, List, Dict, Union, Tuple
+from typing import TypedDict, Optional, List, Dict, Tuple
 from datetime import datetime, timedelta
 import aiohttp
 from dotenv import load_dotenv

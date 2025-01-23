@@ -1,15 +1,15 @@
 import asyncio
 import os
+import sys
+from pathlib import Path
 from aiohttp import ClientSession
 from dotenv import load_dotenv
-from datetime import datetime
-from zoneinfo import ZoneInfo
 
 from calcom_api import CalComAPI, BookingDetails
 
 # Add parent directory to Python path to import bot_runner
 sys.path.append(str(Path(__file__).parent.parent))
-from bot_runner import configure
+from server.runner import configure
 
 # Load environment variables from .env file
 load_dotenv()
