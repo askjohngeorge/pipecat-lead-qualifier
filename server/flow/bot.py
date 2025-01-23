@@ -1,5 +1,6 @@
 import asyncio
 import sys
+import signal
 import argparse
 from pathlib import Path
 from aiohttp import ClientSession
@@ -7,6 +8,8 @@ from dotenv import load_dotenv
 
 from utils.calcom_api import CalComAPI, BookingDetails
 from utils.config import AppConfig
+from utils.transports import TransportFactory
+from utils.pipelines import PipelineBuilder
 
 # Load environment variables from .env file
 load_dotenv()
@@ -274,10 +277,16 @@ flow_config: FlowConfig = {
 }
 
 
-# Main function
+async def cleanup(runner, transport, task):
+    """Cleanup function to handle graceful shutdown."""
+    await runner.stop_when_done()
+    await task.stop_when_done()
+    if transport:
+        await transport.leave()
+
+
 async def main():
     """Setup and run the lead qualification agent."""
-    # Parse command line arguments
     parser = argparse.ArgumentParser(description="Lead Qualification Bot")
     parser.add_argument(
         "-u", "--url", type=str, required=True, help="URL of the Daily room to join"
@@ -287,81 +296,80 @@ async def main():
     )
     args = parser.parse_args()
 
-    async with ClientSession() as session:
-        # Initialize services
-        transport = DailyTransport(
-            args.url,
-            args.token,
-            "Lead Qualification Bot",
-            DailyParams(
-                audio_out_enabled=True,
-                vad_enabled=True,
-                vad_analyzer=SileroVADAnalyzer(),
-                vad_audio_passthrough=True,
-            ),
+    if not args.url or not args.token:
+        print("Error: Both --url and --token are required")
+        sys.exit(1)
+
+    # Initialize services
+    stt = DeepgramSTTService(api_key=config.deepgram_api_key)
+    tts = DeepgramTTSService(api_key=config.deepgram_api_key)
+    llm = OpenAILLMService(api_key=config.openai_api_key)
+
+    # Initialize transport using factory
+    transport_factory = TransportFactory(config)
+    transport = transport_factory.create_lead_qualifier_transport(args.url, args.token)
+
+    # Initialize RTVI
+    rtvi_config = RTVIConfig(config=[])
+    rtvi = RTVIProcessor(config=rtvi_config)
+
+    # Initialize context with initial messages
+    initial_messages = flow_config["nodes"]["rapport_building"]["role_messages"]
+    context = OpenAILLMContext(messages=initial_messages)
+
+    # Build pipeline using builder
+    pipeline_builder = PipelineBuilder(transport, stt, tts, llm, context=context)
+    pipeline = pipeline_builder.add_rtvi(rtvi).build()
+
+    task = PipelineTask(
+        pipeline,
+        PipelineParams(
+            allow_interruptions=True,
+            enable_metrics=True,
+            enable_usage_metrics=True,
+            observers=[rtvi.observer()],
+        ),
+    )
+
+    # Initialize flow manager
+    flow_manager = FlowManager(
+        task=task,
+        llm=llm,
+        context_aggregator=pipeline_builder.context_aggregator,
+        tts=tts,
+        flow_config=flow_config,
+    )
+
+    @rtvi.event_handler("on_client_ready")
+    async def on_client_ready(rtvi):
+        await rtvi.set_bot_ready()
+
+    @transport.event_handler("on_first_participant_joined")
+    async def on_first_participant_joined(transport, participant):
+        await transport.capture_participant_transcription(participant["id"])
+        await flow_manager.initialize()
+        # No need to queue additional context frames here since the flow manager will handle it
+
+    @transport.event_handler("on_participant_left")
+    async def on_participant_left(transport, participant, reason):
+        await runner.stop_when_done()
+
+    # Set up signal handlers for graceful shutdown
+    loop = asyncio.get_event_loop()
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        loop.add_signal_handler(
+            sig, lambda: asyncio.create_task(cleanup(runner, transport, task))
         )
 
-        stt = DeepgramSTTService(api_key=config.deepgram_api_key)
-        tts = DeepgramTTSService(
-            api_key=config.deepgram_api_key, voice="aura-helios-en"
-        )
-        llm = OpenAILLMService(api_key=config.openai_api_key, model="gpt-4o")
-
-        context = OpenAILLMContext()
-        context_aggregator = llm.create_context_aggregator(context)
-
-        # Initialize RTVI processor
-        rtvi = RTVIProcessor(config=RTVIConfig(config=[]))
-
-        # Create pipeline
-        pipeline = Pipeline(
-            [
-                transport.input(),
-                rtvi,
-                stt,
-                context_aggregator.user(),
-                llm,
-                tts,
-                transport.output(),
-                context_aggregator.assistant(),
-            ]
-        )
-
-        task = PipelineTask(
-            pipeline,
-            PipelineParams(
-                allow_interruptions=True,
-                enable_metrics=True,
-                enable_usage_metrics=True,
-                observers=[rtvi.observer()],
-            ),
-        )
-
-        # Initialize flow manager
-        flow_manager = FlowManager(
-            task=task,
-            llm=llm,
-            context_aggregator=context_aggregator,
-            tts=tts,
-            flow_config=flow_config,
-        )
-
-        @rtvi.event_handler("on_client_ready")
-        async def on_client_ready(rtvi):
-            await rtvi.set_bot_ready()
-
-        @transport.event_handler("on_first_participant_joined")
-        async def on_first_participant_joined(transport, participant):
-            await transport.capture_participant_transcription(participant["id"])
-            await flow_manager.initialize()
-            await task.queue_frames([context_aggregator.user().get_context_frame()])
-
-        @transport.event_handler("on_participant_left")
-        async def on_participant_left(transport, participant, reason):
-            await runner.stop_when_done()
-
+    try:
         runner = PipelineRunner()
         await runner.run(task)
+    except asyncio.CancelledError:
+        await cleanup(runner, transport, task)
+    finally:
+        # Remove signal handlers
+        for sig in (signal.SIGINT, signal.SIGTERM):
+            loop.remove_signal_handler(sig)
 
 
 if __name__ == "__main__":

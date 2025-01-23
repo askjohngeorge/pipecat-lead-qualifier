@@ -8,6 +8,8 @@ import sys
 # Add parent directory to Python path to import utils
 sys.path.append(str(Path(__file__).parent.parent))
 from utils.config import AppConfig
+from utils.transports import TransportFactory
+from utils.pipelines import PipelineBuilder
 
 # Initialize configuration
 config = AppConfig()
@@ -26,7 +28,6 @@ from pipecat.services.deepgram import DeepgramSTTService, DeepgramTTSService
 
 async def main():
     """Setup and run the simple voice assistant."""
-    # Parse command line arguments
     parser = argparse.ArgumentParser(description="Simple Voice Assistant Bot")
     parser.add_argument("-u", "--url", type=str, required=True, help="Daily room URL")
     parser.add_argument(
@@ -35,26 +36,18 @@ async def main():
     args = parser.parse_args()
 
     async with ClientSession() as session:
-        # Initialize transport with VAD and noise filtering
-        transport = DailyTransport(
-            args.url,
-            args.token,
-            "Simple Voice Assistant",
-            DailyParams(
-                audio_out_enabled=True,
-                vad_enabled=True,
-                vad_analyzer=SileroVADAnalyzer(),
-                vad_audio_passthrough=True,
-                # audio_in_filter=KrispFilter(),
-            ),
-        )
-
         # Initialize services
         stt = DeepgramSTTService(api_key=config.deepgram_api_key)
         tts = DeepgramTTSService(
             api_key=config.deepgram_api_key, voice="aura-helios-en"
         )
         llm = OpenAILLMService(api_key=config.openai_api_key, model="gpt-4o")
+
+        # Initialize transport using factory
+        transport_factory = TransportFactory(config)
+        transport = transport_factory.create_simple_assistant_transport(
+            args.url, args.token
+        )
 
         # Set up conversation context
         messages = [
@@ -113,20 +106,9 @@ You are David, a helpful voice assistant for John George Voice AI Solutions. You
             }
         ]
         context = OpenAILLMContext(messages)
-        context_aggregator = llm.create_context_aggregator(context)
 
-        # Create pipeline
-        pipeline = Pipeline(
-            [
-                transport.input(),
-                stt,
-                context_aggregator.user(),
-                llm,
-                tts,
-                transport.output(),
-                context_aggregator.assistant(),
-            ]
-        )
+        # Build pipeline using builder
+        pipeline = PipelineBuilder(transport, stt, tts, llm).build()
 
         # Create pipeline task
         task = PipelineTask(
@@ -144,6 +126,7 @@ You are David, a helpful voice assistant for John George Voice AI Solutions. You
             messages.append(
                 {"role": "system", "content": "Please introduce yourself to the user."}
             )
+            context_aggregator = llm.create_context_aggregator(context)
             await task.queue_frames([context_aggregator.user().get_context_frame()])
 
         @transport.event_handler("on_participant_left")
