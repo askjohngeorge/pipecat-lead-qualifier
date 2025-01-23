@@ -6,7 +6,7 @@
 There are multiple places where environment variables are loaded:
 - `runner.py` uses environment variables directly
 - `server.py` loads using `load_dotenv()`
-- `simple/simple_bot.py` loads using `load_dotenv()`
+- `simple/bot.py` loads using `load_dotenv()`
 - `flow/bot.py` loads using `load_dotenv()`
 - `flow/calcom_api.py` loads using `load_dotenv()`
 
@@ -22,7 +22,7 @@ The Daily API configuration is handled in multiple places:
 
 ## 2. Transport Setup Redundancy
 
-Both `simple_bot.py` and `flow/bot.py` contain nearly identical transport setup code:
+Both `simple/bot.py` and `flow/bot.py` contain nearly identical transport setup code:
 ```python
 transport = DailyTransport(
     room_url,
