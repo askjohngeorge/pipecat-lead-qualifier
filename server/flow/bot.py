@@ -132,7 +132,7 @@ class FlowBot(BaseBot):
 
     def __init__(self, config: AppConfig):
         super().__init__(config)
-        self.flow_config = {
+        self.flow_config: FlowConfig = {
             "initial_node": "rapport_building",
             "nodes": {
                 "rapport_building": {
