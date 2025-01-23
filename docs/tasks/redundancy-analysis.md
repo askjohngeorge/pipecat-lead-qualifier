@@ -1,33 +1,39 @@
 # Codebase Redundancy Analysis
 
-## 1. Configuration Management Redundancy
+## 1. Configuration Management (Resolved)
 
-### Redundant Configuration Loading
-There are multiple places where environment variables are loaded:
-- `runner.py` uses environment variables directly
-- `server.py` loads using `load_dotenv()`
-- `simple/bot.py` loads using `load_dotenv()`
-- `flow/bot.py` loads using `load_dotenv()`
-- `flow/calcom_api.py` loads using `load_dotenv()`
+### Previous Redundancy
+- Multiple `load_dotenv()` calls across files
+- Environment variable access spread throughout codebase
 
-**Recommendation**: Create a centralized configuration management module that handles all environment variable loading and validation.
+### Current Implementation
+- Centralized `AppConfig` class in `utils/config.py`
+- Type-safe configuration with validation
+- Single source of truth for environment variables
+- Used consistently in:
+  - `server.py`
+  - `flow/bot.py` 
+  - `simple/bot.py`
+  - `calcom_api.py`
 
-### Daily API Configuration Redundancy
-The Daily API configuration is handled in multiple places:
-- `runner.py` has a `configure()` function
-- `server.py` has similar Daily API setup code
-- Both use similar DailyRESTHelper initialization
+## 2. Daily API Configuration (Resolved)
 
-**Recommendation**: Consolidate Daily API configuration into a single utility module.
+### Previous Redundancy
+- Daily API setup duplicated in `runner.py` and `server.py`
 
-## 2. Transport Setup Redundancy
+### Current Implementation
+- Consolidated Daily REST helper in `server.py` lifespan manager
+- Configuration driven by `AppConfig`
+- Single DailyRESTHelper instance reused across application
 
-Both `simple/bot.py` and `flow/bot.py` contain nearly identical transport setup code:
+## 3. Transport Setup Redundancy
+
+Both `simple/bot.py` and `flow/bot.py` contain similar transport initialization:
 ```python
 transport = DailyTransport(
     room_url,
     token,
-    "Bot Name",
+    "Bot Name", 
     DailyParams(
         audio_out_enabled=True,
         vad_enabled=True,
@@ -37,11 +43,15 @@ transport = DailyTransport(
 )
 ```
 
-**Recommendation**: Create a factory function or utility class for transport setup.
+**Recommendation**: Create a `TransportFactory` class with methods like:
+- `create_lead_qualifier_transport()`
+- `create_simple_assistant_transport()`
 
-## 3. Pipeline Setup Redundancy
+## 4. Pipeline Setup Variation
 
-Similar pipeline setup code appears in both bot implementations:
+While similar, the pipelines have meaningful differences:
+
+### Simple Bot
 ```python
 pipeline = Pipeline([
     transport.input(),
@@ -54,54 +64,61 @@ pipeline = Pipeline([
 ])
 ```
 
-**Recommendation**: Create a pipeline factory that can be configured with different processors based on bot type.
+### Flow Bot (Additional RTVI Processor)
+```python 
+pipeline = Pipeline([
+    transport.input(),
+    rtvi,  # Additional component
+    stt,
+    context_aggregator.user(),
+    llm,
+    tts,
+    transport.output(),
+    context_aggregator.assistant(),
+])
+```
 
-## 4. Error Handling Redundancy
+**Recommendation**: Maintain separate pipeline configurations but extract common processor sequences into reusable builder methods.
+
+## 5. Error Handling Patterns
 
 ### Cal.com API Error Handling
-In `calcom_api.py`, there's redundant error handling code in both `get_availability()` and `create_booking()`:
-- Both implement retry logic
-- Both have similar error logging patterns
-- Both use similar response validation
+Both `get_availability()` and `create_booking()` share:
+- Retry logic with configurable attempts
+- Structured error logging
+- Consistent response validation
 
-**Recommendation**: Create a decorator or utility function for handling API calls with retries and consistent error handling.
+**Recommendation**: Create an `@retry_api_request` decorator that handles:
+- Exponential backoff
+- Error logging
+- Success/failure metrics
+- Retry policy configuration
 
-## 5. Event Handler Redundancy
+## 6. Event Handler Similarities
 
-Both bot implementations have nearly identical event handlers:
+Both bots implement nearly identical event handlers:
 ```python
 @transport.event_handler("on_first_participant_joined")
 @transport.event_handler("on_participant_left")
 ```
 
-**Recommendation**: Create a base bot class that implements common event handlers.
+**Recommendation**: Implement a `BaseBot` class with:
+- Common event handlers
+- Template methods for bot-specific logic
+- Shared participant management
 
-## 6. Empty Package Files
-The following files are redundant as they contain no meaningful code:
-- `./simple/__init__.py` only contains a docstring
-- `./flow/__init__.py` only contains a docstring
+## 7. Empty Package Files
+The following files remain redundant:
+- `./simple/__init__.py` (docstring only)
+- `./flow/__init__.py` (docstring only)
 
-**Recommendation**: Either remove these files if they serve no purpose or add actual package-level initialization code if needed.
+**Recommendation**: Either:
+1. Remove if unused, or
+2. Add package-level documentation explaining each bot type's purpose
 
-## Benefits of Addressing Redundancy
+## Benefits of Remaining Changes
 
-1. **Maintainability**: Centralized code is easier to maintain and update
-2. **Consistency**: Shared utilities ensure consistent behavior across different parts of the application
-3. **Testing**: Less code duplication means fewer places to test and validate
-4. **Error Handling**: Centralized error handling leads to more consistent error responses
-5. **Configuration**: Centralized configuration management reduces the chance of mismatched settings
-
-## Implementation Priority
-
-1. High Priority:
-   - Centralize configuration management
-   - Create shared transport and pipeline setup utilities
-   - Implement base bot class
-
-2. Medium Priority:
-   - Consolidate error handling
-   - Create API request utilities
-
-3. Low Priority:
-   - Clean up empty package files
-   - Optimize imports
+1. **Reduced Cognitive Load**: Shared infrastructure code becomes "invisible" to feature developers
+2. **Faster Iteration**: New bot types can be created by extending base classes
+3. **Consistent Observability**: Unified error handling improves monitoring
+4. **Resource Efficiency**: Shared transports reduce WebSocket connections
