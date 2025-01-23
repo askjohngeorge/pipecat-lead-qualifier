@@ -14,7 +14,7 @@ import os
 import subprocess
 import sys
 from contextlib import asynccontextmanager
-from typing import Any, Dict, Literal
+from typing import Any, Dict
 
 import aiohttp
 from fastapi import FastAPI, HTTPException, Request
@@ -29,7 +29,26 @@ from pipecat.transports.services.helpers.daily_rest import (
 
 from utils.config import AppConfig
 
-# Initialize configuration
+# Parse command line arguments for server configuration
+default_host = os.getenv("HOST", "0.0.0.0")
+default_port = int(os.getenv("FAST_API_PORT", "7860"))
+
+parser = argparse.ArgumentParser(description="Bot FastAPI server")
+parser.add_argument("--host", type=str, default=default_host, help="Host address")
+parser.add_argument("--port", type=int, default=default_port, help="Port number")
+parser.add_argument("--reload", action="store_true", help="Reload code on change")
+parser.add_argument(
+    "--bot-type",
+    type=str,
+    choices=["simple", "flow"],
+    default="simple",
+    help="Type of bot to run (simple or flow)",
+)
+
+args = parser.parse_args()
+
+# Initialize configuration with command line arguments
+os.environ["BOT_TYPE"] = args.bot_type
 config = AppConfig()
 
 # Configure loguru - remove default handler and add our own
@@ -51,9 +70,6 @@ bot_procs = {}
 
 # Store Daily API helpers
 daily_helpers = {}
-
-# Global bot type configuration
-BOT_TYPE: Literal["simple", "flow"] = "simple"
 
 
 async def cleanup_finished_processes():
@@ -141,7 +157,7 @@ async def create_room_and_token() -> tuple[str, str]:
 @app.get("/")
 async def start_agent(request: Request):
     """Endpoint for direct browser access to the bot."""
-    logger.info(f"Creating room for {BOT_TYPE} bot")
+    logger.info(f"Creating room for {config.bot_type} bot")
     room_url, token = await create_room_and_token()
     logger.info(f"Room URL: {room_url}")
 
@@ -158,7 +174,7 @@ async def start_agent(request: Request):
 
     # Spawn a new bot process based on bot_type
     try:
-        bot_module = "flow.bot" if BOT_TYPE == "flow" else "simple.simple_bot"
+        bot_module = "flow.bot" if config.bot_type == "flow" else "simple.bot"
         proc = subprocess.Popen(
             [f"python3 -m {bot_module} -u {room_url} -t {token}"],
             shell=True,
@@ -175,13 +191,13 @@ async def start_agent(request: Request):
 @app.post("/connect")
 async def rtvi_connect(request: Request) -> Dict[Any, Any]:
     """RTVI connect endpoint that creates a room and returns connection credentials."""
-    logger.info(f"Creating room for RTVI connection with {BOT_TYPE} bot")
+    logger.info(f"Creating room for RTVI connection with {config.bot_type} bot")
     room_url, token = await create_room_and_token()
     logger.info(f"Room URL: {room_url}")
 
     # Start the bot process
     try:
-        bot_module = "flow.bot" if BOT_TYPE == "flow" else "simple.simple_bot"
+        bot_module = "flow.bot" if config.bot_type == "flow" else "simple.bot"
         proc = subprocess.Popen(
             [f"python3 -m {bot_module} -u {room_url} -t {token}"],
             shell=True,
@@ -213,32 +229,12 @@ def get_status(pid: int):
 if __name__ == "__main__":
     import uvicorn
 
-    # Parse command line arguments for server configuration
-    default_host = os.getenv("HOST", "0.0.0.0")
-    default_port = int(os.getenv("FAST_API_PORT", "7860"))
-
-    parser = argparse.ArgumentParser(description="Bot FastAPI server")
-    parser.add_argument("--host", type=str, default=default_host, help="Host address")
-    parser.add_argument("--port", type=int, default=default_port, help="Port number")
-    parser.add_argument("--reload", action="store_true", help="Reload code on change")
-    parser.add_argument(
-        "--bot-type",
-        type=str,
-        choices=["simple", "flow"],
-        default="simple",
-        help="Type of bot to run (simple or flow)",
-    )
-
-    config = parser.parse_args()
-
-    # Set global bot type
-    BOT_TYPE = config.bot_type
-    logger.info(f"Starting server with {BOT_TYPE} bot")
+    logger.info(f"Starting server with {config.bot_type} bot")
 
     # Start the FastAPI server
     uvicorn.run(
         "server:app",
-        host=config.host,
-        port=config.port,
-        reload=config.reload,
+        host=args.host,
+        port=args.port,
+        reload=args.reload,
     )

@@ -1,7 +1,7 @@
 """Configuration management module for server components."""
 
 import os
-from typing import TypedDict
+from typing import TypedDict, Literal
 from dotenv import load_dotenv
 
 
@@ -17,6 +17,9 @@ class CalComConfig(TypedDict):
     event_duration: int
     username: str
     event_slug: str
+
+
+BotType = Literal["simple", "flow"]
 
 
 class AppConfig:
@@ -49,6 +52,11 @@ class AppConfig:
             "event_slug": os.getenv("CALCOM_EVENT_SLUG", ""),
         }
 
+        # Server configuration
+        self._bot_type: BotType = os.getenv("BOT_TYPE", "simple")
+        if self._bot_type not in ("simple", "flow"):
+            self._bot_type = "simple"  # Default to flow bot if invalid value
+
     @property
     def deepgram_api_key(self) -> str:
         return os.environ["DEEPGRAM_API_KEY"]
@@ -56,3 +64,13 @@ class AppConfig:
     @property
     def openai_api_key(self) -> str:
         return os.environ["OPENAI_API_KEY"]
+
+    @property
+    def bot_type(self) -> BotType:
+        return self._bot_type
+
+    @bot_type.setter
+    def bot_type(self, value: BotType):
+        if value not in ("simple", "flow"):
+            raise ValueError("Bot type must be either 'simple' or 'flow'")
+        self._bot_type = value
