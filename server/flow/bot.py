@@ -2,8 +2,6 @@ import asyncio
 import sys
 import signal
 import argparse
-from pathlib import Path
-from aiohttp import ClientSession
 from dotenv import load_dotenv
 
 from utils.calcom_api import CalComAPI, BookingDetails
@@ -17,11 +15,8 @@ load_dotenv()
 # Initialize configuration
 config = AppConfig()
 
-from pipecat.audio.vad.silero import SileroVADAnalyzer
-from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.task import PipelineParams, PipelineTask
 from pipecat.pipeline.runner import PipelineRunner
-from pipecat.transports.services.daily import DailyParams, DailyTransport
 from pipecat.processors.aggregators.openai_llm_context import OpenAILLMContext
 from pipecat.services.openai import OpenAILLMService
 from pipecat.services.deepgram import DeepgramSTTService, DeepgramTTSService

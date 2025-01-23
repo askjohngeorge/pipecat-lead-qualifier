@@ -1,5 +1,4 @@
 import asyncio
-import os
 import argparse
 from aiohttp import ClientSession
 from pathlib import Path
@@ -14,13 +13,9 @@ from utils.pipelines import PipelineBuilder
 # Initialize configuration
 config = AppConfig()
 
-from pipecat.audio.vad.silero import SileroVADAnalyzer
-
 # from pipecat.audio.filters.krisp_filter import KrispFilter
-from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.task import PipelineParams, PipelineTask
 from pipecat.pipeline.runner import PipelineRunner
-from pipecat.transports.services.daily import DailyParams, DailyTransport
 from pipecat.processors.aggregators.openai_llm_context import OpenAILLMContext
 from pipecat.services.openai import OpenAILLMService
 from pipecat.services.deepgram import DeepgramSTTService, DeepgramTTSService
