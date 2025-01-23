@@ -1,11 +1,11 @@
 import asyncio
 import sys
+import argparse
 from pathlib import Path
 from aiohttp import ClientSession
 from dotenv import load_dotenv
 
 from utils.calcom_api import CalComAPI, BookingDetails
-from runner import configure_with_args
 from utils.config import AppConfig
 
 # Load environment variables from .env file
@@ -277,14 +277,21 @@ flow_config: FlowConfig = {
 # Main function
 async def main():
     """Setup and run the lead qualification agent."""
-    async with ClientSession() as session:
-        # Get room configuration from runner
-        (room_url, token, _) = await configure_with_args(session)
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description="Lead Qualification Bot")
+    parser.add_argument(
+        "-u", "--url", type=str, required=True, help="URL of the Daily room to join"
+    )
+    parser.add_argument(
+        "-t", "--token", type=str, required=True, help="Token for the Daily room"
+    )
+    args = parser.parse_args()
 
+    async with ClientSession() as session:
         # Initialize services
         transport = DailyTransport(
-            room_url,
-            None,
+            args.url,
+            args.token,
             "Lead Qualification Bot",
             DailyParams(
                 audio_out_enabled=True,
