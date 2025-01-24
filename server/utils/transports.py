@@ -12,7 +12,7 @@ class TransportFactory:
             vad_audio_passthrough=True,
         )
 
-    def create_lead_qualifier_transport(self, room_url: str, token: str):
+    def create_flow_assistant_transport(self, room_url: str, token: str):
         return DailyTransport(
             room_url, token, "Lead Qualification Bot", self._default_params
         )

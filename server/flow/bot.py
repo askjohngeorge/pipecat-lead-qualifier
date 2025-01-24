@@ -277,7 +277,7 @@ class FlowBot(BaseBot):
 
     async def _create_transport(self, factory, url: str, token: str):
         """Implementation-specific transport creation."""
-        return factory.create_lead_qualifier_transport(url, token)
+        return factory.create_flow_assistant_transport(url, token)
 
     async def _handle_first_participant(self):
         """Implementation-specific first participant handling."""
