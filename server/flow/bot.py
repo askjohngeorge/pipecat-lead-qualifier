@@ -168,7 +168,102 @@ class FlowBot(BaseBot):
                             },
                         },
                     ],
-                }
+                },
+                "check_availability": {
+                    "task_messages": [
+                        {
+                            "role": "system",
+                            "content": "Use assumptive closing technique to naturally transition to booking a demo. Say something like 'Let's get you set up with a quick demo so you can see firsthand how this will help your business. Let me check our calendar...'",
+                        }
+                    ],
+                    "functions": [
+                        {
+                            "type": "function",
+                            "function": {
+                                "name": "handle_availability_check",
+                                "description": "Check calendar availability",
+                                "handler": handle_availability_check,
+                                "parameters": {"type": "object", "properties": {}},
+                                "transition_to": "present_time_slots",
+                            },
+                        },
+                    ],
+                },
+                "present_time_slots": {
+                    "task_messages": [
+                        {
+                            "role": "system",
+                            "content": "Based on the user's date preference, present available time slots. If they haven't chosen a date yet, ask them to choose from the available dates first.",
+                        }
+                    ],
+                    "functions": [
+                        {
+                            "type": "function",
+                            "function": {
+                                "name": "handle_time_slot_selection",
+                                "description": "Present time slots for selected date",
+                                "handler": handle_time_slot_selection,
+                                "parameters": {
+                                    "type": "object",
+                                    "properties": {
+                                        "selected_date": {
+                                            "type": "string",
+                                            "description": "The date selected by the user",
+                                        }
+                                    },
+                                    "required": ["selected_date"],
+                                },
+                                "transition_to": "confirm_booking",
+                            },
+                        },
+                    ],
+                },
+                "confirm_booking": {
+                    "task_messages": [
+                        {
+                            "role": "system",
+                            "content": "Attempt to book the selected time slot. If successful, confirm the booking enthusiastically. If it fails, handle gracefully with alternative booking options.",
+                        }
+                    ],
+                    "functions": [
+                        {
+                            "type": "function",
+                            "function": {
+                                "name": "handle_booking_confirmation",
+                                "description": "Confirm and create the booking",
+                                "handler": handle_booking_confirmation,
+                                "parameters": {
+                                    "type": "object",
+                                    "properties": {
+                                        "selected_slot": {
+                                            "type": "object",
+                                            "description": "The time slot selected by the user",
+                                            "properties": {
+                                                "date": {"type": "string"},
+                                                "time": {"type": "string"},
+                                                "datetime": {"type": "string"},
+                                                "is_morning": {"type": "boolean"},
+                                            },
+                                            "required": ["date", "time", "datetime"],
+                                        }
+                                    },
+                                    "required": ["selected_slot"],
+                                },
+                                "transition_to": "close_call",
+                            },
+                        },
+                    ],
+                },
+                "close_call": {
+                    "task_messages": [
+                        {
+                            "role": "system",
+                            "content": "Thank them warmly and end the conversation professionally. If there were any booking issues, make sure to clearly state the next steps.",
+                        }
+                    ],
+                    "functions": [],
+                    "post_actions": [{"type": "end_conversation"}],
+                },
             },
         }
         self.flow_manager = None
