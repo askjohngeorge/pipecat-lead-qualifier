@@ -54,8 +54,7 @@ class BaseBot(ABC):
         pass
 
     async def setup_transport(self, url: str, token: str):
-        """Initialize and configure transport with common setup."""
-        # Create transport using factory
+        """Standard transport setup with common event handlers"""
         transport_factory = TransportFactory(self.config)
         self.transport = await self._create_transport(transport_factory, url, token)
 
@@ -63,25 +62,29 @@ class BaseBot(ABC):
         event_framework = EventFramework(self.transport)
         await event_framework.register_default_handlers(self.cleanup)
 
-        # Set up first participant handler
+        # Common event handlers
+        @self.transport.event_handler("on_participant_left")
+        async def on_participant_left(transport, participant, reason):
+            await self.runner.stop_when_done()
+
         @self.transport.event_handler("on_first_participant_joined")
         async def on_first_participant_joined(transport, participant):
             await transport.capture_participant_transcription(participant["id"])
             await self._handle_first_participant()
 
-        # Allow subclasses to do additional setup
+        # Set up RTVI ready handler
+        @self.rtvi.event_handler("on_client_ready")
+        async def on_client_ready(rtvi):
+            await rtvi.set_bot_ready()
+
         await self._setup_transport_impl()
 
     async def _setup_transport_impl(self):
-        """Optional implementation-specific transport setup.
-
-        Override this method if the bot needs additional transport setup beyond the common setup.
-        """
+        """Optional implementation-specific transport setup."""
         pass
 
     def create_pipeline(self):
-        """Build the processing pipeline with common setup."""
-        # Create pipeline builder
+        """Standard pipeline construction"""
         self.pipeline_builder = PipelineBuilder(
             self.transport,
             self.services.stt,
@@ -89,11 +92,9 @@ class BaseBot(ABC):
             self.services.llm,
             context=self.context,
         )
-
-        # Add RTVI and build pipeline
         pipeline = self.pipeline_builder.add_rtvi(self.rtvi).build()
 
-        # Create task with common parameters
+        # Common task configuration
         self.task = PipelineTask(
             pipeline,
             PipelineParams(
@@ -103,18 +104,11 @@ class BaseBot(ABC):
                 observers=[self.rtvi.observer()],
             ),
         )
-
-        # Initialize runner
         self.runner = PipelineRunner()
-
-        # Allow subclasses to do additional setup
         self._create_pipeline_impl()
 
     def _create_pipeline_impl(self):
-        """Optional implementation-specific pipeline setup.
-
-        Override this method if the bot needs additional pipeline setup beyond the common setup.
-        """
+        """Optional implementation-specific pipeline setup."""
         pass
 
     async def start(self):

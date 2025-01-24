@@ -2,8 +2,6 @@
 
 import asyncio
 import sys
-import signal
-import argparse
 from dotenv import load_dotenv
 
 from utils.calcom_api import CalComAPI, BookingDetails
@@ -286,14 +284,6 @@ class FlowBot(BaseBot):
         """Implementation-specific first participant handling."""
         await self.flow_manager.initialize()
 
-    async def _setup_transport_impl(self):
-        """Implementation-specific transport setup."""
-
-        # Set up participant left handler
-        @self.transport.event_handler("on_participant_left")
-        async def on_participant_left(transport, participant, reason):
-            await self.runner.stop_when_done()
-
     def _create_pipeline_impl(self):
         """Implementation-specific pipeline setup."""
         # Initialize flow manager
@@ -306,53 +296,11 @@ class FlowBot(BaseBot):
         )
 
 
-async def cleanup(runner, transport, task):
-    """Cleanup function to handle graceful shutdown."""
-    await runner.stop_when_done()
-    await task.stop_when_done()
-    if transport:
-        await transport.leave()
-
-
 async def main():
     """Setup and run the lead qualification agent."""
-    parser = argparse.ArgumentParser(description="Lead Qualification Bot")
-    parser.add_argument(
-        "-u", "--url", type=str, required=True, help="URL of the Daily room to join"
-    )
-    parser.add_argument(
-        "-t", "--token", type=str, required=True, help="Token for the Daily room"
-    )
-    args = parser.parse_args()
+    from utils.run_helpers import run_bot
 
-    if not args.url or not args.token:
-        print("Error: Both --url and --token are required")
-        sys.exit(1)
-
-    # Initialize bot
-    config = AppConfig()
-    bot = FlowBot(config)
-
-    # Set up signal handlers for graceful shutdown
-    loop = asyncio.get_event_loop()
-    for sig in (signal.SIGINT, signal.SIGTERM):
-        loop.add_signal_handler(
-            sig,
-            lambda: asyncio.create_task(cleanup(bot.runner, bot.transport, bot.task)),
-        )
-
-    try:
-        # Set up and run the bot
-        await bot.setup_services()
-        await bot.setup_transport(args.url, args.token)
-        bot.create_pipeline()
-        await bot.start()
-    except asyncio.CancelledError:
-        await cleanup(bot.runner, bot.transport, bot.task)
-    finally:
-        # Remove signal handlers
-        for sig in (signal.SIGINT, signal.SIGTERM):
-            loop.remove_signal_handler(sig)
+    await run_bot(FlowBot, AppConfig)
 
 
 if __name__ == "__main__":

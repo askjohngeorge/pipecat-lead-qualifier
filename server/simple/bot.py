@@ -1,8 +1,6 @@
 """Simple bot implementation using the base bot framework."""
 
 import asyncio
-import argparse
-from aiohttp import ClientSession
 from pathlib import Path
 import sys
 
@@ -97,25 +95,9 @@ You are David, a helpful voice assistant for John George Voice AI Solutions. You
 
 async def main():
     """Setup and run the simple voice assistant."""
-    parser = argparse.ArgumentParser(description="Simple Voice Assistant Bot")
-    parser.add_argument("-u", "--url", type=str, required=True, help="Daily room URL")
-    parser.add_argument(
-        "-t", "--token", type=str, required=True, help="Daily room token"
-    )
-    args = parser.parse_args()
+    from utils.run_helpers import run_bot
 
-    # Initialize bot
-    config = AppConfig()
-    bot = SimpleBot(config)
-
-    async with ClientSession() as session:
-        # Set up the bot
-        await bot.setup_services()
-        await bot.setup_transport(args.url, args.token)
-        bot.create_pipeline()
-
-        # Run the bot
-        await bot.start()
+    await run_bot(SimpleBot, AppConfig)
 
 
 if __name__ == "__main__":
