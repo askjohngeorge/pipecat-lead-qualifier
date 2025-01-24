@@ -174,7 +174,7 @@ async def start_agent(request: Request):
 
     # Spawn a new bot process based on bot_type
     try:
-        bot_module = "flow.bot" if config.bot_type == "flow" else "simple.bot"
+        bot_module = "bots.flow" if config.bot_type == "flow" else "bots.simple"
         proc = subprocess.Popen(
             [f"python3 -m {bot_module} -u {room_url} -t {token}"],
             shell=True,
@@ -197,7 +197,7 @@ async def rtvi_connect(request: Request) -> Dict[Any, Any]:
 
     # Start the bot process
     try:
-        bot_module = "flow.bot" if config.bot_type == "flow" else "simple.bot"
+        bot_module = "bots.flow" if config.bot_type == "flow" else "bots.simple"
         proc = subprocess.Popen(
             [f"python3 -m {bot_module} -u {room_url} -t {token}"],
             shell=True,
