@@ -11,14 +11,6 @@ class DailyConfig(TypedDict):
     room_url: NotRequired[str]
 
 
-class CalComConfig(TypedDict):
-    api_key: str
-    event_type_id: int
-    event_duration: int
-    username: str
-    event_slug: str
-
-
 BotType = Literal["simple", "flow"]
 
 
@@ -31,7 +23,6 @@ class AppConfig:
             "DAILY_API_KEY": os.getenv("DAILY_API_KEY"),
             "DEEPGRAM_API_KEY": os.getenv("DEEPGRAM_API_KEY"),
             "OPENAI_API_KEY": os.getenv("OPENAI_API_KEY"),
-            "CALCOM_API_KEY": os.getenv("CALCOM_API_KEY"),
         }
 
         missing = [k for k, v in required.items() if not v]
@@ -46,14 +37,6 @@ class AppConfig:
         # Add room_url only if it's provided
         if room_url := os.getenv("DAILY_SAMPLE_ROOM_URL"):
             self.daily["room_url"] = room_url
-
-        self.calcom: CalComConfig = {
-            "api_key": required["CALCOM_API_KEY"],
-            "event_type_id": int(os.getenv("CALCOM_EVENT_TYPE_ID", "0")),
-            "event_duration": int(os.getenv("CALCOM_EVENT_DURATION", "0")),
-            "username": os.getenv("CALCOM_USERNAME", ""),
-            "event_slug": os.getenv("CALCOM_EVENT_SLUG", ""),
-        }
 
         # Server configuration
         self._bot_type: BotType = os.getenv("BOT_TYPE", "simple")
