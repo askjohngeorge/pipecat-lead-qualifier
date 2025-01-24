@@ -1,7 +1,6 @@
 """Flow-based bot implementation using the base bot framework."""
 
 import asyncio
-import sys
 from dotenv import load_dotenv
 
 from utils.calcom_api import CalComAPI, BookingDetails

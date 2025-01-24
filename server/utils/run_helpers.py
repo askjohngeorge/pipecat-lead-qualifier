@@ -1,5 +1,4 @@
 import argparse
-import asyncio
 from aiohttp import ClientSession
 
 
