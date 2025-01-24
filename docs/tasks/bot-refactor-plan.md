@@ -1,180 +1,159 @@
-# Bot Implementation Analysis & Refactoring Plan
+Below is a **step-by-step refactoring plan** for your junior developer. The aim is to move all the **common setup logic** (transport creation, pipeline building, event registration, etc.) from the specialized bot classes (`SimpleBot`, `FlowBot`) into the **base** or supporting utils while **keeping** the domain-specific logic (system prompts, flow definitions, helper functions) where it is for now.
 
-## Current Architecture Overview
+---
 
-### Component Relationships
+## **1. Identify Repeated Boilerplate in `SimpleBot` and `FlowBot`**
 
-```mermaid
-graph TD
-    A[Server] --> B[Flow Bot]
-    A --> C[Simple Bot]
-    B --> D[Flow Manager]
-    C --> E[LLM Prompt Chain]
-    B & C --> F[Daily Transport]
-    B & C --> G[Deepgram Services]
-    B & C --> H[OpenAI Integration]
-```
+Take a close look at what’s in both `SimpleBot` and `FlowBot`:
 
-### Key Differences
+- **Setup**:
+  - `await bot.setup_services()`
+  - `await bot.setup_transport(args.url, args.token)`
+  - `bot.create_pipeline()`
+  - `await bot.start()`
 
-| Aspect            | Flow Bot (`flow/bot.py`)      | Simple Bot (`simple/bot.py`)   |
-|-------------------|------------------------------|-------------------------------|
-| Core Logic        | State machine with flow nodes | Single LLM prompt chain      |
-| Configuration     | Flow config structure        | System prompt string         |
-| Conversation Flow | State-based transitions      | Free-form with prompt context|
-| Pipeline Design   | Uses RTVI processor         | Simple linear pipeline       |
+- **Command-line argument parsing** in the `main()` function.
+- **Transport creation** logic in `_create_transport`.
+- **Pipeline building** steps in `_create_pipeline_impl` (though `FlowBot` adds the flow manager, and `SimpleBot` is more straightforward).
+- **Common event handlers**, like finishing up on participant left.
 
-Note: While currently implemented differently, both bots are intended to provide identical functionality. The key difference is in how they manage conversation flow: through a state machine or through a system prompt.
+Look for code that’s largely identical or can be abstracted into shared functions.
 
-## Shared Code Analysis
+---
 
-### High-Value Candidates for Centralization
+## **2. Move Common Setup to the `BaseBot` or Utility Methods**
 
-1. **Service Initialization**
+Focus on removing as much code duplication from `SimpleBot` and `FlowBot` as possible, while leaving their domain-specific details:
+
+1. **Create a “run_bot” helper** in the base or in a utility file:
+   ```python
+   # e.g. in bot_framework.py
+   import argparse
+   import asyncio
+   from aiohttp import ClientSession
+
+   async def run_bot(bot_class, config_class):
+       parser = argparse.ArgumentParser(...)
+       parser.add_argument("-u", "--url", ...)
+       parser.add_argument("-t", "--token", ...)
+       args = parser.parse_args()
+
+       config = config_class()  # e.g. AppConfig
+       bot = bot_class(config)
+
+       async with ClientSession() as session:
+           await bot.setup_services()
+           await bot.setup_transport(args.url, args.token)
+           bot.create_pipeline()
+           await bot.start()
+   ```
+   - Then in `simple/bot.py`, you’d do:
+     ```python
+     from utils.bot_framework import run_bot
+
+     async def main():
+         await run_bot(SimpleBot, AppConfig)
+
+     if __name__ == "__main__":
+         import asyncio
+         asyncio.run(main())
+     ```
+   - Same in `flow/bot.py`, reducing code duplication in your `main()` function.
+
+2. **Transport Creation & Pipeline**  
+   - Your `BaseBot.setup_transport(...)` is already fairly generic. If you see repeated patterns—like “capture transcription” or “stop pipeline on participant left”—they can remain in the base or be placed in `_setup_transport_impl()`.  
+   - Similarly, your `create_pipeline()` method in the base can handle the “rtvi → stt → llm → tts → transport output” chain. If there’s something unique in `FlowBot`, you can override `_create_pipeline_impl()` but keep it minimal.
+
+3. **Event Handling**  
+   - If both bots do the same “stop when participant leaves,” put that in `BaseBot` by default. If a bot has a special handler (FlowBot might do extra stuff on participant left), override `_setup_transport_impl()` and add it there.
+
+---
+
+## **3. (Optional) Introduce Specialized Base Classes**
+
+If you notice you’re adding a bunch of “if flow vs. if simple” logic in `BaseBot`, you can split it out:
+
+- **`SinglePromptBaseBot`**: Inherits from `BaseBot`. It might handle straightforward “one system prompt, no flows.”  
+- **`FlowBaseBot`**: Inherits from `BaseBot`. It might handle “flow manager” logic.  
+
+But if you want to keep it simpler, you can keep a single `BaseBot` for now and just let `FlowBot` override the `_create_pipeline_impl()` method.
+
+---
+
+## **4. Keep Domain-Specific Logic in Each Bot**
+
+For now, do **not** relocate:
+
+- **System prompts** or “flow config” dictionaries (like `handle_availability_check` or `handle_time_slot_selection`)—these remain in their respective bot modules or config files.  
+- **Flow-specific functions** remain with the flow bot.  
+- **Simple-bot tasks** remain with the simple bot.
+
+In other words, you only extract the “common scaffolding.” The actual logic to parse or handle that data is specialized.
+
+---
+
+## **5. Verify Everything Still Works**
+
+After each step, test:
+
+- Running `python -m simple.bot -u ... -t ...`
+- Running `python -m flow.bot -u ... -t ...`
+
+Make sure the calls to the new “shared” methods in `BaseBot` or your new “run_bot” function still produce the same result in each environment. 
+
+---
+
+## **Example of the Final Look (High-Level)**
+
+After implementing the changes above, your `simple.bot` might look like:
+
 ```python
-# Current duplicated pattern
-stt = DeepgramSTTService(config.deepgram_api_key)
-tts = DeepgramTTSService(config.deepgram_api_key)
-llm = OpenAILLMService(config.openai_api_key)
-```
+# simple/bot.py
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).parent.parent))
 
-2. **Transport Configuration**
-```python
-# Similar setup in both implementations
-transport_factory = TransportFactory(config)
-transport = factory.create_transport(url, token)
-```
+from utils.config import AppConfig
+from utils.bot_framework import BaseBot, run_bot
+from pipecat.processors.aggregators.openai_llm_context import OpenAILLMContext
+from .config_simple import SIMPLE_BOT_CONFIG
 
-3. **Event Handler Structure**
-```python
-# Nearly identical patterns
-@transport.event_handler("on_first_participant_joined")
-async def handle_join(transport, participant):
-    await transport.capture_participant_transcription()
-    # Initialization logic...
-```
-
-4. **Pipeline Construction**
-```python
-# Shared pipeline building pattern
-pipeline = (
-    transport.input()
-    | stt
-    | context_aggregator
-    | llm
-    | tts
-    | transport.output()
-)
-```
-
-## Proposed Utility Modules
-
-### 1. Base Bot Framework (`utils/bot_framework.py`)
-```python
-class BaseBot:
+class SimpleBot(BaseBot):
     def __init__(self, config: AppConfig):
-        self.config = config
-        self.runner = PipelineRunner()
-        self.task = None
-        self.transport = None
-        
-    async def setup_services(self):
-        """Initialize STT, TTS, LLM services"""
-        raise NotImplementedError
-        
-    async def setup_transport(self, url: str, token: str):
-        """Initialize transport"""
-        raise NotImplementedError
+        super().__init__(config)
+        self.bot_config = SIMPLE_BOT_CONFIG
+        self.messages = [
+            {"role": "system", "content": self.bot_config["system_prompt"]}
+        ]
 
-    def create_pipeline(self):
-        """Build processing pipeline"""
-        raise NotImplementedError
+    async def _setup_services_impl(self):
+        self.context = OpenAILLMContext(self.messages)
+        self.context_aggregator = self.services.llm.create_context_aggregator(self.context)
 
-    async def start(self):
-        await self.runner.run(self.task)
+    async def _create_transport(self, factory, url: str, token: str):
+        return factory.create_simple_assistant_transport(url, token)
 
-    async def cleanup(self):
-        await self.runner.stop_when_done()
-        if self.transport:
-            await self.transport.leave()
+    async def _handle_first_participant(self):
+        self.messages.append({"role": "system", "content": "Please introduce yourself..."})
+        await self.task.queue_frames([self.context_aggregator.user().get_context_frame()])
+
+async def main():
+    await run_bot(SimpleBot, AppConfig)
+
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(main())
 ```
 
-### 2. Service Registry (`utils/services.py`)
-```python
-class ServiceRegistry:
-    _instance = None
-    
-    def __init__(self, config):
-        self.stt = DeepgramSTTService(config.deepgram_api_key)
-        self.tts = DeepgramTTSService(config.deepgram_api_key)
-        self.llm = OpenAILLMService(config.openai_api_key)
-```
+And your `BaseBot` might now hold all the logic for event registration, pipeline building, etc. Meanwhile, `FlowBot` is similarly minimal, just focusing on flow-specific tasks.
 
-### 3. Event Framework (`utils/events.py`)
-```python
-class EventFramework:
-    def __init__(self, transport):
-        self.transport = transport
-        
-    def register_default_handlers(self, cleanup_callback):
-        @self.transport.event_handler("on_first_participant_joined")
-        async def _handle_join(transport, participant):
-            # Common join logic
-            await cleanup_callback()
-```
+---
 
-### 4. Pipeline Manager (`utils/pipeline.py`)
-```python
-class PipelineManager:
-    def __init__(self, config: AppConfig):
-        self.config = config
-        self.services = ServiceRegistry(config)
-    
-    def create_base_pipeline(self, transport):
-        return (
-            transport.input()
-            | self.services.stt
-            | self.create_context()
-            | self.services.llm
-            | self.services.tts
-            | transport.output()
-        )
-        
-    def create_context(self):
-        """Override in specific bot implementations"""
-        raise NotImplementedError
-```
+## **Checklist for the Junior Developer**
 
-## Migration Strategy
+1. **Extract repeated code** from `SimpleBot` and `FlowBot` into `BaseBot` (or further utility methods).  
+2. **Optionally** add a `run_bot` utility function to unify the argument parsing and main loop.  
+3. **Ensure** that only the domain-specific logic (system prompts, flow definitions, specialized event handling) remains in `SimpleBot`/`FlowBot`.  
+4. **Test** each stage to confirm the refactoring hasn’t introduced regressions.  
 
-### Phase 1: Foundation Layer
-1. Implement Service Registry
-2. Create Base Pipeline Builder
-3. Set Up Shared Event Framework
-
-### Phase 2: Bot Specialization
-```mermaid
-graph TD
-    A[BaseBot] --> B[FlowBot]
-    A --> C[SimpleBot]
-    B --> D[FlowManager]
-    C --> E[PromptManager]
-```
-
-### Phase 3: Unified Features
-1. Standardize Conversation Capabilities
-2. Align Pipeline Components
-3. Implement Shared Business Logic
-
-## Implementation Roadmap
-
-| Quarter | Milestone                      | Success Metrics               |
-|---------|--------------------------------|------------------------------|
-| Q1      | Core Utilities Implementation  | 50% code reuse achieved     |
-| Q2      | Flow Bot Migration             | 100% test parity maintained |
-| Q3      | Simple Bot Refactor            | 30% performance improvement |
-| Q4      | Feature Parity Implementation  | Identical functionality     |
-
-## Conclusion
-
-This refactoring establishes a foundation for maintaining two different conversational approaches (flow-based and prompt-based) while sharing core infrastructure. The architecture enables experimentation with both methodologies while ensuring consistent functionality. The key difference remains in how conversation flow is managed, while all other aspects of the system are unified through shared utilities.
+Following these steps will leave you with a cleaner structure, where each specialized bot only deals with the *unique*, domain-specific aspects—while the shared “scaffolding” (setup/transport/pipeline/event handling) lives in the base or utility files.
