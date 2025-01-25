@@ -38,7 +38,7 @@ logger.add(sys.stderr, level="DEBUG")
 
 
 # Node generator functions
-def create_greet_and_collect_name_node() -> Dict:
+def create_collect_name_node() -> Dict:
     """Create the initial greeting node."""
     return {
         "role_messages": [
@@ -231,8 +231,21 @@ def create_redirect_consultancy_node() -> Dict:
                 "content": "Inform the caller you'll redirect them to our consultancy page.",
             }
         ],
-        "functions": [],
-        "post_actions": [{"type": "redirect_consultancy"}],
+        "functions": [
+            {
+                "type": "function",
+                "function": {
+                    "name": "redirect_consultancy",
+                    "handler": redirect_consultancy,
+                    "description": "Redirect to consultancy booking page",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {"redirect": {"type": "string"}},
+                        "required": ["redirect"],
+                    },
+                },
+            }
+        ],
     }
 
 
@@ -245,8 +258,21 @@ def create_redirect_discovery_node() -> Dict:
                 "content": "Inform the caller you'll redirect them to our discovery page.",
             }
         ],
-        "functions": [],
-        "post_actions": [{"type": "redirect_discovery"}],
+        "functions": [
+            {
+                "type": "function",
+                "function": {
+                    "name": "redirect_discovery",
+                    "handler": redirect_discovery,
+                    "description": "Redirect to discovery booking page",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {"redirect": {"type": "string"}},
+                        "required": ["redirect"],
+                    },
+                },
+            }
+        ],
     }
 
 
@@ -295,12 +321,17 @@ async def assess_interaction(args: FlowArgs) -> FlowResult:
     return {"qualified": args["qualified"]}
 
 
+async def redirect_consultancy(args: FlowArgs) -> FlowResult:
+    """Handle transition after redirect."""
+    return {"redirect": args["redirect"]}
+
+
+async def redirect_discovery(args: FlowArgs) -> FlowResult:
+    """Handle transition after redirect."""
+    return {"redirect": args["redirect"]}
+
+
 # Transition handlers
-async def handle_greeting(args: Dict, flow_manager: FlowManager):
-    """Handle transition after greeting."""
-    await flow_manager.set_node("get_name", create_name_node())
-
-
 async def handle_name_collection(args: Dict, flow_manager: FlowManager):
     """Handle transition after name collection."""
     flow_manager.state["name"] = args["name"]
@@ -408,7 +439,7 @@ class FlowBot(BaseBot):
 
     async def _setup_services_impl(self):
         """Implementation-specific service setup."""
-        initial_messages = create_greet_and_collect_name_node()["role_messages"]
+        initial_messages = create_collect_name_node()["role_messages"]
         self.context = OpenAILLMContext(messages=initial_messages)
         self.context_aggregator = self.services.llm.create_context_aggregator(
             self.context
@@ -421,9 +452,7 @@ class FlowBot(BaseBot):
     async def _handle_first_participant(self):
         """Implementation-specific first participant handling."""
         await self.flow_manager.initialize()
-        await self.flow_manager.set_node(
-            "greet_and_collect_name", create_greet_and_collect_name_node()
-        )
+        await self.flow_manager.set_node("collect_name", create_collect_name_node())
 
     def _create_pipeline_impl(self):
         """Implementation-specific pipeline setup."""
