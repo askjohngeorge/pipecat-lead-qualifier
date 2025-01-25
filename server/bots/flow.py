@@ -2,6 +2,7 @@
 
 import asyncio
 import sys
+import uuid
 from typing import Dict, Literal, Optional
 from dotenv import load_dotenv
 from loguru import logger
@@ -26,6 +27,7 @@ class NavigationEventMessage(BaseModel):
 
     label: Literal["rtvi-ai"] = "rtvi-ai"
     type: Literal["navigation-request"] = "navigation-request"
+    id: str
     data: NavigationEventData
 
 
@@ -433,7 +435,8 @@ class FlowBot(BaseBot):
             replace: If True, replace current history entry instead of pushing
         """
         message = NavigationEventMessage(
-            data=NavigationEventData(path=path, query=query, replace=replace)
+            id=str(uuid.uuid4()),  # Required by RTVIMessage
+            data=NavigationEventData(path=path, query=query, replace=replace),
         )
         await self.rtvi._push_transport_message(message)
 
