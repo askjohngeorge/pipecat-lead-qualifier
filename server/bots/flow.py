@@ -151,101 +151,102 @@ class FlowBot(BaseBot):
                             "function": {
                                 "name": "collect_name",
                                 "description": "Record the caller's name",
-                                "parameters": {
-                                    "type": "object",
-                                    "properties": {
-                                        "name": {
-                                            "type": "string",
-                                            "description": "The caller's name",
-                                        }
-                                    },
-                                    "required": ["name"],
-                                },
-                                "transition_to": "check_availability",
-                            },
-                        },
-                    ],
-                },
-                "check_availability": {
-                    "task_messages": [
-                        {
-                            "role": "system",
-                            "content": "Use assumptive closing technique to naturally transition to booking a demo. Say something like 'Let's get you set up with a quick demo so you can see firsthand how this will help your business. Let me check our calendar...'",
-                        }
-                    ],
-                    "functions": [
-                        {
-                            "type": "function",
-                            "function": {
-                                "name": "handle_availability_check",
-                                "description": "Check calendar availability",
-                                "handler": handle_availability_check,
                                 "parameters": {"type": "object", "properties": {}},
-                                "transition_to": "present_time_slots",
+                                "transition_to": "identify_use_case",
                             },
                         },
                     ],
                 },
-                "present_time_slots": {
+                "identify_use_case": {
                     "task_messages": [
                         {
                             "role": "system",
-                            "content": "Based on the user's date preference, present available time slots. If they haven't chosen a date yet, ask them to choose from the available dates first.",
+                            "content": "Ask about their voice AI needs.",
                         }
                     ],
                     "functions": [
                         {
                             "type": "function",
                             "function": {
-                                "name": "handle_time_slot_selection",
-                                "description": "Present time slots for selected date",
-                                "handler": handle_time_slot_selection,
-                                "parameters": {
-                                    "type": "object",
-                                    "properties": {
-                                        "selected_date": {
-                                            "type": "string",
-                                            "description": "The date selected by the user",
-                                        }
-                                    },
-                                    "required": ["selected_date"],
-                                },
-                                "transition_to": "confirm_booking",
+                                "name": "identify_use_case",
+                                "description": "Record their use case needs",
+                                "parameters": {"type": "object", "properties": {}},
+                                "transition_to": "establish_timescales",
                             },
                         },
                     ],
                 },
-                "confirm_booking": {
+                "establish_timescales": {
                     "task_messages": [
                         {
                             "role": "system",
-                            "content": "Attempt to book the selected time slot. If successful, confirm the booking enthusiastically. If it fails, handle gracefully with alternative booking options.",
+                            "content": "Ask about their desired timeline. Ask for both start date and deadline.",
                         }
                     ],
                     "functions": [
                         {
                             "type": "function",
                             "function": {
-                                "name": "handle_booking_confirmation",
-                                "description": "Confirm and create the booking",
-                                "handler": handle_booking_confirmation,
-                                "parameters": {
-                                    "type": "object",
-                                    "properties": {
-                                        "selected_slot": {
-                                            "type": "object",
-                                            "description": "The time slot selected by the user",
-                                            "properties": {
-                                                "date": {"type": "string"},
-                                                "time": {"type": "string"},
-                                                "datetime": {"type": "string"},
-                                                "is_morning": {"type": "boolean"},
-                                            },
-                                            "required": ["date", "time", "datetime"],
-                                        }
-                                    },
-                                    "required": ["selected_slot"],
-                                },
+                                "name": "establish_timescales",
+                                "description": "Record project timeline",
+                                "parameters": {"type": "object", "properties": {}},
+                                "transition_to": "determine_budget",
+                            },
+                        },
+                    ],
+                },
+                "determine_budget": {
+                    "task_messages": [
+                        {
+                            "role": "system",
+                            "content": "Ask about their budget for the voice AI solution. If they're unsure, explain our tiered options.",
+                        }
+                    ],
+                    "functions": [
+                        {
+                            "type": "function",
+                            "function": {
+                                "name": "determine_budget",
+                                "description": "Record their budget range",
+                                "parameters": {"type": "object", "properties": {}},
+                                "transition_to": "assess_feedback",
+                            },
+                        },
+                    ],
+                },
+                "assess_feedback": {
+                    "task_messages": [
+                        {
+                            "role": "system",
+                            "content": "Ask for their feedback on this AI interaction experience.",
+                        }
+                    ],
+                    "functions": [
+                        {
+                            "type": "function",
+                            "function": {
+                                "name": "assess_feedback",
+                                "description": "Record their interaction feedback",
+                                "parameters": {"type": "object", "properties": {}},
+                                "transition_to": "offer_call_option",
+                            },
+                        },
+                    ],
+                },
+                "offer_call_option": {
+                    "task_messages": [
+                        {
+                            "role": "system",
+                            "content": "Offer them the choice between booking a video call with John George or receiving follow-up via email.",
+                        }
+                    ],
+                    "functions": [
+                        {
+                            "type": "function",
+                            "function": {
+                                "name": "offer_call_option",
+                                "description": "Record their preferred follow-up method",
+                                "parameters": {"type": "object", "properties": {}},
                                 "transition_to": "close_call",
                             },
                         },
@@ -255,7 +256,7 @@ class FlowBot(BaseBot):
                     "task_messages": [
                         {
                             "role": "system",
-                            "content": "Thank them warmly and end the conversation professionally. If there were any booking issues, make sure to clearly state the next steps.",
+                            "content": "Thank them for their time and end the conversation warmly.",
                         }
                     ],
                     "functions": [],
