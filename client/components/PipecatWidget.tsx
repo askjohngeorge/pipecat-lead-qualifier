@@ -25,6 +25,9 @@ export function PipecatWidget() {
     if (!client) return;
 
     const handleMessage = (message: { type: string; data: unknown }) => {
+      // Debug log for all messages
+      console.log("RTVI message received:", message);
+
       if (message.type === "navigation-request") {
         const data = message.data as NavigationEventData;
         const queryString = data.query
