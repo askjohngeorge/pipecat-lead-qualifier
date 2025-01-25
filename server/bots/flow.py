@@ -384,13 +384,13 @@ async def handle_interaction_assessment(args: Dict, flow_manager: FlowManager):
 
 async def handle_redirect_consultancy(args: Dict, flow_manager: FlowManager):
     """Handle transition after redirect."""
-    await flow_manager.bot.request_navigation("/consultancy")
+    await flow_manager.request_navigation("/consultancy")
     await flow_manager.set_node("close_call", create_close_node())
 
 
 async def handle_redirect_discovery(args: Dict, flow_manager: FlowManager):
     """Handle transition after redirect."""
-    await flow_manager.bot.request_navigation("/discovery")
+    await flow_manager.request_navigation("/discovery")
     await flow_manager.set_node("close_call", create_close_node())
 
 
@@ -464,6 +464,8 @@ class FlowBot(BaseBot):
             tts=self.services.tts,
             transition_callback=handle_lead_qualification_transition,
         )
+        # Store the request_navigation function in the flow manager
+        self.flow_manager.request_navigation = self.request_navigation
 
 
 async def main():
