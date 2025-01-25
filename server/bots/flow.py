@@ -232,7 +232,7 @@ def create_redirect_consultancy_node() -> Dict:
             }
         ],
         "functions": [],
-        "post_actions": [{"type": "redirect", "path": "/consultancy/book"}],
+        "post_actions": [{"type": "redirect_consultancy"}],
     }
 
 
@@ -246,7 +246,7 @@ def create_redirect_discovery_node() -> Dict:
             }
         ],
         "functions": [],
-        "post_actions": [{"type": "redirect", "path": "/discovery/book"}],
+        "post_actions": [{"type": "redirect_discovery"}],
     }
 
 
@@ -351,10 +351,15 @@ async def handle_interaction_assessment(args: Dict, flow_manager: FlowManager):
         )
 
 
-async def handle_redirect(args: Dict, flow_manager: FlowManager):
+async def handle_redirect_consultancy(args: Dict, flow_manager: FlowManager):
     """Handle transition after redirect."""
-    if "path" in args:
-        await flow_manager.bot.request_navigation(args["path"])
+    await flow_manager.bot.request_navigation("/consultancy")
+    await flow_manager.set_node("close_call", create_close_node())
+
+
+async def handle_redirect_discovery(args: Dict, flow_manager: FlowManager):
+    """Handle transition after redirect."""
+    await flow_manager.bot.request_navigation("/discovery")
     await flow_manager.set_node("close_call", create_close_node())
 
 
@@ -366,7 +371,8 @@ HANDLERS = {
     "establish_timescales": handle_timescales_establishment,
     "determine_budget": handle_budget_determination,
     "assess_interaction": handle_interaction_assessment,
-    "redirect": handle_redirect,
+    "redirect_consultancy": handle_redirect_consultancy,
+    "redirect_discovery": handle_redirect_discovery,
 }
 
 
