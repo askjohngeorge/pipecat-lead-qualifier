@@ -8,11 +8,43 @@ import {
 import { useCallback, useState, useEffect } from "react";
 import { AIVoiceInput } from "./ui/ai-voice-input";
 
+interface NavigationEventData {
+  path: string;
+  query?: Record<string, string>;
+  replace?: boolean;
+}
+
 export function PipecatWidget() {
   const client = useRTVIClient();
   const transportState = useRTVIClientTransportState();
   const isConnected = ["connected", "ready"].includes(transportState);
   const [isConnecting, setIsConnecting] = useState(false);
+
+  // Handle navigation events from the server
+  useEffect(() => {
+    if (!client) return;
+
+    const handleMessage = (message: { type: string; data: unknown }) => {
+      if (message.type === "navigation-request") {
+        const data = message.data as NavigationEventData;
+        const queryString = data.query
+          ? "?" + new URLSearchParams(data.query).toString()
+          : "";
+
+        console.log(`Navigation request received:`, {
+          path: data.path + queryString,
+          replace: data.replace,
+        });
+      }
+    };
+
+    // @ts-expect-error - RTVI client types don't include custom message events
+    client.on("message", handleMessage);
+    return () => {
+      // @ts-expect-error - RTVI client types don't include custom message events
+      client.off("message", handleMessage);
+    };
+  }, [client]);
 
   // Reset connecting state when transport state changes
   useEffect(() => {

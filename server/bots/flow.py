@@ -2,14 +2,32 @@
 
 import asyncio
 import sys
-from typing import Dict
+from typing import Dict, Literal, Optional
 from dotenv import load_dotenv
 from loguru import logger
+from pydantic import BaseModel
 
 from utils.config import AppConfig
 from utils.bot_framework import BaseBot
 from pipecat.processors.aggregators.openai_llm_context import OpenAILLMContext
 from pipecat_flows import FlowManager, FlowConfig, FlowArgs, FlowResult
+
+
+class NavigationEventData(BaseModel):
+    """Data structure for navigation events."""
+
+    path: str
+    query: Optional[dict] = None
+    replace: bool = False
+
+
+class NavigationEventMessage(BaseModel):
+    """RTVI message for navigation events."""
+
+    label: Literal["rtvi-ai"] = "rtvi-ai"
+    type: Literal["navigation-request"] = "navigation-request"
+    data: NavigationEventData
+
 
 # Load environment variables from .env file
 load_dotenv()
@@ -214,7 +232,7 @@ def create_redirect_consultancy_node() -> Dict:
             }
         ],
         "functions": [],
-        "post_actions": [{"type": "redirect", "url": "/consultancy"}],
+        "post_actions": [{"type": "redirect", "path": "/consultancy/book"}],
     }
 
 
@@ -228,7 +246,7 @@ def create_redirect_discovery_node() -> Dict:
             }
         ],
         "functions": [],
-        "post_actions": [{"type": "redirect", "url": "/discovery"}],
+        "post_actions": [{"type": "redirect", "path": "/discovery/book"}],
     }
 
 
@@ -335,6 +353,8 @@ async def handle_interaction_assessment(args: Dict, flow_manager: FlowManager):
 
 async def handle_redirect(args: Dict, flow_manager: FlowManager):
     """Handle transition after redirect."""
+    if "path" in args:
+        await flow_manager.bot.request_navigation(args["path"])
     await flow_manager.set_node("close_call", create_close_node())
 
 
@@ -364,6 +384,21 @@ class FlowBot(BaseBot):
     def __init__(self, config: AppConfig):
         super().__init__(config)
         self.flow_manager = None
+
+    async def request_navigation(
+        self, path: str, query: Optional[dict] = None, replace: bool = False
+    ):
+        """Request the client to navigate to a specific page.
+
+        Args:
+            path: The path to navigate to (e.g., "/dashboard")
+            query: Optional query parameters (e.g., {"id": "123"})
+            replace: If True, replace current history entry instead of pushing
+        """
+        message = NavigationEventMessage(
+            data=NavigationEventData(path=path, query=query, replace=replace)
+        )
+        await self._push_transport_message(message.dict())
 
     async def _setup_services_impl(self):
         """Implementation-specific service setup."""
