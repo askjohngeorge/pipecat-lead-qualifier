@@ -435,7 +435,7 @@ class FlowBot(BaseBot):
         message = NavigationEventMessage(
             data=NavigationEventData(path=path, query=query, replace=replace)
         )
-        await self._push_transport_message(message.dict())
+        await self.rtvi._push_transport_message(message)
 
     async def _setup_services_impl(self):
         """Implementation-specific service setup."""
