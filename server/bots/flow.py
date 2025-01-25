@@ -20,7 +20,7 @@ logger.add(sys.stderr, level="DEBUG")
 
 
 # Node generator functions
-def create_greet_node() -> Dict:
+def create_greet_and_collect_name_node() -> Dict:
     """Create the initial greeting node."""
     return {
         "role_messages": [
@@ -32,20 +32,7 @@ def create_greet_node() -> Dict:
         "task_messages": [
             {
                 "role": "system",
-                "content": "Greet the caller warmly.",
-            }
-        ],
-        "functions": [],
-    }
-
-
-def create_name_node() -> Dict:
-    """Create node for collecting caller's name."""
-    return {
-        "task_messages": [
-            {
-                "role": "system",
-                "content": "Ask for the caller's name.",
+                "content": "Greet the caller warmly. Introduce yourself as Chris, a voice AI agent for John George Voice AI solutions. Then ask for and record the caller's name.",
             }
         ],
         "functions": [
@@ -353,7 +340,6 @@ async def handle_redirect(args: Dict, flow_manager: FlowManager):
 
 # Transition callback mapping
 HANDLERS = {
-    "greet": handle_greeting,
     "collect_name": handle_name_collection,
     "identify_service": handle_service_identification,
     "identify_use_case": handle_use_case_identification,
@@ -381,7 +367,7 @@ class FlowBot(BaseBot):
 
     async def _setup_services_impl(self):
         """Implementation-specific service setup."""
-        initial_messages = create_greet_node()["role_messages"]
+        initial_messages = create_greet_and_collect_name_node()["role_messages"]
         self.context = OpenAILLMContext(messages=initial_messages)
         self.context_aggregator = self.services.llm.create_context_aggregator(
             self.context
@@ -394,7 +380,9 @@ class FlowBot(BaseBot):
     async def _handle_first_participant(self):
         """Implementation-specific first participant handling."""
         await self.flow_manager.initialize()
-        await self.flow_manager.set_node("greet", create_greet_node())
+        await self.flow_manager.set_node(
+            "greet_and_collect_name", create_greet_and_collect_name_node()
+        )
 
     def _create_pipeline_impl(self):
         """Implementation-specific pipeline setup."""
