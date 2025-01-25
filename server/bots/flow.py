@@ -34,12 +34,14 @@ def create_rapport_node() -> Dict:
                 "type": "function",
                 "function": {
                     "name": "collect_name",
+                    "handler": collect_name,
                     "description": "Record the caller's name",
                     "parameters": {
                         "type": "object",
                         "properties": {"name": {"type": "string"}},
                         "required": ["name"],
                     },
+                    "transition_callback": handle_name_collection,
                 },
             },
         ],
@@ -60,6 +62,7 @@ def create_use_case_node(name: str) -> Dict:
                 "type": "function",
                 "function": {
                     "name": "identify_use_case",
+                    "handler": identify_use_case,
                     "description": "Record their use case needs",
                     "parameters": {
                         "type": "object",
@@ -72,6 +75,7 @@ def create_use_case_node(name: str) -> Dict:
                         },
                         "required": ["use_case", "complexity"],
                     },
+                    "transition_callback": handle_use_case_identification,
                 },
             },
         ],
@@ -97,6 +101,7 @@ def create_timescales_node(use_case_complexity: str) -> Dict:
                 "type": "function",
                 "function": {
                     "name": "establish_timescales",
+                    "handler": establish_timescales,
                     "description": "Record project timeline",
                     "parameters": {
                         "type": "object",
@@ -110,6 +115,7 @@ def create_timescales_node(use_case_complexity: str) -> Dict:
                         },
                         "required": ["start_date", "deadline", "urgency"],
                     },
+                    "transition_callback": handle_timescales_establishment,
                 },
             },
         ],
@@ -136,6 +142,7 @@ def create_budget_node(complexity: str, urgency: str) -> Dict:
                 "type": "function",
                 "function": {
                     "name": "determine_budget",
+                    "handler": determine_budget,
                     "description": "Record their budget range",
                     "parameters": {
                         "type": "object",
@@ -151,6 +158,7 @@ def create_budget_node(complexity: str, urgency: str) -> Dict:
                         },
                         "required": ["budget_range", "flexibility"],
                     },
+                    "transition_callback": handle_budget_determination,
                 },
             },
         ],
@@ -171,6 +179,7 @@ def create_feedback_node() -> Dict:
                 "type": "function",
                 "function": {
                     "name": "assess_feedback",
+                    "handler": assess_feedback,
                     "description": "Record their interaction feedback",
                     "parameters": {
                         "type": "object",
@@ -184,6 +193,7 @@ def create_feedback_node() -> Dict:
                         },
                         "required": ["rating", "sentiment"],
                     },
+                    "transition_callback": handle_feedback_assessment,
                 },
             },
         ],
@@ -205,6 +215,7 @@ def create_call_option_node(sentiment: str) -> Dict:
                 "type": "function",
                 "function": {
                     "name": "offer_call_option",
+                    "handler": offer_call_option,
                     "description": "Record their preferred follow-up method",
                     "parameters": {
                         "type": "object",
@@ -220,6 +231,7 @@ def create_call_option_node(sentiment: str) -> Dict:
                         },
                         "required": ["preference"],
                     },
+                    "transition_callback": handle_call_option,
                 },
             },
         ],
