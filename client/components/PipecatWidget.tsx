@@ -27,13 +27,7 @@ export function PipecatWidget() {
   // Initialize LLM helper
   useEffect(() => {
     if (client) {
-      const llmHelper = new LLMHelper({
-        callbacks: {
-          onLLMFunctionCall: (data) => {
-            console.log("Function call received via helper:", data);
-          },
-        },
-      });
+      const llmHelper = new LLMHelper({});
       client.registerHelper("llm", llmHelper);
     }
   }, [client]);
