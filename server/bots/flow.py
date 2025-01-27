@@ -437,9 +437,9 @@ class FlowBot(BaseBot):
             function_name="navigate",
             tool_call_id=f"nav_{str(uuid.uuid4())}",
             arguments={"path": path},
-            llm=self.services.llm,  # Our LLM service is available via self.services
-            context=self.context,  # We already have this from _setup_services_impl
-            result_callback=None,  # We don't need a callback for navigation
+            llm=self.services.llm,
+            context=self.context,
+            result_callback=None,
         )
 
     async def _setup_services_impl(self):
