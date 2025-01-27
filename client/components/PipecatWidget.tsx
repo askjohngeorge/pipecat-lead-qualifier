@@ -10,6 +10,7 @@ import {
   LLMFunctionCallData,
   RTVIEvent,
   LLMHelper,
+  Participant,
 } from "@pipecat-ai/client-js";
 import { useCallback, useState, useEffect } from "react";
 import { AIVoiceInput } from "./ui/ai-voice-input";
@@ -49,6 +50,38 @@ export function PipecatWidget() {
         console.log(`Navigation request received:`, { path });
       }
     }, [])
+  );
+
+  // Add handler for bot disconnect event
+  useRTVIClientEvent(
+    RTVIEvent.BotDisconnected,
+    useCallback(
+      async (participant: Participant) => {
+        console.log("Bot disconnected gracefully", participant);
+
+        // Reset all state
+        setIsConnecting(false);
+
+        // Clean up client if it exists
+        if (client) {
+          try {
+            // Remove any registered helpers
+            const llmHelper = client.getHelper("llm");
+            if (llmHelper) {
+              client.unregisterHelper("llm");
+            }
+
+            // Ensure client is fully disconnected
+            if (isConnected) {
+              await client.disconnect();
+            }
+          } catch (error) {
+            console.error("Error during cleanup:", error);
+          }
+        }
+      },
+      [client, isConnected]
+    )
   );
 
   // Reset connecting state when transport state changes
