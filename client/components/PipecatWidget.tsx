@@ -28,7 +28,6 @@ export function PipecatWidget() {
   // Initialize LLM helper
   useEffect(() => {
     if (client && !client.getHelper("llm")) {
-      console.log("Initializing LLM helper");
       client.registerHelper("llm", new LLMHelper({}));
     }
   }, [client]);
@@ -57,8 +56,6 @@ export function PipecatWidget() {
     RTVIEvent.BotDisconnected,
     useCallback(
       async (participant: Participant) => {
-        console.log("Bot disconnected gracefully", participant);
-
         // Reset all state
         setIsConnecting(false);
 
