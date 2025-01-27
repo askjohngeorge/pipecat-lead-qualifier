@@ -36,7 +36,6 @@ export function PipecatWidget() {
   useRTVIClientEvent(
     RTVIEvent.LLMFunctionCall,
     useCallback((data: LLMFunctionCallData) => {
-      console.log("Function call received:", data);
       if (
         data.function_name === "navigate" &&
         typeof data.args === "object" &&
@@ -46,6 +45,7 @@ export function PipecatWidget() {
         const args = data.args as NavigationArgs;
         const { path } = args;
 
+        // Replace the console.log with a navigation request in production
         console.log(`Navigation request received:`, { path });
       }
     }, [])
