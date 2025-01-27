@@ -46,7 +46,7 @@ def create_collect_name_node() -> Dict:
         "role_messages": [
             {
                 "role": "system",
-                "content": "You are a lead qualification agent. Your responses will be converted to audio. Keep responses natural and friendly.",
+                "content": "You are a lead qualification agent. Your responses will be converted to audio. Keep responses natural, friendly, and terse.",
             }
         ],
         "task_messages": [
