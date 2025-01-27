@@ -6,7 +6,11 @@ import {
   useRTVIClientEvent,
   RTVIClientAudio,
 } from "@pipecat-ai/client-react";
-import { LLMFunctionCallData, RTVIEvent } from "@pipecat-ai/client-js";
+import {
+  LLMFunctionCallData,
+  RTVIEvent,
+  LLMHelper,
+} from "@pipecat-ai/client-js";
 import { useCallback, useState, useEffect } from "react";
 import { AIVoiceInput } from "./ui/ai-voice-input";
 
@@ -19,6 +23,20 @@ export function PipecatWidget() {
   const transportState = useRTVIClientTransportState();
   const isConnected = ["connected", "ready"].includes(transportState);
   const [isConnecting, setIsConnecting] = useState(false);
+
+  // Initialize LLM helper
+  useEffect(() => {
+    if (client) {
+      const llmHelper = new LLMHelper({
+        callbacks: {
+          onLLMFunctionCall: (data) => {
+            console.log("Function call received via helper:", data);
+          },
+        },
+      });
+      client.registerHelper("llm", llmHelper);
+    }
+  }, [client]);
 
   // Handle navigation function calls
   useRTVIClientEvent(
