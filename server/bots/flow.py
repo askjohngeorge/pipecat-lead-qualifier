@@ -386,12 +386,14 @@ async def handle_interaction_assessment(args: Dict, flow_manager: FlowManager):
 
 async def handle_redirect_consultancy(args: Dict, flow_manager: FlowManager):
     """Handle transition after redirect."""
+    logger.debug("Redirecting to consultancy page in handle_redirect_consultancy")
     await flow_manager.request_navigation("/consultancy")
     await flow_manager.set_node("close_call", create_close_node())
 
 
 async def handle_redirect_discovery(args: Dict, flow_manager: FlowManager):
     """Handle transition after redirect."""
+    logger.debug("Redirecting to discovery page in handle_redirect_discovery")
     await flow_manager.request_navigation("/discovery")
     await flow_manager.set_node("close_call", create_close_node())
 
@@ -424,21 +426,21 @@ class FlowBot(BaseBot):
         super().__init__(config)
         self.flow_manager = None
 
-    async def request_navigation(
-        self, path: str, query: Optional[dict] = None, replace: bool = False
-    ):
+    async def request_navigation(self, path: str):
         """Request the client to navigate to a specific page.
 
         Args:
-            path: The path to navigate to (e.g., "/dashboard")
-            query: Optional query parameters (e.g., {"id": "123"})
-            replace: If True, replace current history entry instead of pushing
+            path: The path to navigate to (e.g., "/discovery")
         """
-        message = NavigationEventMessage(
-            id=str(uuid.uuid4()),  # Required by RTVIMessage
-            data=NavigationEventData(path=path, query=query, replace=replace),
+        logger.debug(f"Requesting navigation to {path} in request_navigation")
+        await self.rtvi.handle_function_call(
+            function_name="navigate",
+            tool_call_id=f"nav_{str(uuid.uuid4())}",
+            arguments={"path": path},
+            llm=self.services.llm,  # Our LLM service is available via self.services
+            context=self.context,  # We already have this from _setup_services_impl
+            result_callback=None,  # We don't need a callback for navigation
         )
-        await self.rtvi._push_transport_message(message)
 
     async def _setup_services_impl(self):
         """Implementation-specific service setup."""

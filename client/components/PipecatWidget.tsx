@@ -3,15 +3,15 @@
 import {
   useRTVIClient,
   useRTVIClientTransportState,
+  useRTVIClientEvent,
   RTVIClientAudio,
 } from "@pipecat-ai/client-react";
+import { RTVIEvent } from "@pipecat-ai/client-js";
 import { useCallback, useState, useEffect } from "react";
 import { AIVoiceInput } from "./ui/ai-voice-input";
 
-interface NavigationEventData {
+interface NavigationArgs {
   path: string;
-  query?: Record<string, string>;
-  replace?: boolean;
 }
 
 export function PipecatWidget() {
@@ -20,34 +20,24 @@ export function PipecatWidget() {
   const isConnected = ["connected", "ready"].includes(transportState);
   const [isConnecting, setIsConnecting] = useState(false);
 
-  // Handle navigation events from the server
-  useEffect(() => {
-    if (!client) return;
+  // Handle navigation function calls
+  useRTVIClientEvent(
+    RTVIEvent.LLMFunctionCall,
+    useCallback((data: { function_name: string; args: unknown }) => {
+      console.log("Function call received:", data);
+      if (
+        data.function_name === "navigate" &&
+        typeof data.args === "object" &&
+        data.args &&
+        "path" in data.args
+      ) {
+        const args = data.args as NavigationArgs;
+        const { path } = args;
 
-    const handleMessage = (message: { type: string; data: unknown }) => {
-      // Debug log for all messages
-      console.log("RTVI message received:", message);
-
-      if (message.type === "navigation-request") {
-        const data = message.data as NavigationEventData;
-        const queryString = data.query
-          ? "?" + new URLSearchParams(data.query).toString()
-          : "";
-
-        console.log(`Navigation request received:`, {
-          path: data.path + queryString,
-          replace: data.replace,
-        });
+        console.log(`Navigation request received:`, { path });
       }
-    };
-
-    // @ts-expect-error - RTVI client types don't include custom message events
-    client.on("message", handleMessage);
-    return () => {
-      // @ts-expect-error - RTVI client types don't include custom message events
-      client.off("message", handleMessage);
-    };
-  }, [client]);
+    }, [])
+  );
 
   // Reset connecting state when transport state changes
   useEffect(() => {
