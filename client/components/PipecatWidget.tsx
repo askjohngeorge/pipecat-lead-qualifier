@@ -6,7 +6,7 @@ import {
   useRTVIClientEvent,
   RTVIClientAudio,
 } from "@pipecat-ai/client-react";
-import { RTVIEvent } from "@pipecat-ai/client-js";
+import { LLMFunctionCallData, RTVIEvent } from "@pipecat-ai/client-js";
 import { useCallback, useState, useEffect } from "react";
 import { AIVoiceInput } from "./ui/ai-voice-input";
 
@@ -23,7 +23,7 @@ export function PipecatWidget() {
   // Handle navigation function calls
   useRTVIClientEvent(
     RTVIEvent.LLMFunctionCall,
-    useCallback((data: { function_name: string; args: unknown }) => {
+    useCallback((data: LLMFunctionCallData) => {
       console.log("Function call received:", data);
       if (
         data.function_name === "navigate" &&
