@@ -172,7 +172,31 @@ def create_budget_node() -> Dict:
         "task_messages": [
             {
                 "role": "system",
-                "content": "Ask about their budget for the project.",
+                "content": """## Primary Response
+"What budget range did you have in mind for this project?"
+
+## Cost Details (Only share if explicitly asked)
+### Basic Solution
+- Starting from £1,000
+- Includes:
+  - Single integration
+  - Basic testing
+  - Initial voice agent setup
+
+### Advanced Implementation
+- Typically up to £10,000
+- Includes:
+  - Multiple integrations
+  - Comprehensive testing
+  - Complex configurations
+
+### Custom Platform Development
+- Will have to be discussed on a case-by-case basis
+
+### Additional Costs Notice
+**Please note**: All implementations include:
+- Ongoing usage fees
+- Ongoing support costs""",
             }
         ],
         "functions": [
