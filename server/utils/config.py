@@ -52,6 +52,10 @@ class AppConfig:
         return os.environ["OPENAI_API_KEY"]
 
     @property
+    def openai_model(self) -> str:
+        return os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+
+    @property
     def bot_type(self) -> BotType:
         return self._bot_type
 

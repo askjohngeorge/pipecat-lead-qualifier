@@ -23,4 +23,6 @@ class ServiceRegistry:
         """Initialize core services with configuration."""
         self.stt = DeepgramSTTService(api_key=config.deepgram_api_key)
         self.tts = DeepgramTTSService(api_key=config.deepgram_api_key)
-        self.llm = OpenAILLMService(api_key=config.openai_api_key)
+        self.llm = OpenAILLMService(
+            api_key=config.openai_api_key, model=config.openai_model
+        )
