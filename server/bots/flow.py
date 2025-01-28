@@ -302,6 +302,33 @@ def create_redirect_discovery_node() -> Dict:
     }
 
 
+def create_redirect_contact_form_node() -> Dict:
+    """Create a node to redirect the caller to the contact form page."""
+    return {
+        "task_messages": [
+            {
+                "role": "system",
+                "content": "Inform the caller that you will redirect them to the contact form page which they can use to send an email to the team.",
+            }
+        ],
+        "functions": [
+            {
+                "type": "function",
+                "function": {
+                    "name": "redirect_contact_form",
+                    "handler": redirect_contact_form,
+                    "description": "Redirect the caller to the contact form page.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {"redirect": {"type": "string"}},
+                        "required": ["redirect"],
+                    },
+                },
+            }
+        ],
+    }
+
+
 def create_close_node() -> Dict:
     """Create a node to conclude the conversation."""
     return {
@@ -357,6 +384,11 @@ async def redirect_discovery(args: FlowArgs) -> FlowResult:
     return {"redirect": args["redirect"]}
 
 
+async def redirect_contact_form(args: FlowArgs) -> FlowResult:
+    """Handle transition after redirect."""
+    return {"redirect": args["redirect"]}
+
+
 # Transition handlers
 async def handle_name_collection(args: Dict, flow_manager: FlowManager):
     """Handle transition after name collection."""
@@ -404,7 +436,7 @@ async def handle_interaction_assessment(args: Dict, flow_manager: FlowManager):
         )
     else:
         await flow_manager.set_node(
-            "redirect_consultancy", create_redirect_consultancy_node()
+            "redirect_contact_form", create_redirect_contact_form_node()
         )
 
 
@@ -422,6 +454,13 @@ async def handle_redirect_discovery(args: Dict, flow_manager: FlowManager):
     await flow_manager.set_node("close_call", create_close_node())
 
 
+async def handle_redirect_contact_form(args: Dict, flow_manager: FlowManager):
+    """Handle transition after redirect."""
+    logger.debug("Redirecting to contact form page in handle_redirect_contact_form")
+    await flow_manager.request_navigation("/contact")
+    await flow_manager.set_node("close_call", create_close_node())
+
+
 # Transition callback mapping
 HANDLERS = {
     "collect_name": handle_name_collection,
@@ -432,6 +471,7 @@ HANDLERS = {
     "assess_interaction": handle_interaction_assessment,
     "redirect_consultancy": handle_redirect_consultancy,
     "redirect_discovery": handle_redirect_discovery,
+    "redirect_contact_form": handle_redirect_contact_form,
 }
 
 
