@@ -41,7 +41,7 @@ logger.add(sys.stderr, level="DEBUG")
 
 # Node generator functions
 def create_collect_name_node() -> Dict:
-    """Create the initial greeting node."""
+    """Create a node to greet the caller and collect their name."""
     return {
         "role_messages": [
             {
@@ -52,7 +52,7 @@ def create_collect_name_node() -> Dict:
         "task_messages": [
             {
                 "role": "system",
-                "content": "Greet the caller warmly. Introduce yourself as Chris, a voice AI agent for John George Voice AI solutions. Then ask for and record the caller's name.",
+                "content": "Greet the caller warmly with a friendly tone, introduce yourself as Chris, a voice AI agent representing John George Voice AI solutions, and ask the caller for their name.",
             }
         ],
         "functions": [
@@ -61,7 +61,7 @@ def create_collect_name_node() -> Dict:
                 "function": {
                     "name": "collect_name",
                     "handler": collect_name,
-                    "description": "Record the caller's name",
+                    "description": "Record the caller's name.",
                     "parameters": {
                         "type": "object",
                         "properties": {"name": {"type": "string"}},
@@ -74,12 +74,12 @@ def create_collect_name_node() -> Dict:
 
 
 def create_service_inquiry_node() -> Dict:
-    """Create node for determining which service they're interested in."""
+    """Create a node to determine the service of interest."""
     return {
         "task_messages": [
             {
                 "role": "system",
-                "content": "Ask which service they're interested in: technical consultation or voice agent development.",
+                "content": "Politely inquire about the service the caller is interested in. Present two options: technical consultation or voice agent development. Encourage them to provide a clear response if they respond ambiguously.",
             }
         ],
         "functions": [
@@ -88,7 +88,7 @@ def create_service_inquiry_node() -> Dict:
                 "function": {
                     "name": "identify_service",
                     "handler": identify_service,
-                    "description": "Record which service they're interested in",
+                    "description": "Record the caller's service preference (one of 'technical consultation' or 'voice agent development').",
                     "parameters": {
                         "type": "object",
                         "properties": {
@@ -109,12 +109,12 @@ def create_service_inquiry_node() -> Dict:
 
 
 def create_use_case_node() -> Dict:
-    """Create node for identifying use case for voice agent development."""
+    """Create a node to gather details about the caller's use case."""
     return {
         "task_messages": [
             {
                 "role": "system",
-                "content": "Ask about their specific use case requirements for voice agent development.",
+                "content": "Ask the caller to elaborate on their specific use case or requirements for voice agent development. Encourage them to provide as much detail as possible about their goals and desired outcomes if they respond ambiguously at first.",
             }
         ],
         "functions": [
@@ -123,7 +123,7 @@ def create_use_case_node() -> Dict:
                 "function": {
                     "name": "identify_use_case",
                     "handler": identify_use_case,
-                    "description": "Record their use case details",
+                    "description": "Record the caller's specific use case for voice agent development.",
                     "parameters": {
                         "type": "object",
                         "properties": {
@@ -138,12 +138,12 @@ def create_use_case_node() -> Dict:
 
 
 def create_timescales_node() -> Dict:
-    """Create node for establishing timescales."""
+    """Create a node to determine the caller's timeline."""
     return {
         "task_messages": [
             {
                 "role": "system",
-                "content": "Ask about their desired timeline and any specific deadlines.",
+                "content": "Ask the caller to share their desired timeline for the project. If applicable (based on their initial response), request details about specific deadlines or time constraints they may have.",
             }
         ],
         "functions": [
@@ -152,7 +152,7 @@ def create_timescales_node() -> Dict:
                 "function": {
                     "name": "establish_timescales",
                     "handler": establish_timescales,
-                    "description": "Record project timeline",
+                    "description": "Record the caller's timeline or deadline preferences for the project.",
                     "parameters": {
                         "type": "object",
                         "properties": {
@@ -167,7 +167,7 @@ def create_timescales_node() -> Dict:
 
 
 def create_budget_node() -> Dict:
-    """Create node for determining budget."""
+    """Create a node to discuss budget."""
     return {
         "task_messages": [
             {
@@ -181,7 +181,7 @@ def create_budget_node() -> Dict:
                 "function": {
                     "name": "determine_budget",
                     "handler": determine_budget,
-                    "description": "Record their budget information",
+                    "description": "Record the caller's budget information for the project.",
                     "parameters": {
                         "type": "object",
                         "properties": {
@@ -196,12 +196,12 @@ def create_budget_node() -> Dict:
 
 
 def create_interaction_assessment_node() -> Dict:
-    """Create node for assessing interaction experience."""
+    """Create a node to assess interaction quality."""
     return {
         "task_messages": [
             {
                 "role": "system",
-                "content": "Assess the quality of interaction and engagement with the caller.",
+                "content": "Ask the caller to assess the quality of the interaction so far, in terms of latency, clarity, and naturalness.",
             }
         ],
         "functions": [
@@ -210,7 +210,7 @@ def create_interaction_assessment_node() -> Dict:
                 "function": {
                     "name": "assess_interaction",
                     "handler": assess_interaction,
-                    "description": "Evaluate the interaction quality",
+                    "description": "Record the reported interaction quality and determine if the caller is qualified.",
                     "parameters": {
                         "type": "object",
                         "properties": {
@@ -225,12 +225,12 @@ def create_interaction_assessment_node() -> Dict:
 
 
 def create_redirect_consultancy_node() -> Dict:
-    """Create node for redirecting to consultancy page."""
+    """Create a node to redirect the caller to the consultancy page."""
     return {
         "task_messages": [
             {
                 "role": "system",
-                "content": "Inform the caller you'll redirect them to our consultancy page.",
+                "content": "Inform the caller that you will redirect them to the consultancy booking page where they can schedule a meeting to discuss their requirements further.",
             }
         ],
         "functions": [
@@ -239,7 +239,7 @@ def create_redirect_consultancy_node() -> Dict:
                 "function": {
                     "name": "redirect_consultancy",
                     "handler": redirect_consultancy,
-                    "description": "Redirect to consultancy booking page",
+                    "description": "Redirect the caller to the consultancy booking page.",
                     "parameters": {
                         "type": "object",
                         "properties": {"redirect": {"type": "string"}},
@@ -252,12 +252,12 @@ def create_redirect_consultancy_node() -> Dict:
 
 
 def create_redirect_discovery_node() -> Dict:
-    """Create node for redirecting to discovery page."""
+    """Create a node to redirect the caller to the discovery page."""
     return {
         "task_messages": [
             {
                 "role": "system",
-                "content": "Inform the caller you'll redirect them to our discovery page.",
+                "content": "Inform the caller that you will redirect them to the discovery booking page where they can learn more about available solutions and schedule a consultation.",
             }
         ],
         "functions": [
@@ -266,7 +266,7 @@ def create_redirect_discovery_node() -> Dict:
                 "function": {
                     "name": "redirect_discovery",
                     "handler": redirect_discovery,
-                    "description": "Redirect to discovery booking page",
+                    "description": "Redirect the caller to the discovery booking page.",
                     "parameters": {
                         "type": "object",
                         "properties": {"redirect": {"type": "string"}},
@@ -279,12 +279,12 @@ def create_redirect_discovery_node() -> Dict:
 
 
 def create_close_node() -> Dict:
-    """Create the final node."""
+    """Create a node to conclude the conversation."""
     return {
         "task_messages": [
             {
                 "role": "system",
-                "content": "Thank them for their time and end the conversation warmly.",
+                "content": "Thank the caller sincerely for their time and engagement. Conclude the conversation on a positive and friendly note, wishing them a great day.",
             }
         ],
         "functions": [],
