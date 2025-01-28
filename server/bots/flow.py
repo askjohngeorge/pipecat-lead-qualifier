@@ -11,7 +11,7 @@ from pydantic import BaseModel
 from utils.config import AppConfig
 from utils.bot_framework import BaseBot
 from pipecat.processors.aggregators.openai_llm_context import OpenAILLMContext
-from pipecat_flows import FlowManager, FlowConfig, FlowArgs, FlowResult
+from pipecat_flows import FlowManager, FlowArgs, FlowResult
 
 
 class NavigationEventData(BaseModel):
