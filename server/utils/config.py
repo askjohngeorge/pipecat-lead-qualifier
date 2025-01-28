@@ -41,7 +41,7 @@ class AppConfig:
         # Server configuration
         self._bot_type: BotType = os.getenv("BOT_TYPE", "simple")
         if self._bot_type not in ("simple", "flow"):
-            self._bot_type = "simple"  # Default to flow bot if invalid value
+            self._bot_type = "simple"  # Default to simple bot if invalid value
 
     @property
     def deepgram_api_key(self) -> str:
@@ -57,6 +57,4 @@ class AppConfig:
 
     @bot_type.setter
     def bot_type(self, value: BotType):
-        if value not in ("simple", "flow"):
-            raise ValueError("Bot type must be either 'simple' or 'flow'")
         self._bot_type = value
