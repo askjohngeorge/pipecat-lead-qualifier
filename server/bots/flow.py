@@ -681,11 +681,6 @@ class FlowBot(BaseBot):
         message = action.get("message")
 
         try:
-            if message:
-                await self.flow_manager.action_manager.execute_actions(
-                    [{"type": "tts_say", "text": message}]
-                )
-
             if await coordinator.navigate(path):
                 await self.flow_manager.set_node("close_call", create_close_call_node())
                 return  # Exit early on successful navigation
