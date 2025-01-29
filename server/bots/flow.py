@@ -402,7 +402,7 @@ def create_navigation_node() -> Dict:
     }
 
 
-def create_error_node() -> Dict:
+def create_navigation_error_node() -> Dict:
     """Create a node to handle errors"""
     return {
         "task_messages": [
@@ -675,12 +675,16 @@ class FlowBot(BaseBot):
 
             if await coordinator.navigate(path):
                 await self.flow_manager.set_node("close_call", create_close_node())
+                return  # Exit early on successful navigation
             else:
-                logger.error("Navigation failed, staying in current node")
+                logger.error("Navigation action failed without exception")
 
         except Exception as e:
-            logger.error(f"Navigation action failed: {str(e)}")
-            await self.flow_manager.set_node("error_state", create_error_node())
+            logger.error(f"Navigation action failed with exception: {str(e)}")
+
+        await self.flow_manager.set_node(
+            "navigation_error", create_navigation_error_node()
+        )
 
 
 async def main():
