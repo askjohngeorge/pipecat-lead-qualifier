@@ -326,7 +326,27 @@ def create_record_feedback_node() -> Dict:
         "task_messages": [
             {
                 "role": "system",
-                "content": "Ask the caller to assess the quality of the interaction so far, in terms of latency, clarity, and naturalness.",
+                "content": """## Instructions
+Explain to the caller that you'd like to quickly ask for some feedback on the call quality so far, as they are interacting with the kind of system they might be purchasing. Specifically, ask them to provide feedback on the latency, clarity, and naturalness of the conversation, to ensure it meets their expectations for a voice AI solution.
+
+Encourage them to provide specific comments if they express general satisfaction or dissatisfaction, to gather actionable insights and better understand if the interaction quality is meeting their needs.
+
+## Examples
+### Example 1
+[You]: Before we proceed, I'd like to quickly ask for your feedback on the call quality so far. You're interacting with the kind of system you might be considering purchasing, so it's important for us to ensure it meets your expectations. Could you please give us your thoughts on the latency, clarity, and naturalness of our conversation?
+[Caller]: It was great, no issues at all.
+[You]: Thank you, that's great to hear!
+
+### Example 2
+[You]: To make sure this type of solution is right for you, I'd appreciate some quick feedback on the call quality.  Could you share your thoughts on the latency, clarity, and naturalness?  This is the kind of experience you can expect, so we want to ensure it aligns with your needs.
+[Caller]:  It was mostly good, but there were a couple of moments of delay.
+[You]: Thank you for pointing that out.  Noted - a couple of moments of delay. Is there anything else you'd like to comment on regarding clarity or naturalness?
+
+### Example 3
+[You]:  One last quick thing before we move on. Since you're experiencing a demo of our voice AI capabilities, could you give us feedback on the call quality? We want to ensure the latency, clarity, and natural feel are up to standard for you.  Specifically, what are your thoughts on those aspects?
+[Caller]:  Actually, it felt very natural, like talking to a real person.
+[You]:  That's fantastic to hear!  Thank you for letting us know.
+""",
             }
         ],
         "functions": [
