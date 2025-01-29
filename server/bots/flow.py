@@ -11,6 +11,8 @@ from loguru import logger
 from utils.config import AppConfig
 from utils.bot_framework import BaseBot
 from pipecat.processors.aggregators.openai_llm_context import OpenAILLMContext
+from pipecat.processors.frame_processor import FrameProcessor
+from pipecat.processors.frameworks.rtvi import RTVIProcessor
 from pipecat_flows import FlowManager, FlowArgs, FlowResult
 
 
@@ -440,8 +442,30 @@ async def handle_navigation_action(action: dict, flow_manager: FlowManager):
         )
 
     # Perform actual navigation
-    await flow_manager.request_navigation(path)
+    await flow_manager.navigate(path)
     await flow_manager.set_node("close_call", create_close_node())
+
+
+class NavigationCoordinator:
+    """Handles navigation between pages"""
+
+    def __init__(
+        self, llm: FrameProcessor, context: OpenAILLMContext, rtvi: RTVIProcessor
+    ):
+        self.llm = llm
+        self.context = context
+        self.rtvi = rtvi
+
+    async def navigate(self, path: str):
+        """Navigate to a specific page"""
+        await self.rtvi.handle_function_call(
+            function_name="navigate",
+            tool_call_id=f"nav_{str(uuid.uuid4())}",
+            arguments={"path": path},
+            llm=self.llm,
+            context=self.context,
+            result_callback=None,
+        )
 
 
 class FlowBot(BaseBot):
@@ -450,22 +474,6 @@ class FlowBot(BaseBot):
     def __init__(self, config: AppConfig):
         super().__init__(config)
         self.flow_manager = None
-
-    async def request_navigation(self, path: str):
-        """Request the client to navigate to a specific page.
-
-        Args:
-            path: The path to navigate to (e.g., "/discovery")
-        """
-        logger.debug(f"Requesting navigation to {path} in request_navigation")
-        await self.rtvi.handle_function_call(
-            function_name="navigate",
-            tool_call_id=f"nav_{str(uuid.uuid4())}",
-            arguments={"path": path},
-            llm=self.services.llm,
-            context=self.context,
-            result_callback=None,
-        )
 
     async def _setup_services_impl(self):
         """Implementation-specific service setup."""
@@ -494,8 +502,14 @@ class FlowBot(BaseBot):
             tts=self.services.tts,
             transition_callback=handle_lead_qualification_transition,
         )
-        # Store the request_navigation function in the flow manager
-        self.flow_manager.request_navigation = self.request_navigation
+        # Initialize navigation coordinator
+        self.navigation_coordinator = NavigationCoordinator(
+            llm=self.services.llm,
+            context=self.context,
+            rtvi=self.services.rtvi,
+        )
+        # Store the navigate function in the flow manager
+        self.flow_manager.navigate = self.navigation_coordinator.navigate
         # Register navigation action handler with bound flow_manager
         self.flow_manager.register_action(
             "execute_navigation",
