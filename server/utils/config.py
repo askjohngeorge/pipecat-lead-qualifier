@@ -3,6 +3,7 @@
 import os
 from typing import TypedDict, Literal, NotRequired
 from dotenv import load_dotenv
+from pipecat.services.openai import BaseOpenAILLMService
 
 
 class DailyConfig(TypedDict):
@@ -54,6 +55,11 @@ class AppConfig:
     @property
     def openai_model(self) -> str:
         return os.getenv("OPENAI_MODEL", "gpt-4o")
+
+    @property
+    def openai_params(self) -> BaseOpenAILLMService.InputParams:
+        temperature = os.getenv("OPENAI_TEMPERATURE", 0.2)
+        return BaseOpenAILLMService.InputParams(temperature=temperature)
 
     @property
     def bot_type(self) -> BotType:
