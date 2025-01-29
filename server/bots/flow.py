@@ -143,9 +143,7 @@ def create_identify_use_case_node() -> Dict:
             {
                 "role": "system",
                 "content": """## Instructions
-Ask the caller to elaborate on their specific use case or requirements for voice agent development. Encourage them to provide as much detail as possible about their goals and desired outcomes.
-
-If they respond ambiguously at first, prompt them to be more specific.
+Ask the caller to elaborate on their specific use case or requirements for voice agent development. If they respond ambiguously at first, prompt them to be more specific, and encourage them to provide as much detail as possible about their goals and desired outcomes.
 
 ## Examples
 ### Example 1
