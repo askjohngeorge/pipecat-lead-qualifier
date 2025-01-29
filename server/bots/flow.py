@@ -76,7 +76,38 @@ def create_service_inquiry_node() -> Dict:
         "task_messages": [
             {
                 "role": "system",
-                "content": "Politely inquire about the service the caller is interested in. Present two options: technical consultation or voice agent development. Encourage them to provide a clear response if they respond ambiguously.",
+                "content": """## Instructions
+Politely inquire about the service the caller is interested in. Present two options: technical consultation or voice agent development. 
+
+A technical consultation is a paid meeting where we discuss your specific needs and advise on the best approach. Voice agent development is where we build a custom voice AI solution for you, and initially involves scheduling a free discovery call to discuss your needs.
+
+Encourage them to provide a clear response if they respond ambiguously.
+
+If they ask who the meeting will be with, tell them it will be John George, the founder of John George Voice AI Solutions.
+
+## Examples
+### Example 1
+[You]: Are you interested in a technical consultation or voice agent development?
+[Caller]: I'm interested in voice agent development.
+
+### Example 2
+[You]: Are you interested in a technical consultation or voice agent development?
+[Caller]: I'm not sure.
+[You]: No problem. A technical consultation is a paid meeting where we discuss your specific needs and advise on the best approach. Voice agent development is where we build a custom voice AI solution for you, and initially involves scheduling a free discovery call to discuss your needs. Which of these are you interested in?
+[Caller]: I think I'm interested in a technical consultation.
+
+### Example 3
+[You]: Are you interested in a technical consultation or voice agent development?
+[Caller]: I'm interested in both.
+[You]: I see. A technical consultation is a paid meeting where we discuss your specific needs and advise on the best approach. Voice agent development is where we build a custom voice AI solution for you, and initially involves scheduling a free discovery call to discuss your needs. Which of these are you interested in pursuing first?
+[Caller]: Let's start with voice agent development.
+
+### Example 4
+[You]: Are you interested in a technical consultation or voice agent development?
+[Caller]: Who would I be meeting with?
+[You]: You would be meeting with John George, the founder of John George Voice AI Solutions. Now, are you interested in a technical consultation or voice agent development?
+[Caller]: I'm interested in a technical consultation.
+""",
             }
         ],
         "functions": [
