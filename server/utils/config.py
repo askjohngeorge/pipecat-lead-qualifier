@@ -53,6 +53,10 @@ class AppConfig:
         return os.environ["OPENAI_API_KEY"]
 
     @property
+    def deepgram_voice(self) -> str:
+        return os.getenv("DEEPGRAM_VOICE", "aura-athena-en")
+
+    @property
     def openai_model(self) -> str:
         return os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 
