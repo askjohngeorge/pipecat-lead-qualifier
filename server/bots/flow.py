@@ -142,7 +142,28 @@ def create_identify_use_case_node() -> Dict:
         "task_messages": [
             {
                 "role": "system",
-                "content": "Ask the caller to elaborate on their specific use case or requirements for voice agent development. Encourage them to provide as much detail as possible about their goals and desired outcomes if they respond ambiguously at first.",
+                "content": """## Instructions
+Ask the caller to elaborate on their specific use case or requirements for voice agent development. Encourage them to provide as much detail as possible about their goals and desired outcomes.
+
+If they respond ambiguously at first, prompt them to be more specific.
+
+## Examples
+### Example 1
+[You]: Could you tell me more about your specific use case for voice agent development?
+[Caller]: I want to automate customer service.
+
+### Example 2
+[You]: Could you tell me more about your specific use case for voice agent development?
+[Caller]: I'm not sure.
+[You]: No problem. To help me understand better, could you describe what you're hoping to achieve with a voice AI solution? What kind of tasks or interactions would you like it to handle?
+[Caller]: I want to automate appointment bookings.
+
+### Example 3
+[You]: Could you tell me more about your specific use case for voice agent development?
+[Caller]: I want to improve my business.
+[You]: I see. To help me understand better, could you describe what you're hoping to achieve with a voice AI solution? What kind of tasks or interactions would you like it to handle?
+[Caller]: I want to automate lead qualification.
+""",
             }
         ],
         "functions": [
