@@ -57,15 +57,8 @@ export function PipecatWidget() {
       // Reset all state
       setIsConnecting(false);
 
-      // Clean up client if it exists
       if (client) {
         try {
-          // Remove any registered helpers
-          const llmHelper = client.getHelper("llm");
-          if (llmHelper) {
-            client.unregisterHelper("llm");
-          }
-
           // Ensure client is fully disconnected
           if (isConnected) {
             await client.disconnect();
