@@ -4,7 +4,7 @@ import asyncio
 from functools import partial
 import sys
 import uuid
-from typing import Dict
+from typing import Dict, Optional
 from dotenv import load_dotenv
 from loguru import logger
 
@@ -266,6 +266,20 @@ def create_navigation_node() -> Dict:
     }
 
 
+def create_error_node() -> Dict:
+    """Create a node to handle errors"""
+    return {
+        "task_messages": [
+            {
+                "role": "system",
+                "content": "Inform the caller that an error has occurred, and politely ask them to try again later.",
+            }
+        ],
+        "functions": [],
+        "post_actions": [{"type": "end_conversation"}],
+    }
+
+
 def create_close_node() -> Dict:
     """Create a node to conclude the conversation."""
     return {
@@ -430,50 +444,40 @@ async def handle_lead_qualification_transition(
     await HANDLERS[function_name](args, flow_manager)
 
 
-async def handle_navigation_action(action: dict, flow_manager: FlowManager):
-    """Handles both TTS message and actual navigation"""
-    path = action["path"]
-    message = action.get("message")
-
-    if message:
-        # Speak navigation message
-        await flow_manager.action_manager.execute_actions(
-            [{"type": "tts_say", "text": message}]
-        )
-
-    # Perform actual navigation
-    await flow_manager.navigate(path)
-    await flow_manager.set_node("close_call", create_close_node())
-
-
 class NavigationCoordinator:
-    """Handles navigation between pages"""
+    """Handles navigation between pages with proper error handling"""
 
     def __init__(
-        self, llm: FrameProcessor, context: OpenAILLMContext, rtvi: RTVIProcessor
+        self, rtvi: RTVIProcessor, llm: FrameProcessor, context: OpenAILLMContext
     ):
+        self.rtvi = rtvi
         self.llm = llm
         self.context = context
-        self.rtvi = rtvi
 
-    async def navigate(self, path: str):
-        """Navigate to a specific page"""
-        await self.rtvi.handle_function_call(
-            function_name="navigate",
-            tool_call_id=f"nav_{str(uuid.uuid4())}",
-            arguments={"path": path},
-            llm=self.llm,
-            context=self.context,
-            result_callback=None,
-        )
+    async def navigate(self, path: str) -> bool:
+        """Handle navigation with error tracking"""
+        try:
+            await self.rtvi.handle_function_call(
+                function_name="navigate",
+                tool_call_id=f"nav_{uuid.uuid4()}",
+                arguments={"path": path},
+                llm=self.llm,
+                context=self.context,
+                result_callback=None,
+            )
+            return True
+        except Exception as e:
+            logger.error(f"Navigation failed to {path}: {str(e)}")
+            return False
 
 
 class FlowBot(BaseBot):
-    """Flow-based bot implementation."""
+    """Flow-based bot implementation with clean navigation separation"""
 
     def __init__(self, config: AppConfig):
         super().__init__(config)
-        self.flow_manager = None
+        self.navigation_coordinator: Optional[NavigationCoordinator] = None
+        self.flow_manager: Optional[FlowManager] = None
 
     async def _setup_services_impl(self):
         """Implementation-specific service setup."""
@@ -493,8 +497,13 @@ class FlowBot(BaseBot):
         await self.flow_manager.set_node("collect_name", create_collect_name_node())
 
     def _create_pipeline_impl(self):
-        """Implementation-specific pipeline setup."""
-        # Initialize flow manager with transition callback
+        """Implementation-specific pipeline setup"""
+        # Initialize core components first
+        self.navigation_coordinator = NavigationCoordinator(
+            rtvi=self.services.rtvi, llm=self.services.llm, context=self.context
+        )
+
+        # Configure FlowManager
         self.flow_manager = FlowManager(
             task=self.task,
             llm=self.services.llm,
@@ -502,19 +511,36 @@ class FlowBot(BaseBot):
             tts=self.services.tts,
             transition_callback=handle_lead_qualification_transition,
         )
-        # Initialize navigation coordinator
-        self.navigation_coordinator = NavigationCoordinator(
-            llm=self.services.llm,
-            context=self.context,
-            rtvi=self.services.rtvi,
-        )
-        # Store the navigate function in the flow manager
-        self.flow_manager.navigate = self.navigation_coordinator.navigate
-        # Register navigation action handler with bound flow_manager
+
+        # Register navigation action with coordinator reference
         self.flow_manager.register_action(
             "execute_navigation",
-            partial(handle_navigation_action, flow_manager=self.flow_manager),
+            partial(
+                self._handle_navigation_action, coordinator=self.navigation_coordinator
+            ),
         )
+
+    async def _handle_navigation_action(
+        self, action: dict, coordinator: NavigationCoordinator
+    ):
+        """Encapsulated navigation handler with coordinator access"""
+        path = action["path"]
+        message = action.get("message")
+
+        try:
+            if message:
+                await self.flow_manager.action_manager.execute_actions(
+                    [{"type": "tts_say", "text": message}]
+                )
+
+            if await coordinator.navigate(path):
+                await self.flow_manager.set_node("close_call", create_close_node())
+            else:
+                logger.error("Navigation failed, staying in current node")
+
+        except Exception as e:
+            logger.error(f"Navigation action failed: {str(e)}")
+            await self.flow_manager.set_node("error_state", create_error_node())
 
 
 async def main():
