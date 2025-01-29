@@ -206,7 +206,7 @@ If the caller is vague or unsure about their timeline, encourage them to provide
 [You]: Could you please share your desired timeline for this project? Do you have any specific deadlines in mind?
 [Caller]: I'm not sure, we haven't really thought about it.
 [You]: No problem. Just a rough estimate would be helpful. Are you thinking in terms of weeks, months, or quarters for implementation?
-[Caller]:  Probably within the next couple of months.
+[Caller]: Probably within the next couple of months.
 
 ### Example 3
 [You]: Could you please share your desired timeline for this project? Do you have any specific deadlines in mind?
@@ -290,7 +290,7 @@ Share cost details if explicitly asked by the caller, if they express uncertaint
 ### Example 2
 [You]: What budget range did you have in mind for this project?
 [Caller]: What are your prices like?
-[You]: Certainly! Our projects start at a minimum budget of £1,000. For a basic voice agent solution at this price, it includes a single integration, basic testing, and initial setup. For advanced implementations, the budget typically goes up to £10,000. We also handle custom platform development, which requires a separate discussion.  Remember, all solutions include ongoing usage and support fees. Does this minimum budget and range align with your expectations?
+[You]: Certainly! Our projects start at a minimum budget of £1,000. For a basic voice agent solution at this price, it includes a single integration, basic testing, and initial setup. For advanced implementations, the budget typically goes up to £10,000. We also handle custom platform development, which requires a separate discussion. Remember, all solutions include ongoing usage and support fees. Does this minimum budget and range align with your expectations?
 [Caller]: Yes, the basic solution budget sounds reasonable.
 
 ### Example 3
@@ -338,14 +338,14 @@ Encourage them to provide specific comments if they express general satisfaction
 [You]: Thank you, that's great to hear!
 
 ### Example 2
-[You]: To make sure this type of solution is right for you, I'd appreciate some quick feedback on the call quality.  Could you share your thoughts on the latency, clarity, and naturalness?  This is the kind of experience you can expect, so we want to ensure it aligns with your needs.
-[Caller]:  It was mostly good, but there were a couple of moments of delay.
-[You]: Thank you for pointing that out.  Noted - a couple of moments of delay. Is there anything else you'd like to comment on regarding clarity or naturalness?
+[You]: To make sure this type of solution is right for you, I'd appreciate some quick feedback on the call quality. Could you share your thoughts on the latency, clarity, and naturalness? This is the kind of experience you can expect, so we want to ensure it aligns with your needs.
+[Caller]: It was mostly good, but there were a couple of moments of delay.
+[You]: Thank you for pointing that out. Noted - a couple of moments of delay. Is there anything else you'd like to comment on regarding clarity or naturalness?
 
 ### Example 3
-[You]:  One last quick thing before we move on. Since you're experiencing a demo of our voice AI capabilities, could you give us feedback on the call quality? We want to ensure the latency, clarity, and natural feel are up to standard for you.  Specifically, what are your thoughts on those aspects?
-[Caller]:  Actually, it felt very natural, like talking to a real person.
-[You]:  That's fantastic to hear!  Thank you for letting us know.
+[You]: One last quick thing before we move on. Since you're experiencing a demo of our voice AI capabilities, could you give us feedback on the call quality? We want to ensure the latency, clarity, and natural feel are up to standard for you. Specifically, what are your thoughts on those aspects?
+[Caller]: Actually, it felt very natural, like talking to a real person.
+[You]: That's fantastic to hear! Thank you for letting us know.
 """,
             }
         ],
@@ -429,13 +429,13 @@ Do not ask if they have any other questions, just politely end the call.
 
 ## Examples
 ### Example 1
-[You]: Thank you for your time today.  Have a great rest of your day, goodbye.
+[You]: Thank you for your time today. Have a great rest of your day, goodbye.
 
 ### Example 2
-[You]: It has been a pleasure speaking with you.  Thank you for your engagement, and have a wonderful day. Goodbye.
+[You]: It has been a pleasure speaking with you. Thank you for your engagement, and have a wonderful day. Goodbye.
 
 ### Example 3
-[You]: Thank you for considering John George Voice AI solutions.  We appreciate your time, and wish you a great day. Goodbye.
+[You]: Thank you for considering John George Voice AI solutions. We appreciate your time, and wish you a great day. Goodbye.
 """,
             }
         ],
