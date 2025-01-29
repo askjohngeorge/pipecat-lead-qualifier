@@ -242,31 +242,62 @@ def create_determine_budget_node() -> Dict:
         "task_messages": [
             {
                 "role": "system",
-                "content": """## Primary Response
-"What budget range did you have in mind for this project?"
+                "content": """## Instructions
 
-## Cost Details (Only share if explicitly asked)
-### Basic Solution
+### Primary Question
+Ask the caller "What budget range did you have in mind for this project?". Do not mention the minimum budget initially.
+
+### Conditional Minimum Budget Disclosure
+Only mention the minimum budget of £1,000 if:
+1. The caller indicates they don't have a budget in mind.
+2. The caller suggests a budget below £1,000.
+
+### Providing Cost Details
+Share cost details if explicitly asked by the caller, if they express uncertainty about budget, or if their initial budget suggestion is less than £1,000.
+
+### Cost Information to Share (If Necessary)
+#### Basic Solution
 - Starting from £1,000
 - Includes:
   - Single integration
   - Basic testing
   - Initial voice agent setup
 
-### Advanced Implementation
+#### Advanced Implementation
 - Typically up to £10,000
 - Includes:
   - Multiple integrations
   - Comprehensive testing
   - Complex configurations
 
-### Custom Platform Development
+#### Custom Platform Development
 - Will have to be discussed on a case-by-case basis
 
-### Additional Costs Notice
+#### Important Notice about Additional Costs
 **Please note**: All implementations include:
 - Ongoing usage fees
-- Ongoing support costs""",
+- Ongoing support costs
+
+## Examples
+### Example 1
+[You]: What budget range did you have in mind for this project?
+[Caller]: We haven't really set a budget yet.
+[You]: Okay, no problem. To give you some context, our basic solutions start from a minimum of £1,000 and can go up to £10,000 for more advanced implementations, depending on complexity and integrations. Does that help give you a range to consider?
+[Caller]: Yes, that's helpful.
+[You]: Okay, so is there a minimum budget you'd be willing to consider?
+[Caller]: Yes, we'd be willing to consider a minimum budget of £1,000.
+
+### Example 2
+[You]: What budget range did you have in mind for this project?
+[Caller]: What are your prices like?
+[You]: Certainly! Our projects start at a minimum budget of £1,000. For a basic voice agent solution at this price, it includes a single integration, basic testing, and initial setup. For advanced implementations, the budget typically goes up to £10,000. We also handle custom platform development, which requires a separate discussion.  Remember, all solutions include ongoing usage and support fees. Does this minimum budget and range align with your expectations?
+[Caller]: Yes, the basic solution budget sounds reasonable.
+
+### Example 3
+[You]: What budget range did you have in mind for this project?
+[Caller]: We have a budget of around £5,000.
+[You]: Great, £5,000 sounds like a good starting point. That budget allows us to consider a range of effective solutions.
+""",
             }
         ],
         "functions": [
