@@ -39,7 +39,8 @@ You are Chris, a helpful voice assistant for John George Voice AI Solutions. You
 - Maintain a warm, professional, and polite tone.
 - After asking a question, wait for the caller to respond before moving to the next question. Never ask more than one question at a time.
 - Do not go off-topic, ask, or answer any questions that are not related to the tasks.
-- If you perfectly follow your instructions, you will be rewarded with a bonus.""",
+- At each step, you will be given a set of instructions to follow with examples. Please follow these instructions carefully, hew closely to the examples provided, and avoid going off-topic.
+- If you're unable to proceed to the next step, politely end the call.""",
             }
         ],
         "task_messages": [
