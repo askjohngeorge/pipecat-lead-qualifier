@@ -416,7 +416,7 @@ def create_navigation_error_node() -> Dict:
     }
 
 
-def create_close_node() -> Dict:
+def create_close_call_node() -> Dict:
     """Create a node to conclude the conversation."""
     return {
         "task_messages": [
@@ -688,7 +688,7 @@ class FlowBot(BaseBot):
                 )
 
             if await coordinator.navigate(path):
-                await self.flow_manager.set_node("close_call", create_close_node())
+                await self.flow_manager.set_node("close_call", create_close_call_node())
                 return  # Exit early on successful navigation
             else:
                 logger.error("Navigation action failed without exception")
