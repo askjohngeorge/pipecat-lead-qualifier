@@ -3,32 +3,14 @@
 import asyncio
 import sys
 import uuid
-from typing import Dict, Literal, Optional
+from typing import Dict
 from dotenv import load_dotenv
 from loguru import logger
-from pydantic import BaseModel
 
 from utils.config import AppConfig
 from utils.bot_framework import BaseBot
 from pipecat.processors.aggregators.openai_llm_context import OpenAILLMContext
 from pipecat_flows import FlowManager, FlowArgs, FlowResult
-
-
-class NavigationEventData(BaseModel):
-    """Data structure for navigation events."""
-
-    path: str
-    query: Optional[dict] = None
-    replace: bool = False
-
-
-class NavigationEventMessage(BaseModel):
-    """RTVI message for navigation events."""
-
-    label: Literal["rtvi-ai"] = "rtvi-ai"
-    type: Literal["navigation-request"] = "navigation-request"
-    id: str
-    data: NavigationEventData
 
 
 # Load environment variables from .env file
