@@ -1,6 +1,7 @@
 """Flow-based bot implementation using the base bot framework."""
 
 import asyncio
+from functools import partial
 import sys
 import uuid
 from typing import Dict
@@ -230,90 +231,36 @@ def create_interaction_assessment_node() -> Dict:
     }
 
 
-def create_navigate_consultancy_node() -> Dict:
-    """Create a node to navigate the caller to the consultancy page."""
+def create_navigation_node() -> Dict:
+    """Single reusable node for all navigation paths"""
     return {
         "task_messages": [
             {
                 "role": "system",
-                "content": "Inform the caller that you will navigate them to the consultancy booking page where they can schedule a meeting to discuss their requirements further.",
+                "content": "{{NAVIGATION_MESSAGE}}",  # Template placeholder
             }
         ],
         "functions": [
             {
                 "type": "function",
                 "function": {
-                    "name": "navigate_consultancy",
+                    "name": "navigate",
                     "handler": navigate,
-                    "description": "navigate the caller to the consultancy booking page by passing the path '/consultancy'.",
+                    "description": "Handle path navigation",
                     "parameters": {
                         "type": "object",
                         "properties": {
-                            "path": {"type": "string", "enum": ["/consultancy"]}
+                            "path": {
+                                "type": "string",
+                                "enum": ["/consultancy", "/discovery", "/contact"],
+                            }
                         },
                         "required": ["path"],
                     },
                 },
             }
         ],
-    }
-
-
-def create_navigate_discovery_node() -> Dict:
-    """Create a node to navigate the caller to the discovery page."""
-    return {
-        "task_messages": [
-            {
-                "role": "system",
-                "content": "Inform the caller that you will navigate them to the discovery booking page where they can learn more about available solutions and schedule a consultation.",
-            }
-        ],
-        "functions": [
-            {
-                "type": "function",
-                "function": {
-                    "name": "navigate_discovery",
-                    "handler": navigate,
-                    "description": "navigate the caller to the discovery booking page by passing the path '/discovery'.",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "path": {"type": "string", "enum": ["/discovery"]}
-                        },
-                        "required": ["path"],
-                    },
-                },
-            }
-        ],
-    }
-
-
-def create_navigate_contact_form_node() -> Dict:
-    """Create a node to navigate the caller to the contact form page."""
-    return {
-        "task_messages": [
-            {
-                "role": "system",
-                "content": "Inform the caller that you will navigate them to the contact form page which they can use to send an email to the team.",
-            }
-        ],
-        "functions": [
-            {
-                "type": "function",
-                "function": {
-                    "name": "navigate_contact_form",
-                    "handler": navigate,
-                    "description": "navigate the caller to the contact form page by passing the path '/contact'.",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "path": {"type": "string", "enum": ["/contact"]}
-                        },
-                        "required": ["path"],
-                    },
-                },
-            }
-        ],
+        "post_actions": [{"type": "execute_navigation"}],
     }
 
 
@@ -380,9 +327,23 @@ async def handle_identify_service(args: Dict, flow_manager: FlowManager):
     """Handle transition after service identification."""
     flow_manager.state["service_type"] = args["service_type"]
     if args["service_type"] == "technical_consultation":
-        await flow_manager.set_node(
-            "navigate_consultancy", create_navigate_consultancy_node()
+        # Get the generic navigation node
+        nav_node = create_navigation_node()
+
+        # Set navigation message and path
+        flow_manager.state["nav_message"] = (
+            "I'll navigate you to the consultancy booking page where you can schedule a meeting to discuss your requirements further."
         )
+        flow_manager.state["nav_path"] = "/consultancy"
+
+        # Inject dynamic message
+        nav_node["task_messages"][0]["content"] = flow_manager.state["nav_message"]
+
+        # Set navigation parameters in post-actions
+        nav_node["post_actions"][0]["path"] = flow_manager.state["nav_path"]
+        nav_node["post_actions"][0]["message"] = flow_manager.state["nav_message"]
+
+        await flow_manager.set_node("navigation", nav_node)
     else:  # voice_agent_development
         await flow_manager.set_node("identify_use_case", create_use_case_node())
 
@@ -421,22 +382,36 @@ async def handle_record_feedback(args: Dict, flow_manager: FlowManager):
         and budget > 1000
         and feedback
     )
+
+    # Get the generic navigation node
+    nav_node = create_navigation_node()
+
     if qualified:
-        await flow_manager.set_node(
-            "navigate_discovery", create_navigate_discovery_node()
+        flow_manager.state["nav_message"] = (
+            "I'll navigate you to our discovery page where you can learn more about available solutions and schedule a consultation."
         )
+        flow_manager.state["nav_path"] = "/discovery"
     else:
-        await flow_manager.set_node(
-            "navigate_contact_form", create_navigate_contact_form_node()
+        flow_manager.state["nav_message"] = (
+            "I'll navigate you to our contact form page which you can use to send an email to the team."
         )
+        flow_manager.state["nav_path"] = "/contact"
+
+    # Inject dynamic message
+    nav_node["task_messages"][0]["content"] = flow_manager.state["nav_message"]
+
+    # Set navigation parameters in post-actions
+    nav_node["post_actions"][0]["path"] = flow_manager.state["nav_path"]
+    nav_node["post_actions"][0]["message"] = flow_manager.state["nav_message"]
+
+    await flow_manager.set_node("navigation", nav_node)
 
 
 async def handle_navigate(args: Dict, flow_manager: FlowManager):
-    """Handle transition after navigate."""
+    """Single handler for all navigation"""
     path = args["path"]
-    logger.debug(f"navigating to {path} in handle_navigate")
-    await flow_manager.request_navigation(path)
-    await flow_manager.set_node("close_call", create_close_node())
+    logger.debug(f"Preparing navigation to {path}")
+    # Actual navigation happens in the action, this just passes through
 
 
 # Transition callback mapping
@@ -447,9 +422,7 @@ HANDLERS = {
     "establish_timescales": handle_establish_timescales,
     "determine_budget": handle_determine_budget,
     "record_feedback": handle_record_feedback,
-    "navigate_discovery": handle_navigate,
-    "navigate_consultancy": handle_navigate,
-    "navigate_contact_form": handle_navigate,
+    "navigate": handle_navigate,
 }
 
 
@@ -459,6 +432,22 @@ async def handle_lead_qualification_transition(
     """Handle transitions between lead qualification flow states."""
     logger.debug(f"Processing {function_name} transition with args: {args}")
     await HANDLERS[function_name](args, flow_manager)
+
+
+async def handle_navigation_action(action: dict, flow_manager: FlowManager):
+    """Handles both TTS message and actual navigation"""
+    path = action["path"]
+    message = action.get("message")
+
+    if message:
+        # Speak navigation message
+        await flow_manager.action_manager.execute_actions(
+            [{"type": "tts_say", "text": message}]
+        )
+
+    # Perform actual navigation
+    await flow_manager.request_navigation(path)
+    await flow_manager.set_node("close_call", create_close_node())
 
 
 class FlowBot(BaseBot):
@@ -513,6 +502,11 @@ class FlowBot(BaseBot):
         )
         # Store the request_navigation function in the flow manager
         self.flow_manager.request_navigation = self.request_navigation
+        # Register navigation action handler with bound flow_manager
+        self.flow_manager.register_action(
+            "execute_navigation",
+            partial(handle_navigation_action, flow_manager=self.flow_manager),
+        )
 
 
 async def main():
