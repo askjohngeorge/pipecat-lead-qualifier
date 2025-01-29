@@ -192,7 +192,28 @@ def create_establish_timescales_node() -> Dict:
         "task_messages": [
             {
                 "role": "system",
-                "content": "Ask the caller to share their desired timeline for the project. If applicable (based on their initial response), request details about specific deadlines or time constraints they may have.",
+                "content": """## Instructions
+Ask the caller to share their desired timeline for the project. Inquire whether they have specific deadlines or time constraints.
+
+If the caller is vague or unsure about their timeline, encourage them to provide a rough estimate to help align project planning.
+
+## Examples
+### Example 1
+[You]: Could you please share your desired timeline for this project? Do you have any specific deadlines in mind?
+[Caller]: We are looking to launch by the end of next quarter.
+
+### Example 2
+[You]: Could you please share your desired timeline for this project? Do you have any specific deadlines in mind?
+[Caller]: I'm not sure, we haven't really thought about it.
+[You]: No problem. Just a rough estimate would be helpful. Are you thinking in terms of weeks, months, or quarters for implementation?
+[Caller]:  Probably within the next couple of months.
+
+### Example 3
+[You]: Could you please share your desired timeline for this project? Do you have any specific deadlines in mind?
+[Caller]: As soon as possible!
+[You]: I understand the urgency. To help us plan, could you give a rough timeframe? Are we talking about the next few weeks, or a couple of months?
+[Caller]: Ideally, we'd like to have something in place within a month.
+""",
             }
         ],
         "functions": [
