@@ -323,7 +323,7 @@ def create_close_node() -> Dict:
         "task_messages": [
             {
                 "role": "system",
-                "content": "Thank the caller sincerely for their time and engagement. Conclude the conversation on a positive and friendly note, wishing them a great day.",
+                "content": "Ask the caller if they have any other questions or if they would like to discuss anything else. Once they are satisfied, thank them sincerely for their time and engagement. Conclude the conversation on a positive and friendly note, wishing them a great rest of their day.",
             }
         ],
         "functions": [],
