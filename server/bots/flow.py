@@ -70,7 +70,7 @@ Greet the caller warmly with a friendly tone, introduce yourself as Chris, a voi
     }
 
 
-def create_service_inquiry_node() -> Dict:
+def create_identify_service_node() -> Dict:
     """Create a node to determine the service of interest."""
     return {
         "task_messages": [
@@ -136,7 +136,7 @@ If they ask who the meeting will be with, tell them it will be John George, the 
     }
 
 
-def create_use_case_node() -> Dict:
+def create_identify_use_case_node() -> Dict:
     """Create a node to gather details about the caller's use case."""
     return {
         "task_messages": [
@@ -165,7 +165,7 @@ def create_use_case_node() -> Dict:
     }
 
 
-def create_timescales_node() -> Dict:
+def create_establish_timescales_node() -> Dict:
     """Create a node to determine the caller's timeline."""
     return {
         "task_messages": [
@@ -194,7 +194,7 @@ def create_timescales_node() -> Dict:
     }
 
 
-def create_budget_node() -> Dict:
+def create_determine_budget_node() -> Dict:
     """Create a node to discuss budget."""
     return {
         "task_messages": [
@@ -247,7 +247,7 @@ def create_budget_node() -> Dict:
     }
 
 
-def create_interaction_assessment_node() -> Dict:
+def create_record_feedback_node() -> Dict:
     """Create a node to assess interaction quality."""
     return {
         "task_messages": [
@@ -379,7 +379,7 @@ async def navigate(args: FlowArgs) -> FlowResult:
 async def handle_collect_name(args: Dict, flow_manager: FlowManager):
     """Handle transition after name collection."""
     flow_manager.state["name"] = args["name"]
-    await flow_manager.set_node("service_inquiry", create_service_inquiry_node())
+    await flow_manager.set_node("service_inquiry", create_identify_service_node())
 
 
 async def handle_identify_service(args: Dict, flow_manager: FlowManager):
@@ -402,25 +402,29 @@ async def handle_identify_service(args: Dict, flow_manager: FlowManager):
 
         await flow_manager.set_node("navigation", nav_node)
     else:  # voice_agent_development
-        await flow_manager.set_node("identify_use_case", create_use_case_node())
+        await flow_manager.set_node(
+            "identify_use_case", create_identify_use_case_node()
+        )
 
 
 async def handle_identify_use_case(args: Dict, flow_manager: FlowManager):
     """Handle transition after use case identification."""
     flow_manager.state["use_case"] = args["use_case"]
-    await flow_manager.set_node("establish_timescales", create_timescales_node())
+    await flow_manager.set_node(
+        "establish_timescales", create_establish_timescales_node()
+    )
 
 
 async def handle_establish_timescales(args: Dict, flow_manager: FlowManager):
     """Handle transition after timeline establishment."""
     flow_manager.state["timeline"] = args["timeline"]
-    await flow_manager.set_node("determine_budget", create_budget_node())
+    await flow_manager.set_node("determine_budget", create_determine_budget_node())
 
 
 async def handle_determine_budget(args: Dict, flow_manager: FlowManager):
     """Handle transition after budget determination."""
     flow_manager.state["budget"] = args["budget"]
-    await flow_manager.set_node("record_feedback", create_interaction_assessment_node())
+    await flow_manager.set_node("record_feedback", create_record_feedback_node())
 
 
 async def handle_record_feedback(args: Dict, flow_manager: FlowManager):
