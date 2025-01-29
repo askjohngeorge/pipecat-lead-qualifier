@@ -331,17 +331,15 @@ async def handle_identify_service(args: Dict, flow_manager: FlowManager):
         nav_node = create_navigation_node()
 
         # Set navigation message and path
-        flow_manager.state["nav_message"] = (
-            "I'll navigate you to the consultancy booking page where you can schedule a meeting to discuss your requirements further."
-        )
-        flow_manager.state["nav_path"] = "/consultancy"
+        message = "I'll navigate you to the consultancy booking page where you can schedule a meeting to discuss your requirements further."
+        path = "/consultancy"
 
         # Inject dynamic message
-        nav_node["task_messages"][0]["content"] = flow_manager.state["nav_message"]
+        nav_node["task_messages"][0]["content"] = message
 
         # Set navigation parameters in post-actions
-        nav_node["post_actions"][0]["path"] = flow_manager.state["nav_path"]
-        nav_node["post_actions"][0]["message"] = flow_manager.state["nav_message"]
+        nav_node["post_actions"][0]["path"] = path
+        nav_node["post_actions"][0]["message"] = message
 
         await flow_manager.set_node("navigation", nav_node)
     else:  # voice_agent_development
@@ -387,22 +385,18 @@ async def handle_record_feedback(args: Dict, flow_manager: FlowManager):
     nav_node = create_navigation_node()
 
     if qualified:
-        flow_manager.state["nav_message"] = (
-            "I'll navigate you to our discovery page where you can learn more about available solutions and schedule a consultation."
-        )
-        flow_manager.state["nav_path"] = "/discovery"
+        message = "I'll navigate you to our discovery page where you can learn more about available solutions and schedule a consultation."
+        path = "/discovery"
     else:
-        flow_manager.state["nav_message"] = (
-            "I'll navigate you to our contact form page which you can use to send an email to the team."
-        )
-        flow_manager.state["nav_path"] = "/contact"
+        message = "I'll navigate you to our contact form page which you can use to send an email to the team."
+        path = "/contact"
 
     # Inject dynamic message
-    nav_node["task_messages"][0]["content"] = flow_manager.state["nav_message"]
+    nav_node["task_messages"][0]["content"] = message
 
     # Set navigation parameters in post-actions
-    nav_node["post_actions"][0]["path"] = flow_manager.state["nav_path"]
-    nav_node["post_actions"][0]["message"] = flow_manager.state["nav_message"]
+    nav_node["post_actions"][0]["path"] = path
+    nav_node["post_actions"][0]["message"] = message
 
     await flow_manager.set_node("navigation", nav_node)
 
