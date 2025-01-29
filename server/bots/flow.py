@@ -475,7 +475,7 @@ async def record_feedback(args: FlowArgs) -> FlowResult:
 
 
 async def navigate(args: FlowArgs) -> FlowResult:
-    """Handle transition after navigate."""
+    """Process navigation."""
     path = args["path"]
     logger.debug(f"navigating to {path} in navigate")
     return {"path": path}
