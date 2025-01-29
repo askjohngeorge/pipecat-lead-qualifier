@@ -500,7 +500,7 @@ class FlowBot(BaseBot):
         """Implementation-specific pipeline setup"""
         # Initialize core components first
         self.navigation_coordinator = NavigationCoordinator(
-            rtvi=self.services.rtvi, llm=self.services.llm, context=self.context
+            rtvi=self.rtvi, llm=self.services.llm, context=self.context
         )
 
         # Configure FlowManager
