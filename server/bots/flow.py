@@ -496,7 +496,7 @@ async def handle_identify_service(args: Dict, flow_manager: FlowManager):
         nav_node = create_navigation_node()
 
         # Set navigation message and path
-        message = "I've navigated you to the consultancy booking page where you can schedule a meeting to discuss your requirements further."
+        message = "Explain you've navigated the caller to the consultancy booking page where they can pay to schedule a meeting to discuss their requirements further. Don't say anything else."
         path = "/consultancy"
 
         # Inject dynamic message
@@ -554,10 +554,10 @@ async def handle_record_feedback(args: Dict, flow_manager: FlowManager):
     nav_node = create_navigation_node()
 
     if qualified:
-        message = "I've navigated you to our discovery page where you can learn more about available solutions and schedule a consultation."
+        message = "Explain you've navigated the caller to our booking page for a free discovery call, which they can use to schedule an appointment to discuss their requirements further. Don't say anything else."
         path = "/discovery"
     else:
-        message = "I've navigated you to our contact form page which you can use to send an email to the team."
+        message = "Explain you've navigated the caller to our contact form page which they can use to send an email to the team. Don't say anything else."
         path = "/contact"
 
     # Inject dynamic message
