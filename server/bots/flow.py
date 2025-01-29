@@ -422,7 +422,21 @@ def create_close_node() -> Dict:
         "task_messages": [
             {
                 "role": "system",
-                "content": "Ask the caller if they have any other questions or if they would like to discuss anything else. Once they are satisfied, thank them sincerely for their time and engagement. Conclude the conversation on a positive and friendly note, wishing them a great rest of their day.",
+                "content": """## Instructions
+Thank the caller sincerely for their time and engagement. Conclude the conversation on a positive and friendly note, wishing them a great rest of their day.
+
+Do not ask if they have any other questions, just politely end the call.
+
+## Examples
+### Example 1
+[You]: Thank you for your time today.  Have a great rest of your day, goodbye.
+
+### Example 2
+[You]: It has been a pleasure speaking with you.  Thank you for your engagement, and have a wonderful day. Goodbye.
+
+### Example 3
+[You]: Thank you for considering John George Voice AI solutions.  We appreciate your time, and wish you a great day. Goodbye.
+""",
             }
         ],
         "functions": [],
