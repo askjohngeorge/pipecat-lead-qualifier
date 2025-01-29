@@ -70,7 +70,7 @@ def create_service_inquiry_node() -> Dict:
                 "function": {
                     "name": "identify_service",
                     "handler": identify_service,
-                    "description": "Record the caller's service preference (one of 'technical consultation' or 'voice agent development').",
+                    "description": "Record the caller's service preference.",
                     "parameters": {
                         "type": "object",
                         "properties": {
@@ -191,7 +191,7 @@ def create_budget_node() -> Dict:
                     "parameters": {
                         "type": "object",
                         "properties": {
-                            "budget": {"type": "string"},
+                            "budget": {"type": "integer"},
                         },
                         "required": ["budget"],
                     },
@@ -214,15 +214,15 @@ def create_interaction_assessment_node() -> Dict:
             {
                 "type": "function",
                 "function": {
-                    "name": "assess_interaction",
-                    "handler": assess_interaction,
-                    "description": "Record the reported interaction quality and determine if the caller is qualified.",
+                    "name": "record_feedback",
+                    "handler": record_feedback,
+                    "description": "Record the caller's feedback on the interaction.",
                     "parameters": {
                         "type": "object",
                         "properties": {
-                            "qualified": {"type": "boolean"},
+                            "feedback": {"type": "string"},
                         },
-                        "required": ["qualified"],
+                        "required": ["feedback"],
                     },
                 },
             },
@@ -230,26 +230,28 @@ def create_interaction_assessment_node() -> Dict:
     }
 
 
-def create_redirect_consultancy_node() -> Dict:
-    """Create a node to redirect the caller to the consultancy page."""
+def create_navigate_consultancy_node() -> Dict:
+    """Create a node to navigate the caller to the consultancy page."""
     return {
         "task_messages": [
             {
                 "role": "system",
-                "content": "Inform the caller that you will redirect them to the consultancy booking page where they can schedule a meeting to discuss their requirements further.",
+                "content": "Inform the caller that you will navigate them to the consultancy booking page where they can schedule a meeting to discuss their requirements further.",
             }
         ],
         "functions": [
             {
                 "type": "function",
                 "function": {
-                    "name": "redirect_consultancy",
-                    "handler": redirect_consultancy,
-                    "description": "Redirect the caller to the consultancy booking page.",
+                    "name": "navigate_consultancy",
+                    "handler": navigate,
+                    "description": "navigate the caller to the consultancy booking page by passing the path '/consultancy'.",
                     "parameters": {
                         "type": "object",
-                        "properties": {"redirect": {"type": "string"}},
-                        "required": ["redirect"],
+                        "properties": {
+                            "path": {"type": "string", "enum": ["/consultancy"]}
+                        },
+                        "required": ["path"],
                     },
                 },
             }
@@ -257,26 +259,28 @@ def create_redirect_consultancy_node() -> Dict:
     }
 
 
-def create_redirect_discovery_node() -> Dict:
-    """Create a node to redirect the caller to the discovery page."""
+def create_navigate_discovery_node() -> Dict:
+    """Create a node to navigate the caller to the discovery page."""
     return {
         "task_messages": [
             {
                 "role": "system",
-                "content": "Inform the caller that you will redirect them to the discovery booking page where they can learn more about available solutions and schedule a consultation.",
+                "content": "Inform the caller that you will navigate them to the discovery booking page where they can learn more about available solutions and schedule a consultation.",
             }
         ],
         "functions": [
             {
                 "type": "function",
                 "function": {
-                    "name": "redirect_discovery",
-                    "handler": redirect_discovery,
-                    "description": "Redirect the caller to the discovery booking page.",
+                    "name": "navigate_discovery",
+                    "handler": navigate,
+                    "description": "navigate the caller to the discovery booking page by passing the path '/discovery'.",
                     "parameters": {
                         "type": "object",
-                        "properties": {"redirect": {"type": "string"}},
-                        "required": ["redirect"],
+                        "properties": {
+                            "path": {"type": "string", "enum": ["/discovery"]}
+                        },
+                        "required": ["path"],
                     },
                 },
             }
@@ -284,26 +288,28 @@ def create_redirect_discovery_node() -> Dict:
     }
 
 
-def create_redirect_contact_form_node() -> Dict:
-    """Create a node to redirect the caller to the contact form page."""
+def create_navigate_contact_form_node() -> Dict:
+    """Create a node to navigate the caller to the contact form page."""
     return {
         "task_messages": [
             {
                 "role": "system",
-                "content": "Inform the caller that you will redirect them to the contact form page which they can use to send an email to the team.",
+                "content": "Inform the caller that you will navigate them to the contact form page which they can use to send an email to the team.",
             }
         ],
         "functions": [
             {
                 "type": "function",
                 "function": {
-                    "name": "redirect_contact_form",
-                    "handler": redirect_contact_form,
-                    "description": "Redirect the caller to the contact form page.",
+                    "name": "navigate_contact_form",
+                    "handler": navigate,
+                    "description": "navigate the caller to the contact form page by passing the path '/contact'.",
                     "parameters": {
                         "type": "object",
-                        "properties": {"redirect": {"type": "string"}},
-                        "required": ["redirect"],
+                        "properties": {
+                            "path": {"type": "string", "enum": ["/contact"]}
+                        },
+                        "required": ["path"],
                     },
                 },
             }
@@ -351,109 +357,99 @@ async def determine_budget(args: FlowArgs) -> FlowResult:
     return {"budget": args["budget"]}
 
 
-async def assess_interaction(args: FlowArgs) -> FlowResult:
+async def record_feedback(args: FlowArgs) -> FlowResult:
     """Process interaction assessment."""
-    return {"qualified": args["qualified"]}
+    return {"feedback": args["feedback"]}
 
 
-async def redirect_consultancy(args: FlowArgs) -> FlowResult:
-    """Handle transition after redirect."""
-    return {"redirect": args["redirect"]}
-
-
-async def redirect_discovery(args: FlowArgs) -> FlowResult:
-    """Handle transition after redirect."""
-    return {"redirect": args["redirect"]}
-
-
-async def redirect_contact_form(args: FlowArgs) -> FlowResult:
-    """Handle transition after redirect."""
-    return {"redirect": args["redirect"]}
+async def navigate(args: FlowArgs) -> FlowResult:
+    """Handle transition after navigate."""
+    path = args["path"]
+    logger.debug(f"navigating to {path} in navigate")
+    return {"path": path}
 
 
 # Transition handlers
-async def handle_name_collection(args: Dict, flow_manager: FlowManager):
+async def handle_collect_name(args: Dict, flow_manager: FlowManager):
     """Handle transition after name collection."""
     flow_manager.state["name"] = args["name"]
     await flow_manager.set_node("service_inquiry", create_service_inquiry_node())
 
 
-async def handle_service_identification(args: Dict, flow_manager: FlowManager):
+async def handle_identify_service(args: Dict, flow_manager: FlowManager):
     """Handle transition after service identification."""
     flow_manager.state["service_type"] = args["service_type"]
     if args["service_type"] == "technical_consultation":
         await flow_manager.set_node(
-            "redirect_consultancy", create_redirect_consultancy_node()
+            "navigate_consultancy", create_navigate_consultancy_node()
         )
     else:  # voice_agent_development
         await flow_manager.set_node("identify_use_case", create_use_case_node())
 
 
-async def handle_use_case_identification(args: Dict, flow_manager: FlowManager):
+async def handle_identify_use_case(args: Dict, flow_manager: FlowManager):
     """Handle transition after use case identification."""
     flow_manager.state["use_case"] = args["use_case"]
     await flow_manager.set_node("establish_timescales", create_timescales_node())
 
 
-async def handle_timescales_establishment(args: Dict, flow_manager: FlowManager):
+async def handle_establish_timescales(args: Dict, flow_manager: FlowManager):
     """Handle transition after timeline establishment."""
     flow_manager.state["timeline"] = args["timeline"]
     await flow_manager.set_node("determine_budget", create_budget_node())
 
 
-async def handle_budget_determination(args: Dict, flow_manager: FlowManager):
+async def handle_determine_budget(args: Dict, flow_manager: FlowManager):
     """Handle transition after budget determination."""
     flow_manager.state["budget"] = args["budget"]
-    await flow_manager.set_node(
-        "assess_interaction", create_interaction_assessment_node()
-    )
+    await flow_manager.set_node("record_feedback", create_interaction_assessment_node())
 
 
-async def handle_interaction_assessment(args: Dict, flow_manager: FlowManager):
+async def handle_record_feedback(args: Dict, flow_manager: FlowManager):
     """Handle transition after interaction assessment."""
-    flow_manager.state["qualified"] = args["qualified"]
-    if args["qualified"]:
+    service_type = flow_manager.state["service_type"]
+    use_case = flow_manager.state["use_case"]
+    timeline = flow_manager.state["timeline"]
+    budget = flow_manager.state["budget"]
+    feedback = args["feedback"]
+    flow_manager.state["feedback"] = feedback
+
+    qualified = (
+        service_type == "voice_agent_development"
+        and use_case
+        and timeline
+        and budget > 1000
+        and feedback
+    )
+    if qualified:
         await flow_manager.set_node(
-            "redirect_discovery", create_redirect_discovery_node()
+            "navigate_discovery", create_navigate_discovery_node()
         )
     else:
         await flow_manager.set_node(
-            "redirect_contact_form", create_redirect_contact_form_node()
+            "navigate_contact_form", create_navigate_contact_form_node()
         )
 
 
-async def handle_redirect_consultancy(args: Dict, flow_manager: FlowManager):
-    """Handle transition after redirect."""
-    logger.debug("Redirecting to consultancy page in handle_redirect_consultancy")
-    await flow_manager.request_navigation("/consultancy")
-    await flow_manager.set_node("close_call", create_close_node())
-
-
-async def handle_redirect_discovery(args: Dict, flow_manager: FlowManager):
-    """Handle transition after redirect."""
-    logger.debug("Redirecting to discovery page in handle_redirect_discovery")
-    await flow_manager.request_navigation("/discovery")
-    await flow_manager.set_node("close_call", create_close_node())
-
-
-async def handle_redirect_contact_form(args: Dict, flow_manager: FlowManager):
-    """Handle transition after redirect."""
-    logger.debug("Redirecting to contact form page in handle_redirect_contact_form")
-    await flow_manager.request_navigation("/contact")
+async def handle_navigate(args: Dict, flow_manager: FlowManager):
+    """Handle transition after navigate."""
+    path = args["path"]
+    logger.debug(f"navigating to {path} in handle_navigate")
+    await flow_manager.request_navigation(path)
     await flow_manager.set_node("close_call", create_close_node())
 
 
 # Transition callback mapping
 HANDLERS = {
-    "collect_name": handle_name_collection,
-    "identify_service": handle_service_identification,
-    "identify_use_case": handle_use_case_identification,
-    "establish_timescales": handle_timescales_establishment,
-    "determine_budget": handle_budget_determination,
-    "assess_interaction": handle_interaction_assessment,
-    "redirect_consultancy": handle_redirect_consultancy,
-    "redirect_discovery": handle_redirect_discovery,
-    "redirect_contact_form": handle_redirect_contact_form,
+    "collect_name": handle_collect_name,
+    "identify_service": handle_identify_service,
+    "identify_use_case": handle_identify_use_case,
+    "establish_timescales": handle_establish_timescales,
+    "determine_budget": handle_determine_budget,
+    "record_feedback": handle_record_feedback,
+    "navigate_discovery": handle_navigate,
+    "navigate_consultancy": handle_navigate,
+    "navigate_contact_form": handle_navigate,
 }
 
 
