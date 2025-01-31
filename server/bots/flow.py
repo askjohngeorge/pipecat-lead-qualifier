@@ -227,52 +227,29 @@ async def handle_qualification_data(args: Dict, flow_manager: FlowManager):
         and bool(args.get("feedback"))
     )
 
-    nav_node = create_navigation_node()
-    if qualified:
-        nav_node["post_actions"][0].update(
-            {
-                "path": "/discovery",
-                "message": "I've navigated you to our discovery call booking page where you can schedule a free consultation.",
-            }
-        )
-    else:
-        nav_node["post_actions"][0].update(
-            {
-                "path": "/contact",
-                "message": "I've navigated you to our contact form where you can send us more details about your requirements.",
-            }
-        )
+    # Execute navigation directly as a post-action
+    nav_action = {
+        "type": "execute_navigation",
+        "path": "/discovery" if qualified else "/contact",
+        "message": (
+            "I've navigated you to our discovery call booking page where you can schedule a free consultation."
+            if qualified
+            else "I've navigated you to our contact form where you can send us more details about your requirements."
+        ),
+    }
 
-    await flow_manager.set_node("navigation", nav_node)
+    # Update development node with navigation action and set it
+    development_node = create_development_node()
+    development_node["post_actions"] = [nav_action]
+    await flow_manager.set_node("development", development_node)
+
+    # Transition to close call
     await flow_manager.set_node("close_call", create_close_call_node())
 
 
 # ==============================================================================
 # Navigation Handling
 # ==============================================================================
-
-
-def create_navigation_node() -> Dict:
-    """Create navigation node."""
-    return {
-        "task_messages": [{"role": "system", "content": "{{NAVIGATION_MESSAGE}}"}],
-        "functions": [],
-        "post_actions": [{"type": "execute_navigation"}],
-    }
-
-
-def create_navigation_error_node() -> Dict:
-    """Create error handling node."""
-    return {
-        "task_messages": [
-            {
-                "role": "system",
-                "content": "Inform the caller that an error occurred and ask them to try again later.",
-            }
-        ],
-        "functions": [],
-        "post_actions": [{"type": "end_conversation"}],
-    }
 
 
 class NavigationCoordinator:
@@ -360,17 +337,26 @@ class FlowBot(BaseBot):
         message = action.get("message")
 
         try:
-            if await coordinator.navigate(path):
-                await self.flow_manager.set_node("close_call", create_close_call_node())
-                return
-            else:
+            if not await coordinator.navigate(path):
                 logger.error("Navigation action failed without exception")
+                # On navigation failure, proceed to close call with error message
+                error_node = create_close_call_node()
+                error_node["task_messages"][0][
+                    "content"
+                ] = """## Instructions
+I apologize, but I encountered an error while trying to navigate to the next page. Please try refreshing the page or contact support if the issue persists.
+Thank you for your understanding."""
+                await self.flow_manager.set_node("close_call", error_node)
         except Exception as e:
             logger.error(f"Navigation action failed with exception: {str(e)}")
-
-        await self.flow_manager.set_node(
-            "navigation_error", create_navigation_error_node()
-        )
+            # Handle exception similarly
+            error_node = create_close_call_node()
+            error_node["task_messages"][0][
+                "content"
+            ] = """## Instructions
+I apologize, but I encountered an error while trying to navigate to the next page. Please try refreshing the page or contact support if the issue persists.
+Thank you for your understanding."""
+            await self.flow_manager.set_node("close_call", error_node)
 
 
 async def main():
