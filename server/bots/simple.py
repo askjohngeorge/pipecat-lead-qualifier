@@ -1,15 +1,16 @@
 """Simple bot implementation using the base bot framework."""
 
 import asyncio
-import sys
-import pytz
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
+import sys
+
+import pytz
 
 # Add parent directory to Python path to import utils
 sys.path.append(str(Path(__file__).parent.parent))
-from utils.config import AppConfig
 from utils.bot_framework import BaseBot
+from utils.config import AppConfig
 from pipecat.processors.aggregators.openai_llm_context import OpenAILLMContext
 
 
@@ -21,8 +22,7 @@ class SimpleBot(BaseBot):
         self.messages = [
             {
                 "role": "system",
-                "content": f"""
-# Role
+                "content": f"""# Role
 You are Chris, a helpful voice assistant for John George Voice AI Solutions.
 
 # Context
@@ -110,8 +110,7 @@ Your primary task is to qualify leads by guiding them through a series of questi
 
 11. Close the Call
 "Thank you for your time. We appreciate you choosing John George Voice AI Solutions. Goodbye."
-- ~End the call~
-""",
+- ~End the call~""",
             }
         ]
 
