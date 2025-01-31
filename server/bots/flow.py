@@ -59,6 +59,7 @@ Greet the caller warmly with a friendly tone, introduce yourself as Chris, a voi
                 "function": {
                     "name": "collect_name",
                     "handler": collect_name,
+                    "transition_callback": handle_collect_name,
                     "description": "Record the caller's name.",
                     "parameters": {
                         "type": "object",
@@ -117,6 +118,7 @@ If they ask who the meeting will be with, tell them it will be John George, the 
                 "function": {
                     "name": "identify_service",
                     "handler": identify_service,
+                    "transition_callback": handle_identify_service,
                     "description": "Record the caller's service preference.",
                     "parameters": {
                         "type": "object",
@@ -171,6 +173,7 @@ Ask the caller to elaborate on their specific use case or requirements for voice
                 "function": {
                     "name": "identify_use_case",
                     "handler": identify_use_case,
+                    "transition_callback": handle_identify_use_case,
                     "description": "Record the caller's specific use case for voice agent development.",
                     "parameters": {
                         "type": "object",
@@ -221,6 +224,7 @@ If the caller is vague or unsure about their timeline, encourage them to provide
                 "function": {
                     "name": "establish_timescales",
                     "handler": establish_timescales,
+                    "transition_callback": handle_establish_timescales,
                     "description": "Record the caller's timeline or deadline preferences for the project.",
                     "parameters": {
                         "type": "object",
@@ -305,6 +309,7 @@ Share cost details if explicitly asked by the caller, if they express uncertaint
                 "function": {
                     "name": "determine_budget",
                     "handler": determine_budget,
+                    "transition_callback": handle_determine_budget,
                     "description": "Record the caller's budget information for the project.",
                     "parameters": {
                         "type": "object",
@@ -354,6 +359,7 @@ Encourage them to provide specific comments if they express general satisfaction
                 "function": {
                     "name": "record_feedback",
                     "handler": record_feedback,
+                    "transition_callback": handle_record_feedback,
                     "description": "Record the caller's feedback on the interaction.",
                     "parameters": {
                         "type": "object",
@@ -383,6 +389,7 @@ def create_navigation_node() -> Dict:
                 "function": {
                     "name": "navigate",
                     "handler": navigate,
+                    "transition_callback": handle_navigate,
                     "description": "Handle path navigation",
                     "parameters": {
                         "type": "object",
@@ -577,26 +584,6 @@ async def handle_navigate(args: Dict, flow_manager: FlowManager):
     # Actual navigation happens in the action, this just passes through
 
 
-# Transition callback mapping
-HANDLERS = {
-    "collect_name": handle_collect_name,
-    "identify_service": handle_identify_service,
-    "identify_use_case": handle_identify_use_case,
-    "establish_timescales": handle_establish_timescales,
-    "determine_budget": handle_determine_budget,
-    "record_feedback": handle_record_feedback,
-    "navigate": handle_navigate,
-}
-
-
-async def handle_lead_qualification_transition(
-    function_name: str, args: Dict, flow_manager: FlowManager
-):
-    """Handle transitions between lead qualification flow states."""
-    logger.debug(f"Processing {function_name} transition with args: {args}")
-    await HANDLERS[function_name](args, flow_manager)
-
-
 class NavigationCoordinator:
     """Handles navigation between pages with proper error handling"""
 
@@ -662,7 +649,6 @@ class FlowBot(BaseBot):
             llm=self.services.llm,
             context_aggregator=self.pipeline_builder.context_aggregator,
             tts=self.services.tts,
-            transition_callback=handle_lead_qualification_transition,
         )
 
         # Register navigation action with coordinator reference
