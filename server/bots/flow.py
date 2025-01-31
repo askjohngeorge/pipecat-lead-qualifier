@@ -59,13 +59,13 @@ Greet the caller warmly with a friendly tone, introduce yourself as Chris, a voi
                 "function": {
                     "name": "collect_name",
                     "handler": collect_name,
-                    "transition_callback": handle_collect_name,
                     "description": "Record the caller's name.",
                     "parameters": {
                         "type": "object",
                         "properties": {"name": {"type": "string"}},
                         "required": ["name"],
                     },
+                    "transition_callback": handle_collect_name,
                 },
             },
         ],
@@ -118,7 +118,6 @@ If they ask who the meeting will be with, tell them it will be John George, the 
                 "function": {
                     "name": "identify_service",
                     "handler": identify_service,
-                    "transition_callback": handle_identify_service,
                     "description": "Record the caller's service preference.",
                     "parameters": {
                         "type": "object",
@@ -133,6 +132,7 @@ If they ask who the meeting will be with, tell them it will be John George, the 
                         },
                         "required": ["service_type"],
                     },
+                    "transition_callback": handle_identify_service,
                 },
             },
         ],
@@ -173,7 +173,6 @@ Ask the caller to elaborate on their specific use case or requirements for voice
                 "function": {
                     "name": "identify_use_case",
                     "handler": identify_use_case,
-                    "transition_callback": handle_identify_use_case,
                     "description": "Record the caller's specific use case for voice agent development.",
                     "parameters": {
                         "type": "object",
@@ -182,6 +181,7 @@ Ask the caller to elaborate on their specific use case or requirements for voice
                         },
                         "required": ["use_case"],
                     },
+                    "transition_callback": handle_identify_use_case,
                 },
             },
         ],
@@ -224,7 +224,6 @@ If the caller is vague or unsure about their timeline, encourage them to provide
                 "function": {
                     "name": "establish_timescales",
                     "handler": establish_timescales,
-                    "transition_callback": handle_establish_timescales,
                     "description": "Record the caller's timeline or deadline preferences for the project.",
                     "parameters": {
                         "type": "object",
@@ -233,6 +232,7 @@ If the caller is vague or unsure about their timeline, encourage them to provide
                         },
                         "required": ["timeline"],
                     },
+                    "transition_callback": handle_establish_timescales,
                 },
             },
         ],
@@ -309,7 +309,6 @@ Share cost details if explicitly asked by the caller, if they express uncertaint
                 "function": {
                     "name": "determine_budget",
                     "handler": determine_budget,
-                    "transition_callback": handle_determine_budget,
                     "description": "Record the caller's budget information for the project.",
                     "parameters": {
                         "type": "object",
@@ -318,6 +317,7 @@ Share cost details if explicitly asked by the caller, if they express uncertaint
                         },
                         "required": ["budget"],
                     },
+                    "transition_callback": handle_determine_budget,
                 },
             },
         ],
@@ -359,7 +359,6 @@ Encourage them to provide specific comments if they express general satisfaction
                 "function": {
                     "name": "record_feedback",
                     "handler": record_feedback,
-                    "transition_callback": handle_record_feedback,
                     "description": "Record the caller's feedback on the interaction.",
                     "parameters": {
                         "type": "object",
@@ -368,6 +367,7 @@ Encourage them to provide specific comments if they express general satisfaction
                         },
                         "required": ["feedback"],
                     },
+                    "transition_callback": handle_record_feedback,
                 },
             },
         ],
@@ -389,7 +389,6 @@ def create_navigation_node() -> Dict:
                 "function": {
                     "name": "navigate",
                     "handler": navigate,
-                    "transition_callback": handle_navigate,
                     "description": "Handle path navigation",
                     "parameters": {
                         "type": "object",
@@ -401,6 +400,7 @@ def create_navigation_node() -> Dict:
                         },
                         "required": ["path"],
                     },
+                    "transition_callback": handle_navigate,
                 },
             }
         ],
