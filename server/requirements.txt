@@ -1,7 +1,7 @@
-pipecat-ai[daily,openai,deepgram,silero,cartesia,google]
-pipecat-ai-flows
-aiohttp
-python-dotenv
-fastapi
-uvicorn
-loguru
+pipecat-ai[daily,openai,deepgram,silero,cartesia,google]==0.0.54
+pipecat-ai-flows==0.0.12
+aiohttp==3.11.11
+python-dotenv==1.0.1
+fastapi==0.115.8
+uvicorn==0.34.0
+loguru==0.7.3
