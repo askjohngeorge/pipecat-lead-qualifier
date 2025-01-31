@@ -5,3 +5,4 @@ python-dotenv==1.0.1
 fastapi==0.115.8
 uvicorn==0.34.0
 loguru==0.7.3
+pytz==2025.1
