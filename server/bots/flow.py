@@ -24,9 +24,13 @@ logger.remove(0)
 logger.add(sys.stderr, level="DEBUG")
 
 
-# Node generator functions
-def create_collect_name_node() -> Dict:
-    """Create a node to greet the caller and collect their name."""
+# ==============================================================================
+# Core Node Definitions
+# ==============================================================================
+
+
+def create_greeting_node() -> Dict:
+    """Create initial greeting node that collects name and identifies service."""
     return {
         "role_messages": [
             {
@@ -47,81 +51,31 @@ You are Chris, a helpful voice assistant for John George Voice AI Solutions. You
             {
                 "role": "system",
                 "content": """## Instructions
-Greet the caller warmly with a friendly tone, introduce yourself as Chris, a voice AI agent representing John George Voice AI solutions, and ask the caller for their name.
-
-## Example
-[You]: Hi there, I'm Chris, a voice AI agent from John George Voice AI solutions. May I know your name, please?""",
-            }
-        ],
-        "functions": [
-            {
-                "type": "function",
-                "function": {
-                    "name": "collect_name",
-                    "handler": collect_name,
-                    "description": "Record the caller's name.",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {"name": {"type": "string"}},
-                        "required": ["name"],
-                    },
-                    "transition_callback": handle_collect_name,
-                },
-            },
-        ],
-    }
-
-
-def create_identify_service_node() -> Dict:
-    """Create a node to determine the service of interest."""
-    return {
-        "task_messages": [
-            {
-                "role": "system",
-                "content": """## Instructions
-Politely inquire about the service the caller is interested in. Present two options: technical consultation or voice agent development. 
-
-A technical consultation is a paid meeting where we discuss your specific needs and advise on the best approach. Voice agent development is where we build a custom voice AI solution for you, and initially involves scheduling a free discovery call to discuss your needs.
-
-Encourage them to provide a clear response if they respond ambiguously.
-
-If they ask who the meeting will be with, tell them it will be John George, the founder of John George Voice AI Solutions.
+1. Greet the caller warmly and introduce yourself as Chris from John George Voice AI solutions
+2. Ask for their name
+3. After getting their name, ask if they're interested in a technical consultation or voice agent development
+4. If they ask who they'll be meeting with, tell them it will be John George, the founder
+5. If they're unsure about the services:
+   - Technical consultation: A paid meeting to discuss specific needs and get detailed advice
+   - Voice agent development: Building a custom solution, starting with a free discovery call
 
 ## Examples
-### Example 1
-[You]: Are you interested in a technical consultation or voice agent development?
-[Caller]: I'm interested in voice agent development.
-
-### Example 2
-[You]: Are you interested in a technical consultation or voice agent development?
-[Caller]: I'm not sure.
-[You]: No problem. A technical consultation is a paid meeting where we discuss your specific needs and advise on the best approach. Voice agent development is where we build a custom voice AI solution for you, and initially involves scheduling a free discovery call to discuss your needs. Which of these are you interested in?
-[Caller]: I think I'm interested in a technical consultation.
-
-### Example 3
-[You]: Are you interested in a technical consultation or voice agent development?
-[Caller]: I'm interested in both.
-[You]: I see. A technical consultation is a paid meeting where we discuss your specific needs and advise on the best approach. Voice agent development is where we build a custom voice AI solution for you, and initially involves scheduling a free discovery call to discuss your needs. Which of these are you interested in pursuing first?
-[Caller]: Let's start with voice agent development.
-
-### Example 4
-[You]: Are you interested in a technical consultation or voice agent development?
-[Caller]: Who would I be meeting with?
-[You]: You would be meeting with John George, the founder of John George Voice AI Solutions. Now, are you interested in a technical consultation or voice agent development?
-[Caller]: I'm interested in a technical consultation.
-""",
+[You]: Hi there, I'm Chris from John George Voice AI solutions. May I know your name please?
+[Caller]: John
+[You]: Thank you John. Are you interested in a technical consultation or voice agent development?""",
             }
         ],
         "functions": [
             {
                 "type": "function",
                 "function": {
-                    "name": "identify_service",
-                    "handler": identify_service,
-                    "description": "Record the caller's service preference.",
+                    "name": "collect_initial_info",
+                    "handler": collect_initial_info,
+                    "description": "Collect name and service preference",
                     "parameters": {
                         "type": "object",
                         "properties": {
+                            "name": {"type": "string"},
                             "service_type": {
                                 "type": "string",
                                 "enum": [
@@ -132,460 +86,197 @@ If they ask who the meeting will be with, tell them it will be John George, the 
                         },
                         "required": ["service_type"],
                     },
-                    "transition_callback": handle_identify_service,
+                    "transition_callback": handle_initial_info,
                 },
-            },
+            }
         ],
     }
 
 
-def create_identify_use_case_node() -> Dict:
-    """Create a node to gather details about the caller's use case."""
+def create_consultancy_node() -> Dict:
+    """Create node for handling technical consultation path."""
     return {
         "task_messages": [
             {
                 "role": "system",
                 "content": """## Instructions
-Ask the caller to elaborate on their specific use case or requirements for voice agent development. If they respond ambiguously at first, prompt them to be more specific, and encourage them to provide as much detail as possible about their goals and desired outcomes.
+Explain that you're navigating them to the consultancy booking page where they can schedule a paid consultation.
+Mention that this requires an up-front payment which is non-refundable for no-shows or cancellations.
+Advise them to provide detailed information when booking to help prepare for the call.""",
+            }
+        ],
+        "functions": [],
+        "post_actions": [
+            {
+                "type": "execute_navigation",
+                "path": "/consultancy",
+                "message": "I've navigated you to our consultancy booking page where you can schedule a paid consultation with our founder.",
+            }
+        ],
+    }
 
-## Examples
-### Example 1
-[You]: Could you tell me more about your specific use case for voice agent development?
-[Caller]: I want to automate customer service.
 
-### Example 2
-[You]: Could you tell me more about your specific use case for voice agent development?
-[Caller]: I'm not sure.
-[You]: No problem. To help me understand better, could you describe what you're hoping to achieve with a voice AI solution? What kind of tasks or interactions would you like it to handle?
-[Caller]: I want to automate appointment bookings.
+def create_development_node() -> Dict:
+    """Create node for handling voice agent development path."""
+    return {
+        "task_messages": [
+            {
+                "role": "system",
+                "content": """## Instructions
+Guide the caller through the qualification process:
 
-### Example 3
-[You]: Could you tell me more about your specific use case for voice agent development?
-[Caller]: I want to improve my business.
-[You]: I see. To help me understand better, could you describe what you're hoping to achieve with a voice AI solution? What kind of tasks or interactions would you like it to handle?
-[Caller]: I want to automate lead qualification.
-""",
+1. Ask about their specific use case for voice AI
+2. Inquire about their project timeline
+3. Discuss budget (minimum £1,000)
+4. Get feedback on the call quality
+5. Qualify based on:
+   - Specific use case provided
+   - Timeline specified
+   - Budget > £1,000
+   - Positive interaction feedback
+
+Navigate to:
+- /discovery if qualified (free discovery call)
+- /contact if not qualified (contact form)""",
             }
         ],
         "functions": [
             {
                 "type": "function",
                 "function": {
-                    "name": "identify_use_case",
-                    "handler": identify_use_case,
-                    "description": "Record the caller's specific use case for voice agent development.",
+                    "name": "collect_qualification_data",
+                    "handler": collect_qualification_data,
+                    "description": "Collect qualification information",
                     "parameters": {
                         "type": "object",
                         "properties": {
                             "use_case": {"type": "string"},
-                        },
-                        "required": ["use_case"],
-                    },
-                    "transition_callback": handle_identify_use_case,
-                },
-            },
-        ],
-    }
-
-
-def create_establish_timescales_node() -> Dict:
-    """Create a node to determine the caller's timeline."""
-    return {
-        "task_messages": [
-            {
-                "role": "system",
-                "content": """## Instructions
-Ask the caller to share their desired timeline for the project. Inquire whether they have specific deadlines or time constraints.
-
-If the caller is vague or unsure about their timeline, encourage them to provide a rough estimate to help align project planning.
-
-## Examples
-### Example 1
-[You]: Could you please share your desired timeline for this project? Do you have any specific deadlines in mind?
-[Caller]: We are looking to launch by the end of next quarter.
-
-### Example 2
-[You]: Could you please share your desired timeline for this project? Do you have any specific deadlines in mind?
-[Caller]: I'm not sure, we haven't really thought about it.
-[You]: No problem. Just a rough estimate would be helpful. Are you thinking in terms of weeks, months, or quarters for implementation?
-[Caller]: Probably within the next couple of months.
-
-### Example 3
-[You]: Could you please share your desired timeline for this project? Do you have any specific deadlines in mind?
-[Caller]: As soon as possible!
-[You]: I understand the urgency. To help us plan, could you give a rough timeframe? Are we talking about the next few weeks, or a couple of months?
-[Caller]: Ideally, we'd like to have something in place within a month.
-""",
-            }
-        ],
-        "functions": [
-            {
-                "type": "function",
-                "function": {
-                    "name": "establish_timescales",
-                    "handler": establish_timescales,
-                    "description": "Record the caller's timeline or deadline preferences for the project.",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
                             "timeline": {"type": "string"},
-                        },
-                        "required": ["timeline"],
-                    },
-                    "transition_callback": handle_establish_timescales,
-                },
-            },
-        ],
-    }
-
-
-def create_determine_budget_node() -> Dict:
-    """Create a node to discuss budget."""
-    return {
-        "task_messages": [
-            {
-                "role": "system",
-                "content": """## Instructions
-
-### Primary Question
-Ask the caller "What budget range did you have in mind for this project?". Do not mention the minimum budget initially.
-
-### Conditional Minimum Budget Disclosure
-Only mention the minimum budget of £1,000 if:
-1. The caller indicates they don't have a budget in mind.
-2. The caller suggests a budget below £1,000.
-
-### Providing Cost Details
-Share cost details if explicitly asked by the caller, if they express uncertainty about budget, or if their initial budget suggestion is less than £1,000.
-
-### Cost Information to Share (If Necessary)
-#### Basic Solution
-- Starting from £1,000
-- Includes:
-  - Single integration
-  - Basic testing
-  - Initial voice agent setup
-
-#### Advanced Implementation
-- Typically up to £10,000
-- Includes:
-  - Multiple integrations
-  - Comprehensive testing
-  - Complex configurations
-
-#### Custom Platform Development
-- Will have to be discussed on a case-by-case basis
-
-#### Important Notice about Additional Costs
-**Please note**: All implementations include:
-- Ongoing usage fees
-- Ongoing support costs
-
-## Examples
-### Example 1
-[You]: What budget range did you have in mind for this project?
-[Caller]: We haven't really set a budget yet.
-[You]: Okay, no problem. To give you some context, our basic solutions start from a minimum of £1,000 and can go up to £10,000 for more advanced implementations, depending on complexity and integrations. Does that help give you a range to consider?
-[Caller]: Yes, that's helpful.
-[You]: Okay, so is there a minimum budget you'd be willing to consider?
-[Caller]: Yes, we'd be willing to consider a minimum budget of £1,000.
-
-### Example 2
-[You]: What budget range did you have in mind for this project?
-[Caller]: What are your prices like?
-[You]: Certainly! Our projects start at a minimum budget of £1,000. For a basic voice agent solution at this price, it includes a single integration, basic testing, and initial setup. For advanced implementations, the budget typically goes up to £10,000. We also handle custom platform development, which requires a separate discussion. Remember, all solutions include ongoing usage and support fees. Does this minimum budget and range align with your expectations?
-[Caller]: Yes, the basic solution budget sounds reasonable.
-
-### Example 3
-[You]: What budget range did you have in mind for this project?
-[Caller]: We have a budget of around £5,000.
-[You]: Great, £5,000 sounds like a good starting point. That budget allows us to consider a range of effective solutions.
-""",
-            }
-        ],
-        "functions": [
-            {
-                "type": "function",
-                "function": {
-                    "name": "determine_budget",
-                    "handler": determine_budget,
-                    "description": "Record the caller's budget information for the project.",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
                             "budget": {"type": "integer"},
-                        },
-                        "required": ["budget"],
-                    },
-                    "transition_callback": handle_determine_budget,
-                },
-            },
-        ],
-    }
-
-
-def create_record_feedback_node() -> Dict:
-    """Create a node to assess interaction quality."""
-    return {
-        "task_messages": [
-            {
-                "role": "system",
-                "content": """## Instructions
-Explain to the caller that you'd like to quickly ask for some feedback on the call quality so far, as they are interacting with the kind of system they might be purchasing. Specifically, ask them to provide feedback on the latency, clarity, and naturalness of the conversation, to ensure it meets their expectations for a voice AI solution.
-
-Encourage them to provide specific comments if they express general satisfaction or dissatisfaction, to gather actionable insights and better understand if the interaction quality is meeting their needs.
-
-## Examples
-### Example 1
-[You]: Before we proceed, I'd like to quickly ask for your feedback on the call quality so far. You're interacting with the kind of system you might be considering purchasing, so it's important for us to ensure it meets your expectations. Could you please give us your thoughts on the latency, clarity, and naturalness of our conversation?
-[Caller]: It was great, no issues at all.
-[You]: Thank you, that's great to hear!
-
-### Example 2
-[You]: To make sure this type of solution is right for you, I'd appreciate some quick feedback on the call quality. Could you share your thoughts on the latency, clarity, and naturalness? This is the kind of experience you can expect, so we want to ensure it aligns with your needs.
-[Caller]: It was mostly good, but there were a couple of moments of delay.
-[You]: Thank you for pointing that out. Noted - a couple of moments of delay. Is there anything else you'd like to comment on regarding clarity or naturalness?
-
-### Example 3
-[You]: One last quick thing before we move on. Since you're experiencing a demo of our voice AI capabilities, could you give us feedback on the call quality? We want to ensure the latency, clarity, and natural feel are up to standard for you. Specifically, what are your thoughts on those aspects?
-[Caller]: Actually, it felt very natural, like talking to a real person.
-[You]: That's fantastic to hear! Thank you for letting us know.
-""",
-            }
-        ],
-        "functions": [
-            {
-                "type": "function",
-                "function": {
-                    "name": "record_feedback",
-                    "handler": record_feedback,
-                    "description": "Record the caller's feedback on the interaction.",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
                             "feedback": {"type": "string"},
                         },
-                        "required": ["feedback"],
+                        "required": ["use_case", "timeline", "budget", "feedback"],
                     },
-                    "transition_callback": handle_record_feedback,
+                    "transition_callback": handle_qualification_data,
                 },
-            },
+            }
         ],
     }
+
+
+def create_close_call_node() -> Dict:
+    """Create node to conclude the conversation."""
+    return {
+        "task_messages": [
+            {
+                "role": "system",
+                "content": """## Instructions
+Thank the caller sincerely for their time and engagement. 
+Conclude the conversation on a positive and friendly note.
+Do not ask if they have any other questions.""",
+            }
+        ],
+        "functions": [],
+        "post_actions": [{"type": "end_conversation"}],
+    }
+
+
+# ==============================================================================
+# Function Handlers
+# ==============================================================================
+
+
+async def collect_initial_info(args: FlowArgs) -> FlowResult:
+    """Process initial information collection."""
+    return {"name": args.get("name"), "service_type": args["service_type"]}
+
+
+async def collect_qualification_data(args: FlowArgs) -> FlowResult:
+    """Process qualification data collection."""
+    return {
+        "use_case": args["use_case"],
+        "timeline": args["timeline"],
+        "budget": args["budget"],
+        "feedback": args["feedback"],
+    }
+
+
+# ==============================================================================
+# Transition Handlers
+# ==============================================================================
+
+
+async def handle_initial_info(args: Dict, flow_manager: FlowManager):
+    """Handle transition after collecting initial information."""
+    flow_manager.state.update(args)
+
+    if args["service_type"] == "technical_consultation":
+        await flow_manager.set_node("consultancy", create_consultancy_node())
+    else:
+        await flow_manager.set_node("development", create_development_node())
+
+
+async def handle_qualification_data(args: Dict, flow_manager: FlowManager):
+    """Handle transition after collecting qualification data."""
+    flow_manager.state.update(args)
+
+    qualified = (
+        bool(args.get("use_case"))
+        and bool(args.get("timeline"))
+        and args.get("budget", 0) > 1000
+        and bool(args.get("feedback"))
+    )
+
+    nav_node = create_navigation_node()
+    if qualified:
+        nav_node["post_actions"][0].update(
+            {
+                "path": "/discovery",
+                "message": "I've navigated you to our discovery call booking page where you can schedule a free consultation.",
+            }
+        )
+    else:
+        nav_node["post_actions"][0].update(
+            {
+                "path": "/contact",
+                "message": "I've navigated you to our contact form where you can send us more details about your requirements.",
+            }
+        )
+
+    await flow_manager.set_node("navigation", nav_node)
+    await flow_manager.set_node("close_call", create_close_call_node())
+
+
+# ==============================================================================
+# Navigation Handling
+# ==============================================================================
 
 
 def create_navigation_node() -> Dict:
-    """Single reusable node for all navigation paths"""
+    """Create navigation node."""
     return {
-        "task_messages": [
-            {
-                "role": "system",
-                "content": "{{NAVIGATION_MESSAGE}}",  # Template placeholder
-            }
-        ],
-        "functions": [
-            {
-                "type": "function",
-                "function": {
-                    "name": "navigate",
-                    "handler": navigate,
-                    "description": "Handle path navigation",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "path": {
-                                "type": "string",
-                                "enum": ["/consultancy", "/discovery", "/contact"],
-                            }
-                        },
-                        "required": ["path"],
-                    },
-                    "transition_callback": handle_navigate,
-                },
-            }
-        ],
+        "task_messages": [{"role": "system", "content": "{{NAVIGATION_MESSAGE}}"}],
+        "functions": [],
         "post_actions": [{"type": "execute_navigation"}],
     }
 
 
 def create_navigation_error_node() -> Dict:
-    """Create a node to handle errors"""
+    """Create error handling node."""
     return {
         "task_messages": [
             {
                 "role": "system",
-                "content": "Inform the caller that an error has occurred, and politely ask them to try again later.",
+                "content": "Inform the caller that an error occurred and ask them to try again later.",
             }
         ],
         "functions": [],
         "post_actions": [{"type": "end_conversation"}],
     }
-
-
-def create_close_call_node() -> Dict:
-    """Create a node to conclude the conversation."""
-    return {
-        "task_messages": [
-            {
-                "role": "system",
-                "content": """## Instructions
-Thank the caller sincerely for their time and engagement. Conclude the conversation on a positive and friendly note, wishing them a great rest of their day.
-
-Do not ask if they have any other questions, just politely end the call.
-
-## Examples
-### Example 1
-[You]: Thank you for your time today. Have a great rest of your day, goodbye.
-
-### Example 2
-[You]: It has been a pleasure speaking with you. Thank you for your engagement, and have a wonderful day. Goodbye.
-
-### Example 3
-[You]: Thank you for considering John George Voice AI solutions. We appreciate your time, and wish you a great day. Goodbye.
-""",
-            }
-        ],
-        "functions": [],
-        "post_actions": [{"type": "end_conversation"}],
-    }
-
-
-# Function handlers
-async def collect_name(args: FlowArgs) -> FlowResult:
-    """Process name collection."""
-    return {"name": args["name"]}
-
-
-async def identify_service(args: FlowArgs) -> FlowResult:
-    """Process service type identification."""
-    return {"service_type": args["service_type"]}
-
-
-async def identify_use_case(args: FlowArgs) -> FlowResult:
-    """Process use case identification."""
-    return {"use_case": args["use_case"]}
-
-
-async def establish_timescales(args: FlowArgs) -> FlowResult:
-    """Process timeline establishment."""
-    return {"timeline": args["timeline"]}
-
-
-async def determine_budget(args: FlowArgs) -> FlowResult:
-    """Process budget determination."""
-    return {"budget": args["budget"]}
-
-
-async def record_feedback(args: FlowArgs) -> FlowResult:
-    """Process interaction assessment."""
-    return {"feedback": args["feedback"]}
-
-
-async def navigate(args: FlowArgs) -> FlowResult:
-    """Process navigation."""
-    path = args["path"]
-    logger.debug(f"navigating to {path} in navigate")
-    return {"path": path}
-
-
-# Transition handlers
-async def handle_collect_name(args: Dict, flow_manager: FlowManager):
-    """Handle transition after name collection."""
-    flow_manager.state["name"] = args["name"]
-    await flow_manager.set_node("service_inquiry", create_identify_service_node())
-
-
-async def handle_identify_service(args: Dict, flow_manager: FlowManager):
-    """Handle transition after service identification."""
-    flow_manager.state["service_type"] = args["service_type"]
-    if args["service_type"] == "technical_consultation":
-        # Get the generic navigation node
-        nav_node = create_navigation_node()
-
-        # Set navigation message and path
-        message = "Explain you've navigated the caller to the consultancy booking page where they can pay to schedule a meeting to discuss their requirements further. Don't say anything else."
-        path = "/consultancy"
-
-        # Inject dynamic message
-        nav_node["task_messages"][0]["content"] = message
-
-        # Set navigation parameters in post-actions
-        nav_node["post_actions"][0]["path"] = path
-        nav_node["post_actions"][0]["message"] = message
-
-        await flow_manager.set_node("navigation", nav_node)
-    else:  # voice_agent_development
-        await flow_manager.set_node(
-            "identify_use_case", create_identify_use_case_node()
-        )
-
-
-async def handle_identify_use_case(args: Dict, flow_manager: FlowManager):
-    """Handle transition after use case identification."""
-    flow_manager.state["use_case"] = args["use_case"]
-    await flow_manager.set_node(
-        "establish_timescales", create_establish_timescales_node()
-    )
-
-
-async def handle_establish_timescales(args: Dict, flow_manager: FlowManager):
-    """Handle transition after timeline establishment."""
-    flow_manager.state["timeline"] = args["timeline"]
-    await flow_manager.set_node("determine_budget", create_determine_budget_node())
-
-
-async def handle_determine_budget(args: Dict, flow_manager: FlowManager):
-    """Handle transition after budget determination."""
-    flow_manager.state["budget"] = args["budget"]
-    await flow_manager.set_node("record_feedback", create_record_feedback_node())
-
-
-async def handle_record_feedback(args: Dict, flow_manager: FlowManager):
-    """Handle transition after interaction assessment."""
-    service_type = flow_manager.state["service_type"]
-    use_case = flow_manager.state["use_case"]
-    timeline = flow_manager.state["timeline"]
-    budget = flow_manager.state["budget"]
-    feedback = args["feedback"]
-    flow_manager.state["feedback"] = feedback
-
-    qualified = (
-        service_type == "voice_agent_development"
-        and use_case
-        and timeline
-        and budget > 1000
-        and feedback
-    )
-
-    # Get the generic navigation node
-    nav_node = create_navigation_node()
-
-    if qualified:
-        message = "Explain you've navigated the caller to our booking page for a free discovery call, which they can use to schedule an appointment to discuss their requirements further. Don't say anything else."
-        path = "/discovery"
-    else:
-        message = "Explain you've navigated the caller to our contact form page which they can use to send an email to the team. Don't say anything else."
-        path = "/contact"
-
-    # Inject dynamic message
-    nav_node["task_messages"][0]["content"] = message
-
-    # Set navigation parameters in post-actions
-    nav_node["post_actions"][0]["path"] = path
-    nav_node["post_actions"][0]["message"] = message
-
-    await flow_manager.set_node("navigation", nav_node)
-
-
-async def handle_navigate(args: Dict, flow_manager: FlowManager):
-    """Single handler for all navigation"""
-    path = args["path"]
-    logger.debug(f"Preparing navigation to {path}")
-    # Actual navigation happens in the action, this just passes through
 
 
 class NavigationCoordinator:
-    """Handles navigation between pages with proper error handling"""
+    """Handles navigation between pages with proper error handling."""
 
     def __init__(
         self, rtvi: RTVIProcessor, llm: FrameProcessor, context: OpenAILLMContext
@@ -595,7 +286,7 @@ class NavigationCoordinator:
         self.context = context
 
     async def navigate(self, path: str) -> bool:
-        """Handle navigation with error tracking"""
+        """Handle navigation with error tracking."""
         try:
             await self.rtvi.handle_function_call(
                 function_name="navigate",
@@ -611,8 +302,13 @@ class NavigationCoordinator:
             return False
 
 
+# ==============================================================================
+# Bot Implementation
+# ==============================================================================
+
+
 class FlowBot(BaseBot):
-    """Flow-based bot implementation with clean navigation separation"""
+    """Flow-based bot implementation with clean navigation separation."""
 
     def __init__(self, config: AppConfig):
         super().__init__(config)
@@ -621,7 +317,7 @@ class FlowBot(BaseBot):
 
     async def _setup_services_impl(self):
         """Implementation-specific service setup."""
-        initial_messages = create_collect_name_node()["role_messages"]
+        initial_messages = create_greeting_node()["role_messages"]
         self.context = OpenAILLMContext(messages=initial_messages)
         self.context_aggregator = self.services.llm.create_context_aggregator(
             self.context
@@ -634,16 +330,14 @@ class FlowBot(BaseBot):
     async def _handle_first_participant(self):
         """Implementation-specific first participant handling."""
         await self.flow_manager.initialize()
-        await self.flow_manager.set_node("collect_name", create_collect_name_node())
+        await self.flow_manager.set_node("greeting", create_greeting_node())
 
     def _create_pipeline_impl(self):
-        """Implementation-specific pipeline setup"""
-        # Initialize core components first
+        """Implementation-specific pipeline setup."""
         self.navigation_coordinator = NavigationCoordinator(
             rtvi=self.rtvi, llm=self.services.llm, context=self.context
         )
 
-        # Configure FlowManager
         self.flow_manager = FlowManager(
             task=self.task,
             llm=self.services.llm,
@@ -651,7 +345,6 @@ class FlowBot(BaseBot):
             tts=self.services.tts,
         )
 
-        # Register navigation action with coordinator reference
         self.flow_manager.register_action(
             "execute_navigation",
             partial(
@@ -662,17 +355,16 @@ class FlowBot(BaseBot):
     async def _handle_navigation_action(
         self, action: dict, coordinator: NavigationCoordinator
     ):
-        """Encapsulated navigation handler with coordinator access"""
+        """Handle navigation with proper error handling."""
         path = action["path"]
         message = action.get("message")
 
         try:
             if await coordinator.navigate(path):
                 await self.flow_manager.set_node("close_call", create_close_call_node())
-                return  # Exit early on successful navigation
+                return
             else:
                 logger.error("Navigation action failed without exception")
-
         except Exception as e:
             logger.error(f"Navigation action failed with exception: {str(e)}")
 
