@@ -58,7 +58,7 @@ class AppConfig:
 
     @property
     def openai_model(self) -> str:
-        return os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+        return os.getenv("OPENAI_MODEL", "gpt-4o")
 
     @property
     def openai_params(self) -> BaseOpenAILLMService.InputParams:
