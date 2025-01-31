@@ -223,28 +223,30 @@ async def handle_qualification_data(args: Dict, flow_manager: FlowManager):
     qualified = (
         bool(args.get("use_case"))
         and bool(args.get("timeline"))
-        and args.get("budget", 0) > 1000
+        and args.get("budget", 0) >= 1000
         and bool(args.get("feedback"))
     )
 
-    # Execute navigation directly as a post-action
-    nav_action = {
-        "type": "execute_navigation",
-        "path": "/discovery" if qualified else "/contact",
-        "message": (
-            "I've navigated you to our discovery call booking page where you can schedule a free consultation."
-            if qualified
-            else "I've navigated you to our contact form where you can send us more details about your requirements."
-        ),
-    }
+    logger.debug(f"Qualified: {qualified} based on: {args}")
 
-    # Update development node with navigation action and set it
-    development_node = create_development_node()
-    development_node["post_actions"] = [nav_action]
-    await flow_manager.set_node("development", development_node)
+    # Create close call node with navigation as pre-action
+    close_node = create_close_call_node()
 
-    # Transition to close call
-    await flow_manager.set_node("close_call", create_close_call_node())
+    # Add navigation as a pre-action to close node instead of development node
+    close_node["pre_actions"] = [
+        {
+            "type": "execute_navigation",
+            "path": "/discovery" if qualified else "/contact",
+            "message": (
+                "I've navigated you to our discovery call booking page where you can schedule a free consultation."
+                if qualified
+                else "I've navigated you to our contact form where you can send us more details about your requirements."
+            ),
+        }
+    ]
+
+    # Transition directly to close call node
+    await flow_manager.set_node("close_call", close_node)
 
 
 # ==============================================================================
