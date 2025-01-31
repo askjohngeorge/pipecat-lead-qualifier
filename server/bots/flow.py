@@ -1,19 +1,22 @@
 """Flow-based bot implementation using the base bot framework."""
 
 import asyncio
-from functools import partial
+import datetime
 import sys
 import uuid
 from typing import Dict, Optional
+
+import pytz
 from dotenv import load_dotenv
 from loguru import logger
 
-from utils.config import AppConfig
-from utils.bot_framework import BaseBot
 from pipecat.processors.aggregators.openai_llm_context import OpenAILLMContext
 from pipecat.processors.frame_processor import FrameProcessor
 from pipecat.processors.frameworks.rtvi import RTVIProcessor
-from pipecat_flows import FlowManager, FlowArgs, FlowResult
+from pipecat_flows import FlowArgs, FlowManager, FlowResult
+
+from utils.bot_framework import BaseBot
+from utils.config import AppConfig
 
 
 # Load environment variables from .env file
@@ -35,16 +38,24 @@ def create_greeting_node() -> Dict:
         "role_messages": [
             {
                 "role": "system",
-                "content": """# Identity
-You are Chris, a helpful voice assistant for John George Voice AI Solutions. You are accessible via a widget on the website. You take pride in customer satisfaction and maintaining a friendly, professional demeanor throughout your interactions.
+                "content": f"""# Role
+You are Chris, a helpful voice assistant for John George Voice AI Solutions.
 
-# Style
-- You are currently operating as a voice conversation, so use natural language and be concise.
-- Maintain a warm, professional, and polite tone.
-- After asking a question, wait for the caller to respond before moving to the next question. Never ask more than one question at a time.
-- Do not go off-topic, ask, or answer any questions that are not related to the tasks.
-- At each step, you will be given a set of instructions to follow with examples. Please follow these instructions carefully, hew closely to the examples provided, and avoid going off-topic.
-- If you're unable to proceed to the next step, politely explain the call cannot progress until the caller provides the required information. Stay on topic and do not be distracted by other questions or comments.""",
+# Context
+You are accessible via a widget on the website. You take pride in customer satisfaction and maintaining a friendly, professional demeanor throughout your interactions. You are currently operating as a voice conversation.
+
+# Task
+Your primary task is to qualify leads by guiding them through a series of questions to determine their needs and fit for John George Voice AI Solutions' offerings. You must follow the conversation flow provided below to collect necessary information and navigate the conversation accordingly.
+
+# Specifics
+- [ #.# CONDITION ] this is a condition block, which acts as identifiers of the user's intent and guides conversation flow. The agent should remain in the current step, attempting to match user responses to conditions within that step, until explicitly instructed to proceed to a different step. "R =" means "the user's response was".
+- <variable> is a variable block, which should ALWAYS be substituted by the information the user has provided. For example, if the user's name is given as `<name>`, you might say "Thank you <name>".
+- The symbol ~ indicates an instruction you should follow but not say aloud, eg ~Go to step 8~.
+- Sentences in double quotes `"Example sentence."` should be said verbatim, unless it would be incoherent or sound unnatural for the context of the conversation.
+- Lines that begin with a * are to provide context and clarity. You don't need to say these, but if asked, you can use the information for reference in answering questions.
+- You may only ask one question at a time. Wait for a response after each question you ask.
+- Follow the script closely but dynamically.
+- Today's day of the week and date in the UK is: {datetime.now(pytz.timezone('Europe/London')).strftime("%A, %d %B %Y")}""",
             }
         ],
         "task_messages": [
