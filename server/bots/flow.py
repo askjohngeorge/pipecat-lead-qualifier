@@ -232,17 +232,19 @@ async def handle_qualification_data(args: Dict, flow_manager: FlowManager):
     # Create close call node with navigation as pre-action
     close_node = create_close_call_node()
 
-    # Add navigation as a pre-action to close node instead of development node
+    # Add TTS message and navigation as separate pre-actions
+    nav_message = (
+        "I've navigated you to our discovery call booking page where you can schedule a free consultation."
+        if qualified
+        else "I've navigated you to our contact form where you can send us more details about your requirements."
+    )
+
     close_node["pre_actions"] = [
+        {"type": "tts_say", "text": nav_message},
         {
             "type": "execute_navigation",
             "path": "/discovery" if qualified else "/contact",
-            "message": (
-                "I've navigated you to our discovery call booking page where you can schedule a free consultation."
-                if qualified
-                else "I've navigated you to our contact form where you can send us more details about your requirements."
-            ),
-        }
+        },
     ]
 
     # Transition directly to close call node
@@ -335,29 +337,30 @@ class FlowBot(BaseBot):
         self, action: dict, coordinator: NavigationCoordinator
     ):
         """Handle navigation with proper error handling."""
-        path = action["path"]
-        message = action.get("message")
+        path = action["path"]  # Message is now handled by tts_say action
 
         try:
             if not await coordinator.navigate(path):
                 logger.error("Navigation action failed without exception")
                 # On navigation failure, proceed to close call with error message
                 error_node = create_close_call_node()
-                error_node["task_messages"][0][
-                    "content"
-                ] = """## Instructions
-I apologize, but I encountered an error while trying to navigate to the next page. Please try refreshing the page or contact support if the issue persists.
-Thank you for your understanding."""
+                error_node["pre_actions"] = [
+                    {
+                        "type": "tts_say",
+                        "text": "I apologize, but I encountered an error while trying to navigate to the next page. Please try refreshing the page or contact support if the issue persists.",
+                    }
+                ]
                 await self.flow_manager.set_node("close_call", error_node)
         except Exception as e:
             logger.error(f"Navigation action failed with exception: {str(e)}")
             # Handle exception similarly
             error_node = create_close_call_node()
-            error_node["task_messages"][0][
-                "content"
-            ] = """## Instructions
-I apologize, but I encountered an error while trying to navigate to the next page. Please try refreshing the page or contact support if the issue persists.
-Thank you for your understanding."""
+            error_node["pre_actions"] = [
+                {
+                    "type": "tts_say",
+                    "text": "I apologize, but I encountered an error while trying to navigate to the next page. Please try refreshing the page or contact support if the issue persists.",
+                }
+            ]
             await self.flow_manager.set_node("close_call", error_node)
 
 
