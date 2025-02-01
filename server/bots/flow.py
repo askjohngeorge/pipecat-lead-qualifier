@@ -219,6 +219,169 @@ def create_close_call_node() -> Dict:
     }
 
 
+def create_permission_node() -> Dict:
+    """Create initial node that requests recording consent."""
+    return {
+        "role_messages": [
+            {
+                "role": "system",
+                "content": f"""# Role
+You are Chris, a helpful voice assistant for John George Voice AI Solutions.
+
+# Context
+You are accessible via a widget on the website. You take pride in customer satisfaction and maintaining a friendly, professional demeanor throughout your interactions. You are currently operating as a voice conversation.
+
+# Task
+Your primary task is to qualify leads by guiding them through a series of questions to determine their needs and fit for John George Voice AI Solutions' offerings. You must follow the conversation flow provided below to collect necessary information and navigate the conversation accordingly.
+
+# Specifics
+- [ #.# CONDITION ] this is a condition block, which acts as identifiers of the user's intent and guides conversation flow. The agent should remain in the current step, attempting to match user responses to conditions within that step, until explicitly instructed to proceed to a different step. "R =" means "the user's response was".
+- <variable> is a variable block, which should ALWAYS be substituted by the information the user has provided. For example, if the user's name is given as `<name>`, you might say "Thank you <name>".
+- The symbol ~ indicates an instruction you should follow but not say aloud, eg ~Go to step 8~.
+- Sentences in double quotes `"Example sentence."` should be said verbatim, unless it would be incoherent or sound unnatural for the context of the conversation.
+- Lines that begin with a * are to provide context and clarity. You don't need to say these, but if asked, you can use the information for reference in answering questions.
+- You may only ask one question at a time. Wait for a response after each question you ask.
+- Follow the script closely but dynamically.
+- Today's day of the week and date in the UK is: {datetime.now(pytz.timezone('Europe/London')).strftime('%A, %d %B %Y')}""",
+            }
+        ],
+        "task_messages": [
+            {
+                "role": "system",
+                "content": """# Steps
+1. Request Recording Consent
+"For quality assurance purposes, this call will be recorded. Do you consent to this recording?"
+- [ 1.1 If R = Yes ] → ~Set recording_consent=True, then proceed to Node #2~
+- [ 1.2 If R = No ] → ~Set recording_consent=False, then go directly to Node #6 (close call)~
+- [ 1.3 If R = Asks why we need recording ] → "We record calls to improve our service quality and ensure we accurately capture your requirements."
+- [ 1.4 If R = Unclear response ] → "I need a clear yes or no - do you consent to this call being recorded?"
+""",
+            }
+        ],
+        "functions": [
+            {
+                "type": "function",
+                "function": {
+                    "name": "collect_recording_consent",
+                    "description": "Record whether the user consents to call recording",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "recording_consent": {
+                                "type": "boolean",
+                                "description": "Whether the user consents to call recording",
+                            }
+                        },
+                        "required": ["recording_consent"],
+                    },
+                    "handler": collect_recording_consent,
+                    "transition_callback": handle_recording_consent,
+                },
+            }
+        ],
+    }
+
+
+def create_interest_node() -> Dict:
+    """Create node that identifies user's primary interest."""
+    return {
+        "task_messages": [
+            {
+                "role": "system",
+                "content": """# Steps
+1. Identify Primary Interest
+"Could you tell me if you're calling about technical consultancy, general questions, or voice agent development?"
+- [ 1.1 If R = Technical consultancy ] → ~Set interest_type=technical_consultation, then proceed to Node #3~
+- [ 1.2 If R = General questions/Q&A ] → ~Set interest_type=qa, then proceed to Node #4~
+- [ 1.3 If R = Voice agent development ] → ~Set interest_type=voice_agent_development, then proceed to Node #5~
+- [ 1.4 If R = Unclear response ] → "To help me understand better: Are you interested in technical consultancy, general questions about our services, or voice agent development?"
+- [ 1.5 If R = Asks for explanation ] → "Technical consultancy is a paid meeting where we discuss your specific needs and provide detailed advice. Voice agent development involves building a custom solution, starting with a free discovery call. Or I can answer general questions about our services. Which interests you?"
+""",
+            }
+        ],
+        "functions": [
+            {
+                "type": "function",
+                "function": {
+                    "name": "collect_interest",
+                    "description": "Record the user's primary interest",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "interest_type": {
+                                "type": "string",
+                                "enum": [
+                                    "technical_consultation",
+                                    "qa",
+                                    "voice_agent_development",
+                                ],
+                                "description": "The type of service the user is interested in",
+                            }
+                        },
+                        "required": ["interest_type"],
+                    },
+                    "handler": collect_interest,
+                    "transition_callback": handle_interest,
+                },
+            }
+        ],
+    }
+
+
+def create_qa_node() -> Dict:
+    """Create node for handling general questions about services."""
+    return {
+        "task_messages": [
+            {
+                "role": "system",
+                "content": """# Steps
+1. Handle General Questions
+"Please feel free to ask any questions you have about our voice AI services."
+* Common topics include:
+* - Service offerings and capabilities
+* - Technology and integration options
+* - Pricing and timelines
+* - Case studies and success stories
+- [ 1.1 If R = Asks specific question ] → ~Provide clear, concise answer based on available information~
+- [ 1.2 If R = No more questions ] → ~Proceed to Node #6 (close call)~
+- [ 1.3 If R = Shows interest in services ] → "Would you like to discuss technical consultancy or voice agent development in more detail?"
+- [ 1.4 If R = Question outside scope ] → "That's a bit outside my scope. I can best help with questions about our voice AI services, technical consultancy, or voice agent development. What would you like to know about those?"
+""",
+            }
+        ],
+        "functions": [
+            {
+                "type": "function",
+                "function": {
+                    "name": "handle_qa",
+                    "description": "Handle Q&A interaction and determine next steps",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "has_more_questions": {
+                                "type": "boolean",
+                                "description": "Whether the user has more questions",
+                            },
+                            "switch_to_service": {
+                                "type": "string",
+                                "enum": [
+                                    "technical_consultation",
+                                    "voice_agent_development",
+                                    "none",
+                                ],
+                                "description": "If user wants to switch to discussing a specific service",
+                            },
+                        },
+                        "required": ["has_more_questions", "switch_to_service"],
+                    },
+                    "handler": handle_qa,
+                    "transition_callback": handle_qa_transition,
+                },
+            }
+        ],
+    }
+
+
 # ==============================================================================
 # Function Handlers
 # ==============================================================================
@@ -236,6 +399,24 @@ async def collect_qualification_data(args: FlowArgs) -> FlowResult:
         "timeline": args["timeline"],
         "budget": args["budget"],
         "feedback": args["feedback"],
+    }
+
+
+async def collect_recording_consent(args: FlowArgs) -> FlowResult:
+    """Process recording consent collection."""
+    return {"recording_consent": args["recording_consent"]}
+
+
+async def collect_interest(args: FlowArgs) -> FlowResult:
+    """Process interest type collection."""
+    return {"interest_type": args["interest_type"]}
+
+
+async def handle_qa(args: FlowArgs) -> FlowResult:
+    """Process Q&A interaction."""
+    return {
+        "has_more_questions": args["has_more_questions"],
+        "switch_to_service": args["switch_to_service"],
     }
 
 
@@ -289,6 +470,60 @@ async def handle_qualification_data(args: Dict, flow_manager: FlowManager):
     await flow_manager.set_node("close_call", close_node)
 
 
+async def handle_recording_consent(args: Dict, flow_manager: FlowManager):
+    """Handle transition after collecting recording consent."""
+    flow_manager.state.update(args)
+
+    if args["recording_consent"]:
+        await flow_manager.set_node("interest", create_interest_node())
+    else:
+        # If no consent, go directly to close call with contact form navigation
+        close_node = create_close_call_node()
+        close_node["pre_actions"] = [
+            {
+                "type": "tts_say",
+                "text": "I understand. I've navigated you to our contact form where you can send us your questions or requirements in writing.",
+            },
+            {"type": "execute_navigation", "path": "/contact"},
+        ]
+        await flow_manager.set_node("close_call", close_node)
+
+
+async def handle_interest(args: Dict, flow_manager: FlowManager):
+    """Handle transition after collecting interest type."""
+    flow_manager.state.update(args)
+
+    interest_type = args["interest_type"]
+    if interest_type == "technical_consultation":
+        await flow_manager.set_node("consultancy", create_consultancy_node())
+    elif interest_type == "qa":
+        await flow_manager.set_node("qa", create_qa_node())
+    else:  # voice_agent_development
+        await flow_manager.set_node("development", create_development_node())
+
+
+async def handle_qa_transition(args: Dict, flow_manager: FlowManager):
+    """Handle transition after Q&A interaction."""
+    flow_manager.state.update(args)
+
+    if not args["has_more_questions"]:
+        if args["switch_to_service"] == "technical_consultation":
+            await flow_manager.set_node("consultancy", create_consultancy_node())
+        elif args["switch_to_service"] == "voice_agent_development":
+            await flow_manager.set_node("development", create_development_node())
+        else:
+            # No more questions and no service interest - go to close call
+            close_node = create_close_call_node()
+            close_node["pre_actions"] = [
+                {
+                    "type": "tts_say",
+                    "text": "I've navigated you to our contact form where you can find more information and reach out to us with any future questions.",
+                },
+                {"type": "execute_navigation", "path": "/contact"},
+            ]
+            await flow_manager.set_node("close_call", close_node)
+
+
 # ==============================================================================
 # Navigation Handling
 # ==============================================================================
@@ -336,7 +571,7 @@ class FlowBot(BaseBot):
 
     async def _setup_services_impl(self):
         """Implementation-specific service setup."""
-        initial_messages = create_greeting_node()["role_messages"]
+        initial_messages = create_permission_node()["role_messages"]
         self.context = OpenAILLMContext(messages=initial_messages)
         self.context_aggregator = self.services.llm.create_context_aggregator(
             self.context
@@ -349,7 +584,7 @@ class FlowBot(BaseBot):
     async def _handle_first_participant(self):
         """Implementation-specific first participant handling."""
         await self.flow_manager.initialize()
-        await self.flow_manager.set_node("greeting", create_greeting_node())
+        await self.flow_manager.set_node("permission", create_permission_node())
 
     def _create_pipeline_impl(self):
         """Implementation-specific pipeline setup."""
