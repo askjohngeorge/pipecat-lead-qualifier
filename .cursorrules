@@ -1,6 +1,8 @@
+# Project Setup and Coding Guidelines
+
 We're using pnpm as our package manager.
 
-The project structure is as follows:
+The project is structured as follows:
 
 ```
 pipecat-lead-qualifier/
@@ -9,10 +11,117 @@ pipecat-lead-qualifier/
 ├── docs
 ```
 
-The next.js project is instantiated in client, so this is where client-side packages and that code should go.
+- The Next.js project is instantiated in the **client** directory where all client-side packages and code reside.
+- **server** contains the Pipecat server SDK-related bot code.
+- **docs** is dedicated to project documentation.
 
-The server is where the Pipecat server SDK-related bot code should go.
+_Do not run the bot server; I'll handle that._
 
-The docs are where any documentation should go.
+---
 
-Don't try to run the bot server for me, I'll do that.
+This document defines coding rules for the two parts of the project:
+- /client (Next.js/TypeScript)
+- /server (FastAPI/Python with Pipecat bots)
+
+---
+
+## General Principles
+
+- Write all code and documentation in English.
+- Use explicit types and avoid using untyped values (e.g. "any" in TypeScript, untyped dicts in Python).
+- Prefer small, single-purpose functions/methods. Use early returns and guard clauses to reduce nesting.
+- Follow SOLID principles and favor modular, reusable, and readable code.
+- Use environment variables in UPPERCASE. Avoid "magic numbers" by defining and using constants.
+- Add inline comments and JSDoc/docstrings as appropriate for clarity.
+
+---
+
+## /client – Next.js & TypeScript Guidelines
+
+### Basic Principles
+
+- Use TypeScript's strict mode. Always annotate variables, function parameters, and return types.
+- Use Next.js recommended conventions for file structure:
+  - Place pages in the `/app` or `/pages` directory.
+  - Place reusable components in `/components`.
+  - Place styles (CSS/SCSS) in `/styles` or inline with CSS Modules.
+- Ensure each file exports only one main item (component, function, etc.).
+- Use clear naming conventions:
+  - Use PascalCase for React components and classes.
+  - Use camelCase for functions, variables, and hooks.
+  - Use kebab-case for filenames and directories.
+- Use public API wrappers when possible and follow Next.js' server/client boundaries:
+  - Client-side code should not invoke server-only functions.
+  - Clearly demarcate client modules (e.g. pipecat-widget.tsx) versus server modules.
+
+### Functions & Components
+
+- Begin component names and functions with a verb where applicable (e.g. renderWidget, fetchData).
+- Write comments and JSDoc for functions and components:
+  - Describe parameters, return types, and any assumptions.
+- Avoid long functions (try to keep below 20 instructions per function).
+- Favor functional components and hooks over class components.
+- For state management, use React's useState/useEffect and other hooks following best practices.
+
+### Styling and Assets
+
+- Use CSS Modules or styled-components as preferred for modular and reusable styling.
+- Use efficient import paths relative to the client directory.
+- Optimize bundle size: lazy load heavy components using dynamic imports when needed.
+
+---
+
+## /server – Python (FastAPI & Pipecat) Guidelines
+
+### General Python & FastAPI Principles
+
+- Write concise, clear code using def (synchronous) or async def (asynchronous) where needed.
+- Use type hints for all function signatures and prefer Pydantic models for input/output validation.
+- Follow the RORO (Receive an Object, Return an Object) pattern for functions accepting multiple parameters.
+- Write early returns and guard clauses to handle edge cases in functions.
+- Name variables, functions, and parameters using lowercase_with_underscores.
+- Keep functions small and focused, using helper functions as necessary.
+
+### FastAPI Specifics
+
+- Organize code into routers, models (Pydantic), utilities, and static files:
+  - Group related endpoints in appropriately named modules (e.g. routers/bot_routes.py).
+  - Use FastAPI dependency injection for shared resources.
+- Use descriptive HTTP status codes and HTTPException for proper error handling.
+- Write clear startup and shutdown handlers – use lifespan context managers where possible.
+- Document endpoints with summary and description in route decorators.
+
+### Pipecat and Bot Conventions
+
+- Follow the Pipecat framework's architectural concepts: frames, processors, and pipelines.
+- Write bots as small, modular services:
+  - Separate business logic into individual functions.
+  - Keep the orchestration of AI processing clear and sequential.
+- Use logging (e.g., loguru) for debug and error traces, making sure to log key events.
+- Organize bot-specific code in the `server/bots` package, with each bot (flow or simple) following a similar structure:
+  - Setup services and transports clearly.
+  - Use async patterns for I/O-bound operations.
+- Clearly document transition points and actions performed along the bot pipeline:
+  - Explain and comment on how frames are passed between processors.
+  - Include instructions on error handling and recovery should any pipeline component fail.
+
+### Testing and Error Handling
+
+- Adopt an Arrange-Act-Assert structure for tests:
+  - Write unit tests for each public function.
+  - Use test doubles (mocks) for external API calls.
+- Use early return patterns to reduce nesting on input validations and error conditions.
+- Implement global error handling middleware or exception handlers in FastAPI.
+
+---
+
+## File Naming and Version Control
+
+- In /client, use filenames following kebab-case conventions. For example:
+  - Use filenames like pipecat-widget.tsx, fetch-data.ts, etc.
+- In /server, use snake_case filenames for Python scripts and modules (e.g., bot_framework.py, run_helpers.py).
+- Ensure that build artifacts (e.g., .next or Docker build results) are excluded through .gitignore.
+
+---
+
+By following these detailed rules for /client and /server, we promote clear, maintainable, and scalable code throughout the project.
