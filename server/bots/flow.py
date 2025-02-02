@@ -171,7 +171,18 @@ def create_consultancy_node() -> Dict:
 """,
             }
         ],
-        "functions": [],
+        "functions": [
+            {
+                "type": "function",
+                "function": {
+                    "name": "handle_any_more_questions",
+                    "description": "Check if the user has more questions",
+                    "parameters": {"any_more_questions": "boolean"},
+                    "handler": handle_any_more_questions,
+                    "transition_callback": handle_any_more_questions_transition,
+                },
+            }
+        ],
         "post_actions": [
             {
                 "type": "execute_navigation",
