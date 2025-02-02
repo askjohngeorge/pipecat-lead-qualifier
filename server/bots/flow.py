@@ -33,86 +33,8 @@ logger.add(sys.stderr, level="DEBUG")
 # ==============================================================================
 
 
-def create_greeting_node() -> Dict:
-    """# REDUNDANT: create_greeting_node is not used in the current flow tree.
-    Create initial greeting node that collects name and identifies service."""
-    return {
-        "role_messages": [
-            {
-                "role": "system",
-                "content": f"""# Role
-You are Chris, a helpful voice assistant for John George Voice AI Solutions.
-
-# Context
-You are accessible via a widget on the website. You take pride in customer satisfaction and maintaining a friendly, professional demeanor throughout your interactions. You are currently operating as a voice conversation.
-
-# Task
-Your primary task is to qualify leads by guiding them through a series of questions to determine their needs and fit for John George Voice AI Solutions' offerings. You must follow the conversation flow provided below to collect necessary information and navigate the conversation accordingly.
-
-# Specifics
-- [ #.# CONDITION ] this is a condition block, which acts as identifiers of the user's intent and guides conversation flow. The agent should remain in the current step, attempting to match user responses to conditions within that step, until explicitly instructed to proceed to a different step. "R =" means "the user's response was".
-- <variable> is a variable block, which should ALWAYS be substituted by the information the user has provided. For example, if the user's name is given as `<name>`, you might say "Thank you <name>".
-- The symbol ~ indicates an instruction you should follow but not say aloud, eg ~Go to step 8~.
-- Sentences in double quotes `"Example sentence."` should be said verbatim, unless it would be incoherent or sound unnatural for the context of the conversation.
-- Lines that begin with a * are to provide context and clarity. You don't need to say these, but if asked, you can use the information for reference in answering questions.
-- You may only ask one question at a time. Wait for a response after each question you ask.
-- Follow the script closely but dynamically.
-- Today's day of the week and date in the UK is: {datetime.now(pytz.timezone('Europe/London')).strftime('%A, %d %B %Y')}""",
-            }
-        ],
-        "task_messages": [
-            {
-                "role": "system",
-                "content": """# Steps
-1. Name Collection
-"Hi there, I'm Chris from John George Voice AI solutions. May I know your name please?"
- - [ 1.1 If R = Gives name ] -> "Thank you <name>" ~Record name as `<name>`, go to step 2~
- - [ 1.2 If R = Asks why we need their name ] -> "So I know how to address you."
- - [ 1.3 If R = Uncomfortable providing name ] -> "I understand. How would you like to be addressed?"
- - [ 1.4 If R = Refuses to give name ] -> ~Go to step 2 without using a name going forward~
-
-2. Service Identification
-"Are you interested in a technical consultation or voice agent development?"
- * A technical consultation is a paid meeting where we discuss their specific needs and provide detailed advice on the best approach.
- * Voice agent development involves building a custom solution, starting with a free discovery call to discuss their needs.
- - [ 2.1 If R = Technical consultation ] -> ~Record service type as `technical_consultation`~
- - [ 2.2 If R = Voice agent development ] -> ~Record service type as `voice_agent_development`~
- - [ 2.3 If R = Ambiguous response ] -> "To help me understand better: Are you interested in a technical consultation, or voice agent development as described?"
- - [ 2.4 If R = Interested in both ] -> "We recommend starting with voice agent development as that includes initial discovery discussions. Shall we proceed with that?"
- - [ 2.5 If R = Asked about meeting host ] -> "You'd be meeting with John George, our founder. Which service are you interested in?"
- - [ 2.6 If R = Unrecognised response ] -> "I'm sorry, I didn't understand. Could you please clarify if you are interested in a technical consultation or voice agent development?""",
-            }
-        ],
-        "functions": [
-            {
-                "type": "function",
-                "function": {
-                    "name": "collect_initial_info",
-                    "handler": collect_initial_info,
-                    "description": "Collect name and service preference",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "name": {"type": "string"},
-                            "service_type": {
-                                "type": "string",
-                                "enum": [
-                                    "technical_consultation",
-                                    "voice_agent_development",
-                                ],
-                            },
-                        },
-                        "required": ["service_type"],
-                    },
-                    "transition_callback": handle_initial_info,
-                },
-            }
-        ],
-    }
-
-
-def create_permission_node() -> Dict:
-    """# Node 1: Permission Node
+def create_recording_consent_node() -> Dict:
+    """# Node 1: Recording Consent Node
     Create initial node that requests recording consent."""
     return {
         "role_messages": [
@@ -175,21 +97,27 @@ Your primary task is to qualify leads by guiding them through a series of questi
     }
 
 
-def create_interest_node() -> Dict:
-    """# Node 2: Interest Node
-    Create node that identifies user's primary interest."""
+def create_name_and_interest_node() -> Dict:
+    """# Node 2: Collect Name and Interest Node
+    Create node that collects user's name and primary interest."""
     return {
         "task_messages": [
             {
                 "role": "system",
                 "content": """# Steps
-1. Identify Primary Interest
+1. Name Collection
+"Hi there, I'm Chris from John George Voice AI solutions. May I know your name please?"
+ - [ 1.1 If R = Gives name ] -> "Thank you <name>" ~Record name as `<name>`, then proceed to step 2~
+ - [ 1.2 If R = Asks why we need their name ] -> "So I know how to address you."
+ - [ 1.4 If R = Refuses to give name ] -> ~Proceed without a name~
+
+2. Primary Interest Identification
 "Could you tell me if you're calling about technical consultancy, general questions, or voice agent development?"
-- [ 1.1 If R = Technical consultancy ] → ~Set interest_type=technical_consultation, then proceed to Node #3~
-- [ 1.2 If R = General questions/Q&A ] → ~Set interest_type=qa, then proceed to Node #4~
-- [ 1.3 If R = Voice agent development ] → ~Set interest_type=voice_agent_development, then proceed to Node #5~
-- [ 1.4 If R = Unclear response ] → "To help me understand better: Are you interested in technical consultancy, general questions about our services, or voice agent development?"
-- [ 1.5 If R = Asks for explanation ] → "Technical consultancy is a paid meeting where we discuss your specific needs and provide detailed advice. Voice agent development involves building a custom solution, starting with a free discovery call. Or I can answer general questions about our services. Which interests you?"
+ - [ 2.1 If R = Technical consultancy ] → ~Set interest_type=technical_consultation~
+ - [ 2.2 If R = General questions/Q&A ] → ~Set interest_type=qa~
+ - [ 2.3 If R = Voice agent development ] → ~Set interest_type=voice_agent_development~
+ - [ 2.4 If R = Unclear response ] → "To help me understand better: Are you interested in technical consultancy, general questions about our services, or voice agent development?"
+ - [ 2.5 If R = Asks for explanation ] → "Technical consultancy is a paid meeting where we discuss your specific needs and provide detailed advice. Voice agent development involves building a custom solution, starting with a free discovery call."
 """,
             }
         ],
@@ -197,11 +125,12 @@ def create_interest_node() -> Dict:
             {
                 "type": "function",
                 "function": {
-                    "name": "collect_interest",
-                    "description": "Record the user's primary interest",
+                    "name": "collect_name_and_interest",
+                    "description": "Collect user's name and primary interest",
                     "parameters": {
                         "type": "object",
                         "properties": {
+                            "name": {"type": "string"},
                             "interest_type": {
                                 "type": "string",
                                 "enum": [
@@ -209,13 +138,12 @@ def create_interest_node() -> Dict:
                                     "qa",
                                     "voice_agent_development",
                                 ],
-                                "description": "The type of service the user is interested in",
-                            }
+                            },
                         },
                         "required": ["interest_type"],
                     },
-                    "handler": collect_interest,
-                    "transition_callback": handle_interest,
+                    "handler": collect_name_and_interest,
+                    "transition_callback": handle_name_and_interest,
                 },
             }
         ],
@@ -404,9 +332,9 @@ async def collect_recording_consent(args: FlowArgs) -> FlowResult:
     return {"recording_consent": args["recording_consent"]}
 
 
-async def collect_interest(args: FlowArgs) -> FlowResult:
-    """Process interest type collection."""
-    return {"interest_type": args["interest_type"]}
+async def collect_name_and_interest(args: FlowArgs) -> FlowResult:
+    """Collect user's name (if provided) and primary interest."""
+    return {"name": args.get("name"), "interest_type": args["interest_type"]}
 
 
 async def collect_qualification_data(args: FlowArgs) -> FlowResult:
@@ -447,7 +375,7 @@ async def handle_recording_consent(args: Dict, flow_manager: FlowManager):
     flow_manager.state.update(args)
 
     if args["recording_consent"]:
-        await flow_manager.set_node("interest", create_interest_node())
+        await flow_manager.set_node("interest", create_name_and_interest_node())
     else:
         # If no consent, go directly to close call with contact form navigation
         close_node = create_close_call_node()
@@ -461,10 +389,9 @@ async def handle_recording_consent(args: Dict, flow_manager: FlowManager):
         await flow_manager.set_node("close_call", close_node)
 
 
-async def handle_interest(args: Dict, flow_manager: FlowManager):
-    """Handle transition after collecting interest type."""
+async def handle_name_and_interest(args: Dict, flow_manager: FlowManager):
+    """Handle transition after collecting user's name and interest."""
     flow_manager.state.update(args)
-
     interest_type = args["interest_type"]
     if interest_type == "technical_consultation":
         await flow_manager.set_node("consultancy", create_consultancy_node())
@@ -578,7 +505,7 @@ class FlowBot(BaseBot):
 
     async def _setup_services_impl(self):
         """Implementation-specific service setup."""
-        initial_messages = create_permission_node()["role_messages"]
+        initial_messages = create_recording_consent_node()["role_messages"]
         self.context = OpenAILLMContext(messages=initial_messages)
         self.context_aggregator = self.services.llm.create_context_aggregator(
             self.context
@@ -591,7 +518,9 @@ class FlowBot(BaseBot):
     async def _handle_first_participant(self):
         """Implementation-specific first participant handling."""
         await self.flow_manager.initialize()
-        await self.flow_manager.set_node("permission", create_permission_node())
+        await self.flow_manager.set_node(
+            "recording_consent", create_recording_consent_node()
+        )
 
     def _create_pipeline_impl(self):
         """Implementation-specific pipeline setup."""
