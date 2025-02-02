@@ -25,18 +25,6 @@ This document defines coding rules for the two parts of the project:
 
 ---
 
-## General Principles
-
-- When given instructions, if you are unsure about any part of how to proceed, please ask for clarification. We are engaged in a collaborative effort.
-- Write all code and documentation in English.
-- Use explicit types and avoid using untyped values (e.g. "any" in TypeScript, untyped dicts in Python).
-- Prefer small, single-purpose functions/methods. Use early returns and guard clauses to reduce nesting.
-- Follow SOLID principles and favor modular, reusable, and readable code.
-- Use environment variables in UPPERCASE. Avoid "magic numbers" by defining and using constants.
-- Add inline comments and JSDoc/docstrings as appropriate for clarity.
-
----
-
 ## /client – Next.js & TypeScript Guidelines
 
 ### Basic Principles
