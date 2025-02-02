@@ -34,7 +34,8 @@ logger.add(sys.stderr, level="DEBUG")
 
 
 def create_greeting_node() -> Dict:
-    """Create initial greeting node that collects name and identifies service."""
+    """# REDUNDANT: create_greeting_node is not used in the current flow tree.
+    Create initial greeting node that collects name and identifies service."""
     return {
         "role_messages": [
             {
@@ -111,7 +112,8 @@ Your primary task is to qualify leads by guiding them through a series of questi
 
 
 def create_consultancy_node() -> Dict:
-    """Create node for handling technical consultation path."""
+    """# Node 3: Consultancy Node
+    Create node for handling technical consultation path."""
     return {
         "task_messages": [
             {
@@ -139,7 +141,8 @@ def create_consultancy_node() -> Dict:
 
 
 def create_development_node() -> Dict:
-    """Create node for handling voice agent development path."""
+    """# Node 4: Development Node
+    Create node for handling voice agent development path."""
     return {
         "task_messages": [
             {
@@ -197,7 +200,8 @@ def create_development_node() -> Dict:
 
 
 def create_close_call_node() -> Dict:
-    """Create node to conclude the conversation."""
+    """# Node 6: Close Call Node
+    Create node to conclude the conversation."""
     return {
         "task_messages": [
             {
@@ -220,7 +224,8 @@ def create_close_call_node() -> Dict:
 
 
 def create_permission_node() -> Dict:
-    """Create initial node that requests recording consent."""
+    """# Node 1: Permission Node
+    Create initial node that requests recording consent."""
     return {
         "role_messages": [
             {
@@ -283,7 +288,8 @@ Your primary task is to qualify leads by guiding them through a series of questi
 
 
 def create_interest_node() -> Dict:
-    """Create node that identifies user's primary interest."""
+    """# Node 2: Interest Node
+    Create node that identifies user's primary interest."""
     return {
         "task_messages": [
             {
@@ -329,7 +335,8 @@ def create_interest_node() -> Dict:
 
 
 def create_qa_node() -> Dict:
-    """Create node for handling general questions about services."""
+    """# Node 5: Q&A Node
+    Create node for handling general questions about services."""
     return {
         "task_messages": [
             {
