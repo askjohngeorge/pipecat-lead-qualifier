@@ -272,7 +272,7 @@ def create_qa_node() -> Dict:
                     "parameters": {
                         "type": "object",
                         "properties": {
-                            "has_more_questions": {
+                            "any_more_questions": {
                                 "type": "boolean",
                                 "description": "Whether the user has more questions",
                             },
@@ -286,7 +286,7 @@ def create_qa_node() -> Dict:
                                 "description": "If user wants to switch to discussing a specific service",
                             },
                         },
-                        "required": ["has_more_questions", "switch_to_service"],
+                        "required": ["any_more_questions", "switch_to_service"],
                     },
                     "handler": handle_qa,
                     "transition_callback": handle_qa_transition,
@@ -306,8 +306,8 @@ def create_any_more_questions_node() -> Dict:
                 "content": """# Steps
 1. Ask About Additional Questions
 "Do you have any more questions about our services?"
-- [ 1.1 If R = Yes ] → ~Set has_more_questions=True, proceed to Q&A node~
-- [ 1.2 If R = No ] → ~Set has_more_questions=False, proceed to Final Close node~
+- [ 1.1 If R = Yes ] → ~Set any_more_questions=True, proceed to Q&A node~
+- [ 1.2 If R = No ] → ~Set any_more_questions=False, proceed to Final Close node~
 - [ 1.3 If R = Unclear response ] → "I need a clear yes or no - do you have any more questions about our services?"
 """,
             }
@@ -321,12 +321,12 @@ def create_any_more_questions_node() -> Dict:
                     "parameters": {
                         "type": "object",
                         "properties": {
-                            "has_more_questions": {
+                            "any_more_questions": {
                                 "type": "boolean",
                                 "description": "Whether the user has more questions",
                             }
                         },
-                        "required": ["has_more_questions"],
+                        "required": ["any_more_questions"],
                     },
                     "handler": handle_any_more_questions,
                     "transition_callback": handle_any_more_questions_transition,
@@ -383,14 +383,14 @@ async def collect_qualification_data(args: FlowArgs) -> FlowResult:
 async def handle_qa(args: FlowArgs) -> FlowResult:
     """Process Q&A interaction."""
     return {
-        "has_more_questions": args["has_more_questions"],
+        "any_more_questions": args["any_more_questions"],
         "switch_to_service": args["switch_to_service"],
     }
 
 
 async def handle_any_more_questions(args: FlowArgs) -> FlowResult:
     """Process user response about having additional questions."""
-    return {"has_more_questions": args["has_more_questions"]}
+    return {"any_more_questions": args["any_more_questions"]}
 
 
 # ==============================================================================
@@ -468,7 +468,7 @@ async def handle_qa_transition(args: Dict, flow_manager: FlowManager):
     """Handle transition after Q&A interaction."""
     flow_manager.state.update(args)
 
-    if not args["has_more_questions"]:
+    if not args["any_more_questions"]:
         if args["switch_to_service"] == "technical_consultation":
             await flow_manager.set_node("consultancy", create_consultancy_node())
         elif args["switch_to_service"] == "voice_agent_development":
@@ -490,7 +490,7 @@ async def handle_any_more_questions_transition(args: Dict, flow_manager: FlowMan
     """Handle transition after checking for additional questions."""
     flow_manager.state.update(args)
 
-    if args["has_more_questions"]:
+    if args["any_more_questions"]:
         await flow_manager.set_node("qa", create_qa_node())
     else:
         await flow_manager.set_node("close_call", create_close_call_node())
