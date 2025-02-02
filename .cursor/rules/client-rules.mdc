@@ -1,0 +1,43 @@
+---
+description: Next.js & TypeScript Guidelines
+globs: client/**
+---
+# /client – Next.js & TypeScript Guidelines
+
+## Basic Principles
+
+- We're using pnpm as our package manager.
+- Use TypeScript's strict mode. Always annotate variables, function parameters, and return types.
+- Use Next.js recommended conventions for file structure:
+  - Place pages in the `/app` or `/pages` directory.
+  - Place reusable components in `/components`.
+  - Place styles (CSS/SCSS) in `/styles` or inline with CSS Modules.
+- Ensure each file exports only one main item (component, function, etc.).
+- Use clear naming conventions:
+  - Use PascalCase for React components and classes.
+  - Use camelCase for functions, variables, and hooks.
+  - Use kebab-case for filenames and directories.
+- Use public API wrappers when possible and follow Next.js' server/client boundaries:
+  - Client-side code should not invoke server-only functions.
+  - Clearly demarcate client modules (e.g. pipecat-widget.tsx) versus server modules.
+
+## Functions & Components
+
+- Begin component names and functions with a verb where applicable (e.g. renderWidget, fetchData).
+- Write comments and JSDoc for functions and components:
+  - Describe parameters, return types, and any assumptions.
+- Avoid long functions (try to keep below 20 instructions per function).
+- Favor functional components and hooks over class components.
+- For state management, use React's useState/useEffect and other hooks following best practices.
+
+## Styling and Assets
+
+- Use CSS Modules or styled-components as preferred for modular and reusable styling.
+- Use efficient import paths relative to the client directory.
+- Optimize bundle size: lazy load heavy components using dynamic imports when needed.
+
+## File Naming and Version Control
+
+- In /client, use filenames following kebab-case conventions. For example:
+  - Use filenames like pipecat-widget.tsx, fetch-data.ts, etc.
+- Ensure that build artifacts (e.g., .next or Docker build results) are excluded through .gitignore.
