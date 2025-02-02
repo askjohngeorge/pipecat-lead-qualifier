@@ -65,11 +65,11 @@ Your primary task is to qualify leads by guiding them through a series of questi
                 "role": "system",
                 "content": """# Steps
 1. Request Recording Consent
-"For quality assurance purposes, this call will be recorded. Do you consent to this recording?"
-- [ 1.1 If R = Yes ] → ~Set recording_consent=True, then proceed to Node #2~
-- [ 1.2 If R = No ] → ~Set recording_consent=False, then go directly to Node #6 (close call)~
+"Hi there, I'm Chris an AI voice assistant from John George Voice AI Solutions. For quality assurance purposes, this call will be recorded. Do you consent to this recording?"
+- [ 1.1 If R = Yes ] → ~Set recording_consent=True, and thank the user~
+- [ 1.2 If R = No ] → ~Set recording_consent=False~
 - [ 1.3 If R = Asks why we need recording ] → "We record calls to improve our service quality and ensure we accurately capture your requirements."
-- [ 1.4 If R = Unclear response ] → "I need a clear yes or no - do you consent to this call being recorded?"
+- [ 1.4 If R = Unclear response ] → "I'm afraid I need a clear yes or no - do you consent to this call being recorded?"
 """,
             }
         ],
@@ -106,7 +106,7 @@ def create_name_and_interest_node() -> Dict:
                 "role": "system",
                 "content": """# Steps
 1. Name Collection
-"Hi there, I'm Chris from John George Voice AI solutions. May I know your name please?"
+"May I know your name please?"
  - [ 1.1 If R = Gives name ] -> "Thank you <name>" ~Record name as `<name>`, then proceed to step 2~
  - [ 1.2 If R = Asks why we need their name ] -> "So I know how to address you."
  - [ 1.4 If R = Refuses to give name ] -> ~Proceed without a name~
