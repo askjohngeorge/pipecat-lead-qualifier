@@ -14,7 +14,7 @@ from pipecat.processors.aggregators.openai_llm_context import OpenAILLMContext
 from pipecat.processors.frame_processor import FrameProcessor
 from pipecat_flows import FlowArgs, FlowManager, FlowResult
 
-from utils.bot_framework import BaseBot
+from server.bots.base_bot import BaseBot
 from utils.config import AppConfig
 
 # Load environment variables from .env file

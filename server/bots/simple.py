@@ -9,7 +9,7 @@ import pytz
 
 # Add parent directory to Python path to import utils
 sys.path.append(str(Path(__file__).parent.parent))
-from utils.bot_framework import BaseBot
+from server.bots.base_bot import BaseBot
 from utils.config import AppConfig
 from pipecat.processors.aggregators.openai_llm_context import OpenAILLMContext
 
