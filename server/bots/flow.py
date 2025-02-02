@@ -4,8 +4,7 @@ import asyncio
 from datetime import datetime
 from functools import partial
 import sys
-import uuid
-from typing import Dict, Optional
+from typing import Dict
 
 import pytz
 from dotenv import load_dotenv
@@ -13,12 +12,10 @@ from loguru import logger
 
 from pipecat.processors.aggregators.openai_llm_context import OpenAILLMContext
 from pipecat.processors.frame_processor import FrameProcessor
-from pipecat.processors.frameworks.rtvi import RTVIProcessor
 from pipecat_flows import FlowArgs, FlowManager, FlowResult
 
 from utils.bot_framework import BaseBot
 from utils.config import AppConfig
-
 
 # Load environment variables from .env file
 load_dotenv()
@@ -515,24 +512,16 @@ async def handle_any_more_questions_transition(args: Dict, flow_manager: FlowMan
 class NavigationCoordinator:
     """Handles navigation between pages with proper error handling."""
 
-    def __init__(
-        self, rtvi: RTVIProcessor, llm: FrameProcessor, context: OpenAILLMContext
-    ):
-        self.rtvi = rtvi
+    def __init__(self, llm: FrameProcessor, context: OpenAILLMContext):
         self.llm = llm
         self.context = context
 
     async def navigate(self, path: str) -> bool:
         """Handle navigation with error tracking."""
         try:
-            await self.rtvi.handle_function_call(
-                function_name="navigate",
-                tool_call_id=f"nav_{uuid.uuid4()}",
-                arguments={"path": path},
-                llm=self.llm,
-                context=self.context,
-                result_callback=None,
-            )
+            # TODO: Implement navigation without RTVI
+            # For now, just log and return success
+            logger.info(f"Navigating to {path}")
             return True
         except Exception as e:
             logger.error(f"Navigation failed to {path}: {str(e)}")
@@ -549,41 +538,32 @@ class FlowBot(BaseBot):
 
     def __init__(self, config: AppConfig):
         super().__init__(config)
-        self.navigation_coordinator: Optional[NavigationCoordinator] = None
-        self.flow_manager: Optional[FlowManager] = None
 
-    async def _setup_services_impl(self):
-        """Implementation-specific service setup."""
+        # Initialize flow-specific components
         initial_messages = create_recording_consent_node()["role_messages"]
         self.context = OpenAILLMContext(messages=initial_messages)
-        self.context_aggregator = self.services.llm.create_context_aggregator(
-            self.context
-        )
+        self.context_aggregator = self.llm.create_context_aggregator(self.context)
 
-    async def _create_transport(self, factory, url: str, token: str):
-        """Implementation-specific transport creation."""
-        return factory.create_flow_assistant_transport(url, token)
+        # These will be set up when needed
+        self.navigation_coordinator = None
+        self.flow_manager = None
 
     async def _handle_first_participant(self):
-        """Implementation-specific first participant handling."""
-        await self.flow_manager.initialize()
-        await self.flow_manager.set_node(
-            "recording_consent", create_recording_consent_node()
-        )
-
-    def _create_pipeline_impl(self):
-        """Implementation-specific pipeline setup."""
+        """Handle first participant by initializing flow manager."""
+        # Set up navigation coordinator
         self.navigation_coordinator = NavigationCoordinator(
-            rtvi=self.rtvi, llm=self.services.llm, context=self.context
+            llm=self.llm, context=self.context
         )
 
+        # Set up flow manager
         self.flow_manager = FlowManager(
             task=self.task,
-            llm=self.services.llm,
-            context_aggregator=self.pipeline_builder.context_aggregator,
-            tts=self.services.tts,
+            llm=self.llm,
+            context_aggregator=self.context_aggregator,
+            tts=self.tts,
         )
 
+        # Register navigation action
         self.flow_manager.register_action(
             "execute_navigation",
             partial(
@@ -591,35 +571,36 @@ class FlowBot(BaseBot):
             ),
         )
 
+        # Initialize flow
+        await self.flow_manager.initialize()
+        await self.flow_manager.set_node(
+            "recording_consent", create_recording_consent_node()
+        )
+
     async def _handle_navigation_action(
         self, action: dict, coordinator: NavigationCoordinator
     ):
         """Handle navigation with proper error handling."""
-        path = action["path"]  # Message is now handled by tts_say action
+        path = action["path"]
 
         try:
             if not await coordinator.navigate(path):
                 logger.error("Navigation action failed without exception")
-                # On navigation failure, proceed to close call with error message
-                error_node = create_close_call_node()
-                error_node["pre_actions"] = [
-                    {
-                        "type": "tts_say",
-                        "text": "I apologize, but I encountered an error while trying to navigate to the next page. Please try refreshing the page or contact support if the issue persists.",
-                    }
-                ]
-                await self.flow_manager.set_node("close_call", error_node)
+                await self._handle_navigation_error()
         except Exception as e:
             logger.error(f"Navigation action failed with exception: {str(e)}")
-            # Handle exception similarly
-            error_node = create_close_call_node()
-            error_node["pre_actions"] = [
-                {
-                    "type": "tts_say",
-                    "text": "I apologize, but I encountered an error while trying to navigate to the next page. Please try refreshing the page or contact support if the issue persists.",
-                }
-            ]
-            await self.flow_manager.set_node("close_call", error_node)
+            await self._handle_navigation_error()
+
+    async def _handle_navigation_error(self):
+        """Handle navigation errors by transitioning to error close node."""
+        error_node = create_close_call_node()
+        error_node["pre_actions"] = [
+            {
+                "type": "tts_say",
+                "text": "I apologize, but I encountered an error while trying to navigate to the next page. Please try refreshing the page or contact support if the issue persists.",
+            }
+        ]
+        await self.flow_manager.set_node("close_call", error_node)
 
 
 async def main():

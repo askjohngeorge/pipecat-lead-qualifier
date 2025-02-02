@@ -17,72 +17,59 @@ class BaseBot(ABC):
     """Abstract base class for bot implementations."""
 
     def __init__(self, config):
+        """Initialize bot with all core services and pipeline components."""
         self.config = config
-        # Services
-        self.stt: Optional[DeepgramSTTService] = None
-        self.tts: Optional[DeepgramTTSService] = None
-        self.llm: Optional[OpenAILLMService] = None
-        # Transport and context
-        self.transport: Optional[DailyTransport] = None
-        self.context: Optional[OpenAILLMContext] = None
-        self.context_aggregator = None
-        # Pipeline components
-        self.task: Optional[PipelineTask] = None
-        self.runner: Optional[PipelineRunner] = None
 
-    async def setup_services(self):
-        """Initialize required services with direct instantiation."""
-        # Initialize STT and TTS services
-        self.stt = DeepgramSTTService(api_key=self.config.deepgram_api_key)
+        # Initialize services
+        self.stt = DeepgramSTTService(api_key=config.deepgram_api_key)
         self.tts = DeepgramTTSService(
-            api_key=self.config.deepgram_api_key, voice=self.config.deepgram_voice
+            api_key=config.deepgram_api_key, voice=config.deepgram_voice
         )
-
-        # Initialize LLM service
         self.llm = OpenAILLMService(
-            api_key=self.config.openai_api_key,
-            model=self.config.openai_model,
-            params=self.config.openai_params,
+            api_key=config.openai_api_key,
+            model=config.openai_model,
+            params=config.openai_params,
         )
 
-        # Initialize conversation context
+        # Initialize context
         self.context = OpenAILLMContext()
         self.context_aggregator = self.llm.create_context_aggregator(self.context)
 
-        # Call implementation-specific service setup
-        await self._setup_services_impl()
-
-    async def setup_transport(self, url: str, token: str):
-        """Set up the transport using DailyTransport directly."""
-        # Create transport with default parameters
-        default_params = DailyParams(
+        # Initialize transport params
+        self.transport_params = DailyParams(
             audio_out_enabled=True,
             vad_enabled=True,
             vad_analyzer=SileroVADAnalyzer(),
             vad_audio_passthrough=True,
         )
 
-        # Create transport instance
-        self.transport = await self._create_transport(url, token)
+        # These will be set up when needed
+        self.transport: Optional[DailyTransport] = None
+        self.task: Optional[PipelineTask] = None
+        self.runner: Optional[PipelineRunner] = None
+
+    async def setup_transport(self, url: str, token: str):
+        """Set up the transport with the given URL and token."""
+        self.transport = DailyTransport(
+            url, token, "Lead Qualification Bot", self.transport_params
+        )
 
         # Set up basic event handlers
-        if hasattr(self.transport, "event_handler"):
+        @self.transport.event_handler("on_participant_left")
+        async def on_participant_left(transport, participant, reason):
+            if self.runner:
+                await self.runner.stop_when_done()
 
-            @self.transport.event_handler("on_participant_left")
-            async def on_participant_left(transport, participant, reason):
-                if self.runner:
-                    await self.runner.stop_when_done()
-
-            @self.transport.event_handler("on_first_participant_joined")
-            async def on_first_participant_joined(transport, participant):
-                await transport.capture_participant_transcription(participant["id"])
-                await self._handle_first_participant()
-
-        # Call implementation-specific transport setup
-        await self._setup_transport_impl()
+        @self.transport.event_handler("on_first_participant_joined")
+        async def on_first_participant_joined(transport, participant):
+            await transport.capture_participant_transcription(participant["id"])
+            await self._handle_first_participant()
 
     def create_pipeline(self):
-        """Create the processing pipeline inline similar to the interruptible example."""
+        """Create the processing pipeline."""
+        if not self.transport:
+            raise RuntimeError("Transport must be set up before creating pipeline")
+
         # Build the pipeline using a simple, flat processor list
         pipeline = Pipeline(
             [
@@ -106,14 +93,11 @@ class BaseBot(ABC):
         )
         self.runner = PipelineRunner()
 
-        # Call implementation-specific pipeline setup
-        self._create_pipeline_impl()
-
     async def start(self):
         """Start the bot's main task."""
         if not self.runner or not self.task:
             raise RuntimeError(
-                "Bot not properly initialized. Ensure setup methods are called first."
+                "Bot not properly initialized. Call create_pipeline first."
             )
         await self.runner.run(self.task)
 
@@ -125,24 +109,6 @@ class BaseBot(ABC):
             await self.transport.close()
 
     @abstractmethod
-    async def _setup_services_impl(self):
-        """Override in subclass for additional service setup."""
-        pass
-
-    @abstractmethod
-    async def _create_transport(self, url: str, token: str):
-        """Override in subclass if custom transport creation is needed."""
-        pass
-
-    @abstractmethod
     async def _handle_first_participant(self):
-        """Override in subclass for handling the first participant."""
-        pass
-
-    def _create_pipeline_impl(self):
-        """Optional pipeline modifications. Subclasses can override as needed."""
-        pass
-
-    async def _setup_transport_impl(self):
-        """Optional transport-specific setup. Subclasses can override."""
+        """Override in subclass to handle the first participant joining."""
         pass
