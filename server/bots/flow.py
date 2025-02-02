@@ -293,23 +293,58 @@ def create_qa_node() -> Dict:
     }
 
 
+def create_any_more_questions_node() -> Dict:
+    """# Node 6: Any More Questions Node
+    Create node that asks if the user has any more questions."""
+    return {
+        "task_messages": [
+            {
+                "role": "system",
+                "content": """# Steps
+1. Ask About Additional Questions
+"Do you have any more questions about our services?"
+- [ 1.1 If R = Yes ] → ~Set has_more_questions=True, proceed to Q&A node~
+- [ 1.2 If R = No ] → ~Set has_more_questions=False, proceed to Final Close node~
+- [ 1.3 If R = Unclear response ] → "I need a clear yes or no - do you have any more questions about our services?"
+""",
+            }
+        ],
+        "functions": [
+            {
+                "type": "function",
+                "function": {
+                    "name": "handle_any_more_questions",
+                    "description": "Process user response to determine if they have additional questions",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "has_more_questions": {
+                                "type": "boolean",
+                                "description": "Whether the user has more questions",
+                            }
+                        },
+                        "required": ["has_more_questions"],
+                    },
+                    "handler": handle_any_more_questions,
+                    "transition_callback": handle_any_more_questions_transition,
+                },
+            }
+        ],
+    }
+
+
 def create_close_call_node() -> Dict:
-    """# Node 6: Close Call Node
+    """# Node 7: Final Close Node
     Create node to conclude the conversation."""
     return {
         "task_messages": [
             {
                 "role": "system",
                 "content": """# Steps
-1. Any more questions?
-~Ask if they have any more questions~
- - [ 1.1 If R = No more questions ] -> ~Go to step 2~
- - [ 1.2 If R = Has more questions ] -> ~Only answer questions directly related to the provision of our voice AI services, anything else can be asked during the consultation~
- 
- 2. Close the Call
+1. Close the Call
 "Thank you for your time. We appreciate you choosing John George Voice AI Solutions. Goodbye."
 - ~End the call~
- """,
+""",
             }
         ],
         "functions": [],
@@ -353,6 +388,11 @@ async def handle_qa(args: FlowArgs) -> FlowResult:
         "has_more_questions": args["has_more_questions"],
         "switch_to_service": args["switch_to_service"],
     }
+
+
+async def handle_any_more_questions(args: FlowArgs) -> FlowResult:
+    """Process user response about having additional questions."""
+    return {"has_more_questions": args["has_more_questions"]}
 
 
 # ==============================================================================
@@ -414,8 +454,8 @@ async def handle_qualification_data(args: Dict, flow_manager: FlowManager):
 
     logger.debug(f"Qualified: {qualified} based on: {args}")
 
-    # Create close call node with navigation as pre-action
-    close_node = create_close_call_node()
+    # Create any more questions node with navigation as pre-action
+    questions_node = create_any_more_questions_node()
 
     # Add TTS message and navigation as separate pre-actions
     nav_message = (
@@ -424,7 +464,7 @@ async def handle_qualification_data(args: Dict, flow_manager: FlowManager):
         else "I've navigated you to our contact form where you can send us more details about your requirements."
     )
 
-    close_node["pre_actions"] = [
+    questions_node["pre_actions"] = [
         {"type": "tts_say", "text": nav_message},
         {
             "type": "execute_navigation",
@@ -432,8 +472,8 @@ async def handle_qualification_data(args: Dict, flow_manager: FlowManager):
         },
     ]
 
-    # Transition directly to close call node
-    await flow_manager.set_node("close_call", close_node)
+    # Transition to any more questions node
+    await flow_manager.set_node("any_more_questions", questions_node)
 
 
 async def handle_qa_transition(args: Dict, flow_manager: FlowManager):
@@ -456,6 +496,16 @@ async def handle_qa_transition(args: Dict, flow_manager: FlowManager):
                 {"type": "execute_navigation", "path": "/contact"},
             ]
             await flow_manager.set_node("close_call", close_node)
+
+
+async def handle_any_more_questions_transition(args: Dict, flow_manager: FlowManager):
+    """Handle transition after checking for additional questions."""
+    flow_manager.state.update(args)
+
+    if args["has_more_questions"]:
+        await flow_manager.set_node("qa", create_qa_node())
+    else:
+        await flow_manager.set_node("close_call", create_close_call_node())
 
 
 # ==============================================================================
