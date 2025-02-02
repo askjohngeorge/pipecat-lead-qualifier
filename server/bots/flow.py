@@ -357,11 +357,6 @@ def create_close_call_node() -> Dict:
 # ==============================================================================
 
 
-async def collect_initial_info(args: FlowArgs) -> FlowResult:
-    """Process initial information collection."""
-    return {"name": args.get("name"), "service_type": args["service_type"]}
-
-
 async def collect_recording_consent(args: FlowArgs) -> FlowResult:
     """Process recording consent collection."""
     return {"recording_consent": args["recording_consent"]}
@@ -398,16 +393,6 @@ async def handle_any_more_questions(args: FlowArgs) -> FlowResult:
 # ==============================================================================
 # Transition Callbacks
 # ==============================================================================
-
-
-async def handle_initial_info(args: Dict, flow_manager: FlowManager):
-    """Handle transition after collecting initial information."""
-    flow_manager.state.update(args)
-
-    if args["service_type"] == "technical_consultation":
-        await flow_manager.set_node("consultancy", create_consultancy_node())
-    else:
-        await flow_manager.set_node("development", create_development_node())
 
 
 async def handle_recording_consent(args: Dict, flow_manager: FlowManager):
