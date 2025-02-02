@@ -68,10 +68,11 @@ Your primary task is to qualify leads by guiding them through a series of questi
                 "content": """# Steps
 1. Request Recording Consent
 "Hi there, I'm Chris an AI voice assistant from John George Voice AI Solutions. For quality assurance purposes, this call will be recorded. Do you consent to this recording?"
+~Never answer any quesions or do anything else other than obtain recording consent~
 - [ 1.1 If R = Yes ] → ~Set recording_consent=True, and thank the user~
 - [ 1.2 If R = No ] → ~Set recording_consent=False~
 - [ 1.3 If R = Asks why we need recording ] → "We record calls to improve our service quality and ensure we accurately capture your requirements."
-- [ 1.4 If R = Unclear response ] → "I'm afraid I need a clear yes or no - do you consent to this call being recorded?"
+- [ 1.4 If R = Any other response ] → "I'm afraid I need a clear yes or no - do you consent to this call being recorded?"
 """,
             }
         ],
