@@ -399,16 +399,6 @@ async def collect_initial_info(args: FlowArgs) -> FlowResult:
     return {"name": args.get("name"), "service_type": args["service_type"]}
 
 
-async def collect_qualification_data(args: FlowArgs) -> FlowResult:
-    """Process qualification data collection."""
-    return {
-        "use_case": args["use_case"],
-        "timeline": args["timeline"],
-        "budget": args["budget"],
-        "feedback": args["feedback"],
-    }
-
-
 async def collect_recording_consent(args: FlowArgs) -> FlowResult:
     """Process recording consent collection."""
     return {"recording_consent": args["recording_consent"]}
@@ -417,6 +407,16 @@ async def collect_recording_consent(args: FlowArgs) -> FlowResult:
 async def collect_interest(args: FlowArgs) -> FlowResult:
     """Process interest type collection."""
     return {"interest_type": args["interest_type"]}
+
+
+async def collect_qualification_data(args: FlowArgs) -> FlowResult:
+    """Process qualification data collection."""
+    return {
+        "use_case": args["use_case"],
+        "timeline": args["timeline"],
+        "budget": args["budget"],
+        "feedback": args["feedback"],
+    }
 
 
 async def handle_qa(args: FlowArgs) -> FlowResult:
@@ -439,6 +439,38 @@ async def handle_initial_info(args: Dict, flow_manager: FlowManager):
     if args["service_type"] == "technical_consultation":
         await flow_manager.set_node("consultancy", create_consultancy_node())
     else:
+        await flow_manager.set_node("development", create_development_node())
+
+
+async def handle_recording_consent(args: Dict, flow_manager: FlowManager):
+    """Handle transition after collecting recording consent."""
+    flow_manager.state.update(args)
+
+    if args["recording_consent"]:
+        await flow_manager.set_node("interest", create_interest_node())
+    else:
+        # If no consent, go directly to close call with contact form navigation
+        close_node = create_close_call_node()
+        close_node["pre_actions"] = [
+            {
+                "type": "tts_say",
+                "text": "I understand. I've navigated you to our contact form where you can send us your questions or requirements in writing.",
+            },
+            {"type": "execute_navigation", "path": "/contact"},
+        ]
+        await flow_manager.set_node("close_call", close_node)
+
+
+async def handle_interest(args: Dict, flow_manager: FlowManager):
+    """Handle transition after collecting interest type."""
+    flow_manager.state.update(args)
+
+    interest_type = args["interest_type"]
+    if interest_type == "technical_consultation":
+        await flow_manager.set_node("consultancy", create_consultancy_node())
+    elif interest_type == "qa":
+        await flow_manager.set_node("qa", create_qa_node())
+    else:  # voice_agent_development
         await flow_manager.set_node("development", create_development_node())
 
 
@@ -475,38 +507,6 @@ async def handle_qualification_data(args: Dict, flow_manager: FlowManager):
 
     # Transition directly to close call node
     await flow_manager.set_node("close_call", close_node)
-
-
-async def handle_recording_consent(args: Dict, flow_manager: FlowManager):
-    """Handle transition after collecting recording consent."""
-    flow_manager.state.update(args)
-
-    if args["recording_consent"]:
-        await flow_manager.set_node("interest", create_interest_node())
-    else:
-        # If no consent, go directly to close call with contact form navigation
-        close_node = create_close_call_node()
-        close_node["pre_actions"] = [
-            {
-                "type": "tts_say",
-                "text": "I understand. I've navigated you to our contact form where you can send us your questions or requirements in writing.",
-            },
-            {"type": "execute_navigation", "path": "/contact"},
-        ]
-        await flow_manager.set_node("close_call", close_node)
-
-
-async def handle_interest(args: Dict, flow_manager: FlowManager):
-    """Handle transition after collecting interest type."""
-    flow_manager.state.update(args)
-
-    interest_type = args["interest_type"]
-    if interest_type == "technical_consultation":
-        await flow_manager.set_node("consultancy", create_consultancy_node())
-    elif interest_type == "qa":
-        await flow_manager.set_node("qa", create_qa_node())
-    else:  # voice_agent_development
-        await flow_manager.set_node("development", create_development_node())
 
 
 async def handle_qa_transition(args: Dict, flow_manager: FlowManager):
