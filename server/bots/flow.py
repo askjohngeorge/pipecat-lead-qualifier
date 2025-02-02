@@ -110,17 +110,17 @@ def create_name_and_interest_node() -> Dict:
                 "content": """# Steps
 1. Name Collection
 "May I know your name please?"
- - [ 1.1 If R = Gives name ] -> "Thank you <name>" ~Record name as `<name>`, then proceed to step 2~
- - [ 1.2 If R = Asks why we need their name ] -> "So I know how to address you."
- - [ 1.4 If R = Refuses to give name ] -> ~Proceed without a name~
+ - [ 1.1 If R = Gives name ] -> "Thank you <name>" ~Proceed to step 2~
+ - [ 1.2 If R = Refuses to give name ] -> ~Proceed without a name to step 2~
+ - [ 1.3 If R = Asks why we need their name ] -> "So I know how to address you."
 
 2. Primary Interest Identification
-"Could you tell me if you're calling about technical consultancy, general questions, or voice agent development?"
- - [ 2.1 If R = Technical consultancy ] → ~Set interest_type=technical_consultation~
- - [ 2.2 If R = General questions/Q&A ] → ~Set interest_type=qa~
- - [ 2.3 If R = Voice agent development ] → ~Set interest_type=voice_agent_development~
- - [ 2.4 If R = Unclear response ] → "To help me understand better: Are you interested in technical consultancy, general questions about our services, or voice agent development?"
- - [ 2.5 If R = Asks for explanation ] → "Technical consultancy is a paid meeting where we discuss your specific needs and provide detailed advice. Voice agent development involves building a custom solution, starting with a free discovery call."
+"Could you tell me if you're interested in technical consultancy, or voice agent development?"
+ - [ 2.1 If R = Technical consultancy ] → ~Silently record interest_type=technical_consultation, name as <name>~
+ - [ 2.2 If R = Voice agent development ] → ~Silently record interest_type=voice_agent_development, name as <name>~
+ - [ 2.3 If R = Unclear response ] → "To help me understand better: Are you interested in technical consultancy, or voice agent development?"
+ - [ 2.4 If R = Asks for explanation ] → "Technical consultancy is a paid meeting where we discuss your specific needs and provide detailed advice. Voice agent development involves building a custom solution, starting with a free discovery call."
+ - [ 2.5 If R = Asks other questions ] → ~Silently record interest_type=qa, name as <name>~
 """,
             }
         ],
