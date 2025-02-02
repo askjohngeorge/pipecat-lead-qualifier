@@ -111,118 +111,6 @@ Your primary task is to qualify leads by guiding them through a series of questi
     }
 
 
-def create_consultancy_node() -> Dict:
-    """# Node 3: Consultancy Node
-    Create node for handling technical consultation path."""
-    return {
-        "task_messages": [
-            {
-                "role": "system",
-                "content": """# Steps
-1. Consultancy Booking
-~Use the `navigate` tool to navigate to `/consultancy`~
-"I've navigated you to our consultancy booking page where you can set up a video conference with our founder to discuss your needs in more detail. Please note that this will require an up-front payment which is non-refundable in the case of no-show or cancellation. Please provide as much detail as you can when you book, to assist us in preparing for the call."
-~Ask if they have any more questions~
- - [ 1.1 If R = No more questions ] -> ~This step is complete~
- - [ 1.2 If R = Has more questions ] -> ~Only answer questions directly related to the provision of our voice AI services, anything else can be asked during the consultation~
-
-""",
-            }
-        ],
-        "functions": [],
-        "post_actions": [
-            {
-                "type": "execute_navigation",
-                "path": "/consultancy",
-                "message": "I've navigated you to our consultancy booking page where you can schedule a paid consultation with our founder.",
-            }
-        ],
-    }
-
-
-def create_development_node() -> Dict:
-    """# Node 4: Development Node
-    Create node for handling voice agent development path."""
-    return {
-        "task_messages": [
-            {
-                "role": "system",
-                "content": """# Steps
-1. Use Case Elaboration
-"What tasks or interactions are you hoping your voice AI agent will handle?"
- - [ 1.1 If R = Specific use case provided ] -> ~Record use case as `<use_case>`, go to step 2~
- - [ 1.2 If R = Vague response ] -> "To help me understand better, could you describe what you're hoping to achieve with this solution?"
- - [ 1.3 If R = Asks for examples ] -> ~Present these as examples: customer service inquiries, support, returns; lead qualification; appointment scheduling; cold or warm outreach~
-
-2. Timeline Establishment
-"What's your desired timeline for this project, and are there any specific deadlines?"
- - [ 2.1 If R = Specific or rough timeline provided ] -> ~Record timeline as `<timeline>`, go to step 3~
- - [ 2.2 If R = No timeline or ASAP ] -> "Just a rough estimate would be helpful - are we discussing weeks, months, or quarters for implementation?"
-
-3. Budget Discussion
-"What budget have you allocated for this project?"
- * Development services begin at £1,000 for a simple voice agent with a single external integration
- * Advanced solutions with multiple integrations and post-deployment testing can range up to £10,000
- * Custom platform development is available but must be discussed on a case-by-case basis
- * All implementations will require ongoing costs associated with call costs, to be discussed on a case-by-case basis
- * We also offer support packages for ongoing maintenance and updates, again to be discussed on a case-by-case basis
- - [ 3.1 If R = Budget > £1,000 ] -> ~Record budget as `<budget>`, go to step 4~
- - [ 3.2 If R = Budget < £1,000 or no budget provided ] -> ~Explain our development services begin at £1,000 and ask if this is acceptable~
- - [ 3.3 If R = Vague response ] -> ~attempt to clarify the budget~
-
-4. Interaction Assessment
-"Before we proceed, I'd like to quickly ask for your feedback on the call quality so far. You're interacting with the kind of system you might be considering purchasing, so it's important for us to ensure it meets your expectations. Could you please give us your thoughts on the speed, clarity, and naturalness of the interaction?"
-~This step is complete~""",
-            }
-        ],
-        "functions": [
-            {
-                "type": "function",
-                "function": {
-                    "name": "collect_qualification_data",
-                    "handler": collect_qualification_data,
-                    "description": "Collect qualification information",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "use_case": {"type": "string"},
-                            "timeline": {"type": "string"},
-                            "budget": {"type": "integer"},
-                            "feedback": {"type": "string"},
-                        },
-                        "required": ["use_case", "timeline", "budget", "feedback"],
-                    },
-                    "transition_callback": handle_qualification_data,
-                },
-            }
-        ],
-    }
-
-
-def create_close_call_node() -> Dict:
-    """# Node 6: Close Call Node
-    Create node to conclude the conversation."""
-    return {
-        "task_messages": [
-            {
-                "role": "system",
-                "content": """# Steps
-1. Any more questions?
-~Ask if they have any more questions~
- - [ 1.1 If R = No more questions ] -> ~Go to step 2~
- - [ 1.2 If R = Has more questions ] -> ~Only answer questions directly related to the provision of our voice AI services, anything else can be asked during the consultation~
- 
- 2. Close the Call
-"Thank you for your time. We appreciate you choosing John George Voice AI Solutions. Goodbye."
-- ~End the call~
- """,
-            }
-        ],
-        "functions": [],
-        "post_actions": [{"type": "end_conversation"}],
-    }
-
-
 def create_permission_node() -> Dict:
     """# Node 1: Permission Node
     Create initial node that requests recording consent."""
@@ -334,6 +222,94 @@ def create_interest_node() -> Dict:
     }
 
 
+def create_consultancy_node() -> Dict:
+    """# Node 3: Consultancy Node
+    Create node for handling technical consultation path."""
+    return {
+        "task_messages": [
+            {
+                "role": "system",
+                "content": """# Steps
+1. Consultancy Booking
+~Use the `navigate` tool to navigate to `/consultancy`~
+"I've navigated you to our consultancy booking page where you can set up a video conference with our founder to discuss your needs in more detail. Please note that this will require an up-front payment which is non-refundable in the case of no-show or cancellation. Please provide as much detail as you can when you book, to assist us in preparing for the call."
+~Ask if they have any more questions~
+ - [ 1.1 If R = No more questions ] -> ~This step is complete~
+ - [ 1.2 If R = Has more questions ] -> ~Only answer questions directly related to the provision of our voice AI services, anything else can be asked during the consultation~
+
+""",
+            }
+        ],
+        "functions": [],
+        "post_actions": [
+            {
+                "type": "execute_navigation",
+                "path": "/consultancy",
+                "message": "I've navigated you to our consultancy booking page where you can schedule a paid consultation with our founder.",
+            }
+        ],
+    }
+
+
+def create_development_node() -> Dict:
+    """# Node 4: Development Node
+    Create node for handling voice agent development path."""
+    return {
+        "task_messages": [
+            {
+                "role": "system",
+                "content": """# Steps
+1. Use Case Elaboration
+"What tasks or interactions are you hoping your voice AI agent will handle?"
+ - [ 1.1 If R = Specific use case provided ] -> ~Record use case as `<use_case>`, go to step 2~
+ - [ 1.2 If R = Vague response ] -> "To help me understand better, could you describe what you're hoping to achieve with this solution?"
+ - [ 1.3 If R = Asks for examples ] -> ~Present these as examples: customer service inquiries, support, returns; lead qualification; appointment scheduling; cold or warm outreach~
+
+2. Timeline Establishment
+"What's your desired timeline for this project, and are there any specific deadlines?"
+ - [ 2.1 If R = Specific or rough timeline provided ] -> ~Record timeline as `<timeline>`, go to step 3~
+ - [ 2.2 If R = No timeline or ASAP ] -> "Just a rough estimate would be helpful - are we discussing weeks, months, or quarters for implementation?"
+
+3. Budget Discussion
+"What budget have you allocated for this project?"
+ * Development services begin at £1,000 for a simple voice agent with a single external integration
+ * Advanced solutions with multiple integrations and post-deployment testing can range up to £10,000
+ * Custom platform development is available but must be discussed on a case-by-case basis
+ * All implementations will require ongoing costs associated with call costs, to be discussed on a case-by-case basis
+ * We also offer support packages for ongoing maintenance and updates, again to be discussed on a case-by-case basis
+ - [ 3.1 If R = Budget > £1,000 ] -> ~Record budget as `<budget>`, go to step 4~
+ - [ 3.2 If R = Budget < £1,000 or no budget provided ] -> ~Explain our development services begin at £1,000 and ask if this is acceptable~
+ - [ 3.3 If R = Vague response ] -> ~attempt to clarify the budget~
+
+4. Interaction Assessment
+"Before we proceed, I'd like to quickly ask for your feedback on the call quality so far. You're interacting with the kind of system you might be considering purchasing, so it's important for us to ensure it meets your expectations. Could you please give us your thoughts on the speed, clarity, and naturalness of the interaction?"
+~This step is complete~""",
+            }
+        ],
+        "functions": [
+            {
+                "type": "function",
+                "function": {
+                    "name": "collect_qualification_data",
+                    "handler": collect_qualification_data,
+                    "description": "Collect qualification information",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "use_case": {"type": "string"},
+                            "timeline": {"type": "string"},
+                            "budget": {"type": "integer"},
+                            "feedback": {"type": "string"},
+                        },
+                        "required": ["use_case", "timeline", "budget", "feedback"],
+                    },
+                    "transition_callback": handle_qualification_data,
+                },
+            }
+        ],
+    }
+
+
 def create_qa_node() -> Dict:
     """# Node 5: Q&A Node
     Create node for handling general questions about services."""
@@ -386,6 +362,30 @@ def create_qa_node() -> Dict:
                 },
             }
         ],
+    }
+
+
+def create_close_call_node() -> Dict:
+    """# Node 6: Close Call Node
+    Create node to conclude the conversation."""
+    return {
+        "task_messages": [
+            {
+                "role": "system",
+                "content": """# Steps
+1. Any more questions?
+~Ask if they have any more questions~
+ - [ 1.1 If R = No more questions ] -> ~Go to step 2~
+ - [ 1.2 If R = Has more questions ] -> ~Only answer questions directly related to the provision of our voice AI services, anything else can be asked during the consultation~
+ 
+ 2. Close the Call
+"Thank you for your time. We appreciate you choosing John George Voice AI Solutions. Goodbye."
+- ~End the call~
+ """,
+            }
+        ],
+        "functions": [],
+        "post_actions": [{"type": "end_conversation"}],
     }
 
 
