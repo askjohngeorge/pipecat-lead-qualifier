@@ -2,15 +2,12 @@
 
 import asyncio
 from datetime import datetime
-from pathlib import Path
-import sys
 
 import pytz
 
-# Add parent directory to Python path to import utils
-sys.path.append(str(Path(__file__).parent.parent))
-from server.bots.base_bot import BaseBot
+from bots.base_bot import BaseBot
 from utils.config import AppConfig
+from utils.run_helpers import run_bot
 from pipecat.processors.aggregators.openai_llm_context import OpenAILLMContext
 
 
@@ -137,9 +134,33 @@ Your primary task is to qualify leads by guiding them through a series of questi
 
 async def main():
     """Setup and run the simple voice assistant."""
-    from utils.run_helpers import run_bot
+    import argparse
 
-    await run_bot(SimpleBot, AppConfig)
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description="Simple Bot Server")
+    parser.add_argument(
+        "-u", "--room-url", type=str, required=True, help="Daily room URL"
+    )
+    parser.add_argument(
+        "-t", "--token", type=str, required=True, help="Authentication token"
+    )
+
+    # Optional arguments
+    parser.add_argument("--host", type=str, default="0.0.0.0", help="Host address")
+    parser.add_argument("--port", type=int, default=8000, help="Port number")
+    parser.add_argument("--reload", action="store_true", help="Enable code reloading")
+    parser.add_argument(
+        "--bot-type",
+        type=str,
+        choices=["simple", "flow"],
+        default="simple",
+        help="Type of bot",
+    )
+
+    args = parser.parse_args()
+
+    # Pass the room URL and token to the run_bot function
+    await run_bot(SimpleBot, AppConfig, room_url=args.room_url, token=args.token)
 
 
 if __name__ == "__main__":

@@ -175,11 +175,13 @@ async def start_agent(request: Request):
     # Spawn a new bot process based on bot_type
     try:
         bot_module = "bots.flow" if config.bot_type == "flow" else "bots.simple"
+        env = os.environ.copy()
+        env["PYTHONPATH"] = os.path.dirname(os.path.abspath(__file__))
         proc = subprocess.Popen(
-            [f"python3 -m {bot_module} -u {room_url} -t {token}"],
-            shell=True,
+            ["python3", "-m", bot_module, "-u", room_url, "-t", token],
             bufsize=1,
             cwd=os.path.dirname(os.path.abspath(__file__)),
+            env=env,
         )
         bot_procs[proc.pid] = (proc, room_url)
     except Exception as e:
@@ -198,11 +200,13 @@ async def rtvi_connect(request: Request) -> Dict[Any, Any]:
     # Start the bot process
     try:
         bot_module = "bots.flow" if config.bot_type == "flow" else "bots.simple"
+        env = os.environ.copy()
+        env["PYTHONPATH"] = os.path.dirname(os.path.abspath(__file__))
         proc = subprocess.Popen(
-            [f"python3 -m {bot_module} -u {room_url} -t {token}"],
-            shell=True,
+            ["python3", "-m", bot_module, "-u", room_url, "-t", token],
             bufsize=1,
             cwd=os.path.dirname(os.path.abspath(__file__)),
+            env=env,
         )
         bot_procs[proc.pid] = (proc, room_url)
     except Exception as e:
