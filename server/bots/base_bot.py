@@ -36,11 +36,7 @@ class BaseBot(ABC):
             params=config.openai_params,
         )
 
-        # Initialize context with system messages if provided
-        if system_messages:
-            self.context = OpenAILLMContext(system_messages)
-        else:
-            self.context = OpenAILLMContext()
+        self.context = OpenAILLMContext(system_messages)
         self.context_aggregator = self.llm.create_context_aggregator(self.context)
 
         # Initialize transport params
