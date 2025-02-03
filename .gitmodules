@@ -1,0 +1,6 @@
+[submodule "external/pipecat"]
+	path = external/pipecat
+	url = https://github.com/pipecat-ai/pipecat.git
+[submodule "external/pipecat-flows"]
+	path = external/pipecat-flows
+	url = https://github.com/pipecat-ai/pipecat-flows.git

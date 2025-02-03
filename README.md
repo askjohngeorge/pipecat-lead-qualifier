@@ -114,23 +114,31 @@ pnpm dev
 
 ### Server Setup
 
-1. Navigate to the server directory:
+1. Initialize submodules (if you haven't already):
+```bash
+git submodule update --init --recursive
+```
+
+2. Navigate to the server directory:
 ```bash
 cd server
 ```
 
-2. Create a virtual environment and activate it:
+3. Create a virtual environment and activate it:
 ```bash
 python -m venv venv
 source venv/bin/activate  # On Windows use: venv\Scripts\activate
 ```
 
-3. Install dependencies:
+4. Install dependencies:
 ```bash
+pip install --upgrade pip
 pip install -r requirements.txt
+pip install -e "../external/pipecat[daily,openai,deepgram,silero,cartesia,google]"
+pip install -e "../external/pipecat-flows"
 ```
 
-4. Set up environment variables:
+5. Set up environment variables:
 Create a `.env` file in the server directory with:
 ```
 DEEPGRAM_API_KEY=your_deepgram_api_key
@@ -138,6 +146,8 @@ OPENAI_API_KEY=your_openai_api_key
 DAILY_API_KEY=your_daily_api_key
 DAILY_SAMPLE_ROOM_URL=your_daily_room_url
 ```
+
+Note: Ensure you are in the server directory when running these commands. If you need to update the external dependencies, run `git submodule update --remote`.
 
 ## Documentation
 
