@@ -35,10 +35,6 @@ class AppConfig:
             "api_url": os.getenv("DAILY_API_URL", "https://api.daily.co/v1"),
         }
 
-        # Add room_url only if it's provided
-        if room_url := os.getenv("DAILY_SAMPLE_ROOM_URL"):
-            self.daily["room_url"] = room_url
-
         # Server configuration
         self._bot_type: BotType = os.getenv("BOT_TYPE", "simple")
         if self._bot_type not in ("simple", "flow"):
