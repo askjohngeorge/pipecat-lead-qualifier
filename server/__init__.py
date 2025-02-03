@@ -1,3 +1,3 @@
 """
-Pipecat Lead Qualifier Server Package
+Pipecat lead qualifier server package
 """

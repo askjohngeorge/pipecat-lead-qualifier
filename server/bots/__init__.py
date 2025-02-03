@@ -1,1 +1,3 @@
-"""Simple bot package."""
+"""
+Pipecat lead qualifier bots package
+"""
