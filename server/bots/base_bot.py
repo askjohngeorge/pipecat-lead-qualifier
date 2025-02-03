@@ -75,8 +75,8 @@ class BaseBot(ABC):
         # Set up basic event handlers
         @self.transport.event_handler("on_participant_left")
         async def on_participant_left(transport, participant, reason):
-            if self.runner:
-                await self.runner.stop_when_done()
+            if self.task:
+                await self.task.cancel()
 
         @self.transport.event_handler("on_first_participant_joined")
         async def on_first_participant_joined(transport, participant):
