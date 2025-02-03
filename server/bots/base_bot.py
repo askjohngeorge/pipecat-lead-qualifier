@@ -9,6 +9,11 @@ from pipecat.pipeline.runner import PipelineRunner
 from pipecat.services.deepgram import DeepgramSTTService, DeepgramTTSService
 from pipecat.services.openai import OpenAILLMService
 from pipecat.processors.aggregators.openai_llm_context import OpenAILLMContext
+from pipecat.processors.filters.stt_mute_filter import (
+    STTMuteFilter,
+    STTMuteConfig,
+    STTMuteStrategy,
+)
 from pipecat.transports.services.daily import DailyTransport, DailyParams
 from pipecat.audio.vad.silero import SileroVADAnalyzer
 
@@ -36,6 +41,15 @@ class BaseBot(ABC):
             params=config.openai_params,
         )
 
+        # Initialize mute filter
+        self.stt_mute_config = STTMuteConfig(
+            strategies={STTMuteStrategy.FIRST_SPEECH, STTMuteStrategy.FUNCTION_CALL}
+        )
+        self.stt_mute_filter = STTMuteFilter(
+            stt_service=self.stt, config=self.stt_mute_config
+        )
+
+        # Initialize context
         self.context = OpenAILLMContext(system_messages)
         self.context_aggregator = self.llm.create_context_aggregator(self.context)
 
@@ -78,6 +92,7 @@ class BaseBot(ABC):
         pipeline = Pipeline(
             [
                 self.transport.input(),  # Transport for user input
+                self.stt_mute_filter,  # STT mute filter
                 self.stt,  # STT service
                 self.context_aggregator.user(),  # User side context aggregation
                 self.llm,  # LLM processor
