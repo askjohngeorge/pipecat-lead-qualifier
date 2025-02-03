@@ -13,6 +13,7 @@ from loguru import logger
 from pipecat.processors.aggregators.openai_llm_context import OpenAILLMContext
 from pipecat.processors.frame_processor import FrameProcessor
 from pipecat_flows import FlowArgs, FlowManager, FlowResult
+from pipecat_flows.types import ContextStrategy, ContextStrategyConfig
 
 from bots.base_bot import BaseBot
 from utils.config import AppConfig
@@ -563,6 +564,7 @@ class FlowBot(BaseBot):
             task=self.task,
             llm=self.llm,
             context_aggregator=self.context_aggregator,
+            context_strategy=ContextStrategyConfig(strategy=ContextStrategy.RESET),
         )
 
         # Register navigation action
