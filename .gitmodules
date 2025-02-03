@@ -4,3 +4,6 @@
 [submodule "external/pipecat-flows"]
 	path = external/pipecat-flows
 	url = https://github.com/pipecat-ai/pipecat-flows.git
+[submodule "external/pipecat-client-web"]
+	path = external/pipecat-client-web
+	url = https://github.com/pipecat-ai/pipecat-client-web.git
