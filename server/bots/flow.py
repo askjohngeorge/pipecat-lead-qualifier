@@ -537,14 +537,9 @@ class FlowBot(BaseBot):
     """Flow-based bot implementation with clean navigation separation."""
 
     def __init__(self, config: AppConfig):
-        super().__init__(config)
+        super().__init__(config, create_recording_consent_node()["role_messages"])
 
         # Initialize flow-specific components
-        initial_messages = create_recording_consent_node()["role_messages"]
-        self.context = OpenAILLMContext(messages=initial_messages)
-        self.context_aggregator = self.llm.create_context_aggregator(self.context)
-
-        # These will be set up when needed
         self.navigation_coordinator = None
         self.flow_manager = None
 
