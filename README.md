@@ -1,161 +1,150 @@
 # Pipecat Lead Qualifier
 
-A modular voice AI system built with Pipecat AI that combines an embeddable React widget with a flexible bot framework. The system enables natural voice conversations for lead qualification and meeting scheduling through a real-time voice interface that can be integrated into any website.
+Pipecat Lead Qualifier is a modular voice assistant application that uses a FastAPI server to orchestrate bot workflows and a Next.js client for user interactions.
 
-## Project Components
+## Table of Contents
 
-### Client Widget (client/)
-A Next.js-based React widget built with the Pipecat AI SDK (`@pipecat-ai/client-react` and `@pipecat-ai/client-js`). The widget implementation:
-- Uses WebRTC via Daily.co transport for real-time audio communication
-- Provides a fixed-position, floating UI component that can be embedded in any webpage
-- Implements singleton pattern for RTVI client management with environment-based configuration (`client/lib/rtviClient.ts`)
-- Manages connection lifecycle with error handling and state management (`client/components/PipecatWidget.tsx`)
-- Uses React context for client state distribution (`client/providers/PipecatProvider.tsx`)
-- Includes built-in audio playback handling via `RTVIClientAudio`
-- Styled with Tailwind CSS using utility-first approach
+- [Project Overview](#project-overview)
+- [Architecture](#architecture)
+  - [Server](#server)
+  - [Client](#client)
+- [Setup and Installation](#setup-and-installation)
+- [Running the Application](#running-the-application)
+- [Testing](#testing)
+- [Contributing](#contributing)
+- [License](#license)
+- [Contact](#contact)
 
-### Bot Framework (server/)
-A FastAPI-based Python framework built on Pipecat AI that provides a robust foundation for building voice-enabled bots. The framework consists of:
+## Project Overview
 
-#### Core Framework (`server/utils/bot_framework.py`)
-- Abstract `BaseBot` class defining the standard bot interface
-- Event-driven architecture for real-time voice interactions
-- Modular service registry for STT, TTS, and LLM services
-- Pipeline-based audio processing with configurable processors
-- Standardized lifecycle management for setup, transport, and cleanup
+The project qualifies leads by guiding users through a series of conversational steps. It comprises two main components:
 
-#### Server Implementation (`server/server.py`)
-- FastAPI server managing bot instances and WebRTC rooms
-- Process-based bot management with automatic cleanup
-- Endpoints for both direct browser access and RTVI client connections
-- Daily.co room creation and token management
-- Configurable bot type selection (simple/flow)
-- Background task management for resource cleanup
+1. **Server:** Built with FastAPI, this component manages bot workflows and handles integrations (e.g., Daily rooms, transcription, TTS, and OpenAI services).
+2. **Client:** Developed with Next.js and TypeScript, this component serves as the front-facing widget.
 
-#### Bot Implementations
-1. Simple Lead Qualification Bot (`server/bots/simple.py`):
-   - Structured conversation flow for lead qualification
-   - Configurable system prompts for bot identity and style
-   - Task-driven dialogue management including:
-     - Rapport building and contact information collection
-     - Use case identification and requirement gathering
-     - Project timeline and budget assessment
-     - Meeting scheduling and follow-up
+## Architecture
 
-2. Flow-based Scheduling Bot (`server/bots/flow.py`):
-   - State machine architecture for complex conversation flows
-   - Cal.com integration for automated scheduling
-   - Structured conversation nodes:
-     - Rapport building and initial contact
-     - Availability checking with fallback options
-     - Time slot presentation and selection
-     - Booking confirmation and follow-up
-   - Error handling with graceful fallbacks
+### Server
 
-## Project Structure
+#### Directory Structure
+- **Directory:** `server/`
 
-```
-pipecat-lead-qualifier/
-├── client/          # Next.js web application with embeddable widget
-│   ├── components/  # React components including PipecatWidget
-│   ├── lib/        # Client utilities and RTVI configuration
-│   ├── providers/  # React context providers
-│   └── app/        # Next.js application routes and layout
-├── server/          # Python-based Pipecat AI server and bot framework
-│   ├── bots/       # Bot implementations (simple.py, flow.py)
-│   ├── utils/      # Framework utilities and core components
-│   └── server.py   # FastAPI server implementation
-└── docs/           # Project documentation
-```
+#### Key Files
+- **`server/server.py`**  
+  The main FastAPI server handling endpoints for room creation and bot management.
+- **`server/Dockerfile`**  
+  Docker configuration for containerizing the server.
+- **`server/requirements.txt`**  
+  Defines the Python dependencies.
+- **`server/bots/`**  
+  Contains the bot implementations (`base_bot.py`, `flow.py`, `simple.py`).
+- **`server/utils/`**  
+  Includes various configuration and integration utilities.
 
-## Features
+### Client
 
-- Real-time voice conversations using WebRTC via Daily.co
-- Event-driven bot framework with modular architecture
-- Two bot implementations:
-  - Simple lead qualification bot with structured conversation flow
-  - Advanced flow-based bot with Cal.com scheduling integration
-- Process-based bot management with automatic cleanup
-- FastAPI server with async support and background tasks
-- Configurable conversation flows and prompts
-- Error handling with graceful fallbacks
+#### Directory Structure
+- **Directory:** `client/`
 
-## Prerequisites
+#### Overview
+- Developed with Next.js using TypeScript with strict type checking.
+- Follows Next.js conventions: routes under `/app` (or `/pages`), shared components in `/components`, and styles in `/styles` or via CSS Modules.
+- Managed with pnpm for dependency handling.
 
-- Node.js 18+ and pnpm for client development
-- Python 3.8+ for server development
-- Required API keys:
-  - Deepgram API key for speech-to-text
-  - OpenAI API key for conversation logic
-  - Daily.co API key for WebRTC
-  - Cal.com API key (optional, for scheduling features)
+## Setup and Installation
 
-## Getting Started
+### Environment Setup
 
-### Client Setup
-
-1. Navigate to the client directory:
+Create a `.env` file with the required environment variables:
 ```bash
-cd client
+cat << 'EOF' > .env
+DEEPGRAM_API_KEY=your_deepgram_api_key
+OPENAI_API_KEY=your_openai_api_key
+DAILY_API_KEY=your_daily_api_key
+EOF
 ```
 
-2. Install dependencies:
+Ensure that the `.env` file is excluded from version control:
 ```bash
-pnpm install
-```
-
-3. Configure environment variables:
-Create a `.env.local` file with your API keys and configuration.
-
-4. Start the development server:
-```bash
-pnpm dev
+grep -qxF ".env" .gitignore || echo ".env" >> .gitignore
 ```
 
 ### Server Setup
 
-1. Initialize submodules (if you haven't already):
-```bash
-git submodule update --init --recursive
-```
-
-2. Navigate to the server directory:
+Navigate to the `server` directory, set up a virtual environment, and install the dependencies:
 ```bash
 cd server
-```
-
-3. Create a virtual environment and activate it:
-```bash
 python -m venv venv
-source venv/bin/activate  # On Windows use: venv\Scripts\activate
-```
-
-4. Install dependencies:
-```bash
-pip install --upgrade pip
+# Activate the virtual environment:
+# On Linux/macOS:
+source venv/bin/activate
+# On Windows:
+# venv\Scripts\activate
 pip install -r requirements.txt
-pip install -e "../external/pipecat[daily,openai,deepgram,silero,cartesia,google]"
+pip install -e "../external/pipecat[daily,openai,deepgram,silero]"
 pip install -e "../external/pipecat-flows"
 ```
 
-5. Set up environment variables:
-Create a `.env` file in the server directory with:
+### Client Setup
+
+Navigate to the `client` directory and install dependencies using pnpm:
+```bash
+cd ../client
+pnpm install
 ```
-DEEPGRAM_API_KEY=your_deepgram_api_key
-OPENAI_API_KEY=your_openai_api_key
-DAILY_API_KEY=your_daily_api_key
-DAILY_SAMPLE_ROOM_URL=your_daily_room_url
+
+## Running the Application
+
+### Server
+
+#### Local Development
+Run the server from the `server` directory:
+```bash
+python server/server.py --bot-type flow  # Use "simple" instead of "flow" for the simple bot variant
 ```
 
-Note: Ensure you are in the server directory when running these commands. If you need to update the external dependencies, run `git submodule update --remote`.
+#### Docker Container
+Build and run the server in a Docker container. The Dockerfile installs the `pipecat-ai` package with the `[daily,openai,deepgram,silero]` extras and the `pipecat-ai-flows` package from PyPI.
+```bash
+docker build -t pipecat-server:latest -f server/Dockerfile .
+docker run -p 7860:7860 pipecat-server:latest
+```
 
-## Documentation
+### Client
 
-Detailed documentation is available in the `docs/` directory:
-- Flow-based bot implementation guide
-- API documentation
-- Configuration guides
+#### Development Mode
+Run the Next.js client in development mode:
+```bash
+pnpm dev
+```
+
+#### Production Build
+To build and start the production version of the client:
+```bash
+pnpm build
+pnpm start
+```
+
+## Testing
+
+- **Server:**  
+  Follow the testing guidelines provided in the codebase. Tests should use the Arrange-Act-Assert pattern to verify API endpoints and bot functionalities.
+  
+- **Client:**  
+  Execute frontend tests using your preferred test runner (e.g., Jest).
+
+## Contributing
+
+Please adhere to the project conventions:
+- Write clear, modular functions with single purposes.
+- Follow SOLID principles.
+- For client-side development, adhere to Next.js and TypeScript guidelines.
+- For server-side development, follow FastAPI and Pipecat conventions.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details.
+[MIT License](LICENSE.md)
+
+## Contact
+
+For any questions or issues, please contact [your-email@example.com](mailto:your-email@example.com).
