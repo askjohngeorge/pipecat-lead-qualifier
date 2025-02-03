@@ -2,21 +2,19 @@
 
 import asyncio
 from datetime import datetime
-
 import pytz
 
 from bots.base_bot import BaseBot
 from utils.config import AppConfig
 from utils.run_helpers import run_bot
-from pipecat.processors.aggregators.openai_llm_context import OpenAILLMContext
 
 
 class SimpleBot(BaseBot):
     """Simple bot implementation with single LLM prompt chain."""
 
     def __init__(self, config: AppConfig):
-        super().__init__(config)
-        self.messages = [
+        # Define the initial system message with conversation instructions
+        system_messages = [
             {
                 "role": "system",
                 "content": f"""# Role
@@ -110,23 +108,11 @@ Your primary task is to qualify leads by guiding them through a series of questi
 - ~End the call~""",
             }
         ]
-
-    async def _setup_services_impl(self):
-        """Implementation-specific service setup."""
-        self.context = OpenAILLMContext(self.messages)
-        self.context_aggregator = self.services.llm.create_context_aggregator(
-            self.context
-        )
-
-    async def _create_transport(self, factory, url: str, token: str):
-        """Implementation-specific transport creation."""
-        return factory.create_simple_assistant_transport(url, token)
+        super().__init__(config, system_messages=system_messages)
 
     async def _handle_first_participant(self):
-        """Implementation-specific first participant handling."""
-        self.messages.append(
-            {"role": "system", "content": "Please introduce yourself to the user."}
-        )
+        """Handle actions when the first participant joins."""
+        # Queue the context frame for processing
         await self.task.queue_frames(
             [self.context_aggregator.user().get_context_frame()]
         )

@@ -1,7 +1,7 @@
 """Base bot framework for shared functionality."""
 
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import Optional, List, Dict
 
 from pipecat.pipeline.task import PipelineParams, PipelineTask
 from pipecat.pipeline.pipeline import Pipeline
@@ -16,8 +16,13 @@ from pipecat.audio.vad.silero import SileroVADAnalyzer
 class BaseBot(ABC):
     """Abstract base class for bot implementations."""
 
-    def __init__(self, config):
-        """Initialize bot with all core services and pipeline components."""
+    def __init__(self, config, system_messages: Optional[List[Dict[str, str]]] = None):
+        """Initialize bot with core services and pipeline components.
+
+        Args:
+            config: Application configuration.
+            system_messages: Optional initial system messages for the LLM context.
+        """
         self.config = config
 
         # Initialize services
@@ -31,8 +36,11 @@ class BaseBot(ABC):
             params=config.openai_params,
         )
 
-        # Initialize context
-        self.context = OpenAILLMContext()
+        # Initialize context with system messages if provided
+        if system_messages:
+            self.context = OpenAILLMContext(system_messages)
+        else:
+            self.context = OpenAILLMContext()
         self.context_aggregator = self.llm.create_context_aggregator(self.context)
 
         # Initialize transport params
