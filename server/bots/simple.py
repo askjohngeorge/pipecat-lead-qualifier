@@ -108,7 +108,7 @@ Your primary task is to qualify leads by guiding them through a series of questi
 - ~End the call~""",
             }
         ]
-        super().__init__(config, system_messages=system_messages)
+        super().__init__(config, system_messages)
 
     async def _handle_first_participant(self):
         """Handle actions when the first participant joins."""
