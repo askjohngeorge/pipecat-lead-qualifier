@@ -27,19 +27,61 @@ The project qualifies leads by guiding users through a series of conversational 
 ### Server
 
 #### Directory Structure
-- **Directory:** `server/`
+```
+server/
+├── __init__.py              # Package initialization and version info
+├── main.py                  # FastAPI server entry point
+├── Dockerfile              # Container configuration
+├── requirements.txt        # Python dependencies
+├── bots/                  # Bot implementations
+│   ├── __init__.py
+│   ├── base_bot.py        # Shared bot framework
+│   ├── flow.py           # Flow-based bot implementation
+│   └── simple.py         # Simple bot implementation
+├── config/               # Configuration management
+│   ├── __init__.py
+│   └── settings.py       # Environment and app settings
+├── prompts/             # LLM system prompts
+│   ├── __init__.py
+│   └── prompts.py       # Prompt templates and helpers
+├── services/            # External API integrations
+│   ├── __init__.py
+│   └── calcom_api.py    # Cal.com API client
+└── utils/               # Common utilities
+    ├── __init__.py
+    └── run_helpers.py   # Bot lifecycle helpers
+```
 
-#### Key Files
-- **`server/server.py`**  
-  The main FastAPI server handling endpoints for room creation and bot management.
-- **`server/Dockerfile`**  
-  Docker configuration for containerizing the server.
-- **`server/requirements.txt`**  
-  Defines the Python dependencies.
-- **`server/bots/`**  
-  Contains the bot implementations (`base_bot.py`, `flow.py`, `simple.py`).
-- **`server/utils/`**  
-  Includes various configuration and integration utilities.
+#### Key Components
+
+- **`main.py`**  
+  The FastAPI server entry point that handles:
+  - Room creation and management
+  - Bot process lifecycle
+  - HTTP endpoints for browser and RTVI access
+  - Connection credential management
+
+- **`bots/`**  
+  Contains bot implementations with:
+  - `base_bot.py`: Shared framework and service initialization
+  - `flow.py`: Sophisticated flow-based conversation logic
+  - `simple.py`: Basic single-prompt implementation
+
+- **`config/`**  
+  Manages application configuration:
+  - Environment variable validation
+  - Type-safe settings classes
+  - Default value handling
+
+- **`services/`**  
+  External API integrations:
+  - Cal.com API for appointment scheduling
+  - Future integrations can be added here
+
+- **`utils/`**  
+  Common utilities and helpers:
+  - Bot lifecycle management
+  - Shared helper functions
 
 ### Client
 
@@ -114,16 +156,16 @@ In addition to the required environment variables (`DAILY_API_KEY`, `DEEPGRAM_AP
   - **Valid Values:** `simple` or `flow`  
   - **Usage:** Specifies which bot variant to launch. This setting is checked at startup and used to determine the corresponding bot implementation within the `server/bots/` package.
 
-These optional variables are processed by the `AppConfig` class in `server/utils/config.py`. In the `server/bots/base_bot.py` module, the configuration is used as follows:
+These optional variables are processed by the `AppConfig` class in `config/settings.py`. In the `bots/base_bot.py` module, the configuration is used as follows:
 
 - **STT & TTS Initialization:**  
-  The bot initializes Deepgram’s STT service using **DEEPGRAM_API_KEY**. Depending on **TTS_PROVIDER**, it either initializes the Deepgram TTS service (using **DEEPGRAM_VOICE**) or the Cartesia TTS service (using **CARTESIA_API_KEY** and **CARTESIA_VOICE**).
+  The bot initializes Deepgram's STT service using **DEEPGRAM_API_KEY**. Depending on **TTS_PROVIDER**, it either initializes the Deepgram TTS service (using **DEEPGRAM_VOICE**) or the Cartesia TTS service (using **CARTESIA_API_KEY** and **CARTESIA_VOICE**).
 
 - **LLM Setup:**  
   The bot sets up the OpenAI LLM service with **OPENAI_API_KEY**, **OPENAI_MODEL**, and additional parameters (such as **OPENAI_TEMPERATURE** bundled into the `InputParams`). This is used to drive conversation logic.
 
 - **Bot Behavior:**  
-  The **BOT_TYPE** variable determines whether a “simple” or “flow” bot implementation is executed; this affects the orchestration and logic sequence within the bot’s processing pipeline.
+  The **BOT_TYPE** variable determines whether a "simple" or "flow" bot implementation is executed; this affects the orchestration and logic sequence within the bot's processing pipeline.
 
 By adjusting these variables in your `.env` file, you can fine-tune service integrations and bot behavior without modifying the application code.
 
@@ -158,11 +200,11 @@ pnpm install
 #### Local Development
 Run the server from the `server` directory:
 ```bash
-python server/server.py --bot-type flow  # Use "simple" instead of "flow" for the simple bot variant
+python -m main --bot-type flow  # Use "simple" instead of "flow" for the simple bot variant
 ```
 
 #### Docker Container
-Build and run the server in a Docker container. The Dockerfile installs the `pipecat-ai` package with the `[daily,openai,deepgram,silero]` extras and the `pipecat-ai-flows` package from PyPI.
+Build and run the server in a Docker container:
 ```bash
 docker build -t pipecat-server:latest -f server/Dockerfile .
 docker run -p 7860:7860 pipecat-server:latest
@@ -205,4 +247,4 @@ Please adhere to the project conventions:
 
 ## Contact
 
-For any questions or issues, please contact [your-email@example.com](mailto:your-email@example.com).
+For any questions or issues, please contact [john@askjohngeorge.com](mailto:john@askjohngeorge.com).

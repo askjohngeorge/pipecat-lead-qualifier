@@ -1,3 +1,14 @@
+"""Cal.com API integration service.
+
+This module provides a typed interface to the Cal.com API v2, handling:
+- Availability checking
+- Booking creation and management
+- Time slot formatting and timezone conversion
+
+The service is configured through environment variables and provides
+robust error handling and retry mechanisms for API operations.
+"""
+
 import os
 import json
 from typing import TypedDict, Optional, List, Dict, Tuple

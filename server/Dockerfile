@@ -17,4 +17,4 @@ COPY . /app
 EXPOSE 7860
 
 # Run the FastAPI server with the "flow" bot type.
-CMD ["python3", "server/server.py", "--bot-type", "flow"] 
+CMD ["python3", "server/main.py", "--bot-type", "flow"] 

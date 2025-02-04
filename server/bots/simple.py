@@ -3,7 +3,7 @@
 import asyncio
 
 from bots.base_bot import BaseBot
-from utils.config import AppConfig
+from config.settings import AppConfig
 from utils.run_helpers import run_bot
 from prompts import SIMPLE_PROMPT
 

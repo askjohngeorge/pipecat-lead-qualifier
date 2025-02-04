@@ -1,4 +1,4 @@
-"""RTVI Bot Server Implementation.
+"""Main entry point for the FastAPI server.
 
 This FastAPI server manages RTVI bot instances and provides endpoints for both
 direct browser access and RTVI client connections. It handles:
@@ -27,7 +27,7 @@ from pipecat.transports.services.helpers.daily_rest import (
     DailyRoomParams,
 )
 
-from utils.config import AppConfig
+from config.settings import AppConfig
 
 # Parse command line arguments for server configuration
 default_host = os.getenv("HOST", "0.0.0.0")
@@ -237,7 +237,7 @@ if __name__ == "__main__":
 
     # Start the FastAPI server
     uvicorn.run(
-        "server:app",
+        "main:app",
         host=args.host,
         port=args.port,
         reload=args.reload,

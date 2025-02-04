@@ -15,7 +15,7 @@ from pipecat_flows import FlowArgs, FlowManager, FlowResult
 from pipecat_flows.types import ContextStrategy, ContextStrategyConfig
 
 from bots.base_bot import BaseBot
-from utils.config import AppConfig
+from config.settings import AppConfig
 from prompts import get_role_messages
 
 # Load environment variables from .env file
