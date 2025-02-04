@@ -153,7 +153,6 @@ def create_consultancy_node() -> Dict:
 ~Ask if they have any more questions~
  - [ 1.1 If R = No more questions ] -> ~This step is complete~
  - [ 1.2 If R = Has more questions ] -> ~Only answer questions directly related to the provision of our voice AI services, anything else can be asked during the consultation~
-
 """,
             }
         ],
@@ -163,7 +162,16 @@ def create_consultancy_node() -> Dict:
                 "function": {
                     "name": "handle_any_more_questions",
                     "description": "Check if the user has more questions",
-                    "parameters": {"any_more_questions": "boolean"},
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "any_more_questions": {
+                                "type": "boolean",
+                                "description": "Whether the user has more questions",
+                            }
+                        },
+                        "required": ["any_more_questions"],
+                    },
                     "handler": handle_any_more_questions,
                     "transition_callback": handle_any_more_questions_transition,
                 },
