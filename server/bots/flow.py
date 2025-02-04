@@ -311,8 +311,8 @@ def create_any_more_questions_node() -> Dict:
                 "content": """# Steps
 1. Ask About Additional Questions
 "Do you have any more questions about our services?"
-- [ 1.1 If R = Yes, any affirmative response or a question ] → ~Set any_more_questions=True, proceed to Q&A node~
-- [ 1.2 If R = Any other response ] → ~Set any_more_questions=False, proceed to Final Close node~
+- [ 1.1 If R = Yes, any affirmative response or a question ] → ~Set any_more_questions=True~
+- [ 1.2 If R = Any other response ] → ~Set any_more_questions=False~
 """,
             }
         ],
