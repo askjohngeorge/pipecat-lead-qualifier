@@ -34,6 +34,9 @@ class BaseBot(ABC):
         # Initialize services
         self.stt = DeepgramSTTService(api_key=config.deepgram_api_key)
         if config.tts_provider == "cartesia":
+            if not config.cartesia_api_key:
+                raise ValueError("Cartesia API key is required for Cartesia TTS")
+
             self.tts = CartesiaTTSService(
                 api_key=config.cartesia_api_key, voice_id=config.cartesia_voice
             )

@@ -58,9 +58,19 @@ The project qualifies leads by guiding users through a series of conversational 
 Create a `.env` file with the required environment variables:
 ```bash
 cat << 'EOF' > .env
+DAILY_API_KEY=your_daily_api_key
 DEEPGRAM_API_KEY=your_deepgram_api_key
 OPENAI_API_KEY=your_openai_api_key
-DAILY_API_KEY=your_daily_api_key
+
+# Optional variables (override defaults as needed)
+DAILY_API_URL=https://api.daily.co/v1
+TTS_PROVIDER=cartesia              # Optional: indicates a preference, but CARTESIA_API_KEY is what drives the Cartesia integration.
+DEEPGRAM_VOICE=aura-athena-en
+CARTESIA_API_KEY=your_cartesia_api_key  # Provide only if you want to use Cartesia TTS.
+CARTESIA_VOICE=your_cartesia_voice_identifier
+OPENAI_MODEL=gpt-4o
+OPENAI_TEMPERATURE=0.2
+BOT_TYPE=flow                      # or "simple"
 EOF
 ```
 
@@ -68,6 +78,54 @@ Ensure that the `.env` file is excluded from version control:
 ```bash
 grep -qxF ".env" .gitignore || echo ".env" >> .gitignore
 ```
+
+### Advanced Configuration Options
+
+In addition to the required environment variables (`DAILY_API_KEY`, `DEEPGRAM_API_KEY`, `CARTESIA_API_KEY`, and `OPENAI_API_KEY`), you can customize the behavior of the application by setting the following optional environment variables in your `.env` file:
+
+- **DAILY_API_URL**  
+  - **Default:** `https://api.daily.co/v1`  
+  - **Usage:** Sets the base URL for the Daily API. This URL is used when initializing the Daily transport in the bot.
+  
+- **TTS_PROVIDER**  
+  - **Default:** `deepgram`  
+  - **Usage:** Determines which Text-to-Speech service your bot will use.  
+    - If set to `cartesia`, the application uses the `CartesiaTTSService` and relies on the **CARTESIA_API_KEY** and **CARTESIA_VOICE** values.  
+    - Otherwise, it uses `DeepgramTTSService` along with **DEEPGRAM_API_KEY** and **DEEPGRAM_VOICE**.
+
+- **DEEPGRAM_VOICE**  
+  - **Default:** `aura-athena-en`  
+  - **Usage:** Specifies the voice identifier for the Deepgram TTS service when **TTS_PROVIDER** is not set to `cartesia`.
+
+- **CARTESIA_VOICE**  
+  - **Default:** `79a125e8-cd45-4c13-8a67-188112f4dd22`  
+  - **Usage:** Specifies the voice identifier for the Cartesia TTS service. This is used only if **TTS_PROVIDER** is set to `cartesia`.
+
+- **OPENAI_MODEL**  
+  - **Default:** `gpt-4o`  
+  - **Usage:** Determines which OpenAI model to use when initializing the LLM service in the bot.
+
+- **OPENAI_TEMPERATURE**  
+  - **Default:** `0.2`  
+  - **Usage:** Controls the temperature (randomness) of the OpenAI language model. The value is passed as part of the `InputParams` to the LLM service.
+
+- **BOT_TYPE**  
+  - **Default:** `simple`  
+  - **Valid Values:** `simple` or `flow`  
+  - **Usage:** Specifies which bot variant to launch. This setting is checked at startup and used to determine the corresponding bot implementation within the `server/bots/` package.
+
+These optional variables are processed by the `AppConfig` class in `server/utils/config.py`. In the `server/bots/base_bot.py` module, the configuration is used as follows:
+
+- **STT & TTS Initialization:**  
+  The bot initializes Deepgram’s STT service using **DEEPGRAM_API_KEY**. Depending on **TTS_PROVIDER**, it either initializes the Deepgram TTS service (using **DEEPGRAM_VOICE**) or the Cartesia TTS service (using **CARTESIA_API_KEY** and **CARTESIA_VOICE**).
+
+- **LLM Setup:**  
+  The bot sets up the OpenAI LLM service with **OPENAI_API_KEY**, **OPENAI_MODEL**, and additional parameters (such as **OPENAI_TEMPERATURE** bundled into the `InputParams`). This is used to drive conversation logic.
+
+- **Bot Behavior:**  
+  The **BOT_TYPE** variable determines whether a “simple” or “flow” bot implementation is executed; this affects the orchestration and logic sequence within the bot’s processing pipeline.
+
+By adjusting these variables in your `.env` file, you can fine-tune service integrations and bot behavior without modifying the application code.
 
 ### Server Setup
 
@@ -81,7 +139,7 @@ source venv/bin/activate
 # On Windows:
 # venv\Scripts\activate
 pip install -r requirements.txt
-pip install -e "../external/pipecat[daily,openai,deepgram,silero]"
+pip install -e "../external/pipecat[daily,openai,deepgram,cartesia,silero]"
 pip install -e "../external/pipecat-flows"
 ```
 

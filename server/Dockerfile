@@ -7,7 +7,7 @@ WORKDIR /app
 COPY server/requirements.txt /app/requirements.txt
 RUN pip install --upgrade pip && \
     pip install -r requirements.txt && \
-    pip install pipecat-ai[daily,openai,deepgram,silero] && \
+    pip install pipecat-ai[daily,openai,deepgram,cartesia,silero] && \
     pip install pipecat-ai-flows
 
 # Copy the rest of the application code into the container.

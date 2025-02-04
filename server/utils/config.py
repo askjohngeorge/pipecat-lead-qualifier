@@ -23,7 +23,6 @@ class AppConfig:
         required = {
             "DAILY_API_KEY": os.getenv("DAILY_API_KEY"),
             "DEEPGRAM_API_KEY": os.getenv("DEEPGRAM_API_KEY"),
-            "CARTESIA_API_KEY": os.getenv("CARTESIA_API_KEY"),
             "OPENAI_API_KEY": os.getenv("OPENAI_API_KEY"),
         }
 
@@ -37,9 +36,9 @@ class AppConfig:
         }
 
         # Server configuration
-        self._bot_type: BotType = os.getenv("BOT_TYPE", "simple")
+        self._bot_type: BotType = os.getenv("BOT_TYPE", "flow")
         if self._bot_type not in ("simple", "flow"):
-            self._bot_type = "simple"  # Default to simple bot if invalid value
+            self._bot_type = "flow"  # Default to flow bot if invalid value
 
     @property
     def tts_provider(self) -> str:
@@ -47,7 +46,7 @@ class AppConfig:
 
     @property
     def deepgram_api_key(self) -> str:
-        return os.environ["DEEPGRAM_API_KEY"]
+        return os.getenv("DEEPGRAM_API_KEY")
 
     @property
     def deepgram_voice(self) -> str:
@@ -55,11 +54,11 @@ class AppConfig:
 
     @property
     def openai_api_key(self) -> str:
-        return os.environ["OPENAI_API_KEY"]
+        return os.getenv("OPENAI_API_KEY")
 
     @property
     def cartesia_api_key(self) -> str:
-        return os.environ["CARTESIA_API_KEY"]
+        return os.getenv("CARTESIA_API_KEY")
 
     @property
     def cartesia_voice(self) -> str:
