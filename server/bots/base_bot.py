@@ -7,6 +7,7 @@ from pipecat.pipeline.task import PipelineParams, PipelineTask
 from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.runner import PipelineRunner
 from pipecat.services.deepgram import DeepgramSTTService, DeepgramTTSService
+from pipecat.services.cartesia import CartesiaTTSService
 from pipecat.services.openai import OpenAILLMService
 from pipecat.processors.aggregators.openai_llm_context import OpenAILLMContext
 from pipecat.processors.filters.stt_mute_filter import (
@@ -32,9 +33,14 @@ class BaseBot(ABC):
 
         # Initialize services
         self.stt = DeepgramSTTService(api_key=config.deepgram_api_key)
-        self.tts = DeepgramTTSService(
-            api_key=config.deepgram_api_key, voice=config.deepgram_voice
-        )
+        if config.tts_provider == "cartesia":
+            self.tts = CartesiaTTSService(
+                api_key=config.cartesia_api_key, voice_id=config.cartesia_voice
+            )
+        else:
+            self.tts = DeepgramTTSService(
+                api_key=config.deepgram_api_key, voice=config.deepgram_voice
+            )
         self.llm = OpenAILLMService(
             api_key=config.openai_api_key,
             model=config.openai_model,
