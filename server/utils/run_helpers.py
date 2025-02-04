@@ -1,6 +1,3 @@
-from aiohttp import ClientSession
-
-
 async def run_bot(bot_class, config_class, room_url: str, token: str):
     """Universal bot runner handling bot lifecycle.
 
