@@ -15,7 +15,7 @@ async def run_bot(bot_class, config_class, room_url: str, token: str):
     bot = bot_class(config)
 
     # Set up transport and pipeline
-    async with ClientSession() as session:
-        await bot.setup_transport(room_url, token)
-        bot.create_pipeline()
-        await bot.start()
+    await bot.setup_transport(room_url, token)
+    bot.create_pipeline()
+    # Start the bot
+    await bot.start()
