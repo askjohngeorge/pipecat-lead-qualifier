@@ -15,7 +15,16 @@ from pipecat_flows.types import ContextStrategy, ContextStrategyConfig
 
 from bots.base_bot import BaseBot
 from config.settings import AppConfig
-from prompts import get_role_prompt, get_task_prompt
+from prompts import (
+    get_role_prompt,
+    get_recording_consent_prompt,
+    get_name_and_interest_prompt,
+    get_consultancy_prompt,
+    get_development_prompt,
+    get_qa_prompt,
+    get_any_more_questions_prompt,
+    get_close_call_prompt,
+)
 
 # Load environment variables from .env file
 load_dotenv()
@@ -35,17 +44,7 @@ def create_recording_consent_node() -> Dict:
     Create initial node that requests recording consent."""
     return {
         **get_role_prompt(),
-        **get_task_prompt(
-            """# Steps
-1. Request Recording Consent
-"Hi there, I'm Chris an AI voice assistant from John George Voice AI Solutions. For quality assurance purposes, this call will be recorded. Do you consent to this recording?"
-~Never answer any questions or do anything else other than obtain recording consent~
-- [ 1.1 If R = Yes ] → ~Set recording_consent=True, and thank the user~
-- [ 1.2 If R = No ] → ~Set recording_consent=False~
-- [ 1.3 If R = Asks why we need recording ] → "We record calls to improve our service quality and ensure we accurately capture your requirements."
-- [ 1.4 If R = Any other response ] → "I'm afraid I need a clear yes or no - do you consent to this call being recorded?"
-"""
-        ),
+        **get_recording_consent_prompt(),
         "functions": [
             {
                 "type": "function",
@@ -75,23 +74,7 @@ def create_name_and_interest_node() -> Dict:
     Create node that collects user's name and primary interest."""
     return {
         **get_role_prompt(),
-        **get_task_prompt(
-            """# Steps
-1. Name Collection
-"May I know your name please?"
- - [ 1.1 If R = Gives name ] -> "Thank you <name>" ~Proceed to step 2~
- - [ 1.2 If R = Refuses to give name ] -> ~Proceed without a name to step 2~
- - [ 1.3 If R = Asks why we need their name ] -> "So I know how to address you."
-
-2. Primary Interest Identification
-"Could you tell me if you're interested in technical consultancy, or voice agent development?"
- - [ 2.1 If R = Technical consultancy ] → ~Silently record interest_type=technical_consultation, name as <name>~
- - [ 2.2 If R = Voice agent development ] → ~Silently record interest_type=voice_agent_development, name as <name>~
- - [ 2.3 If R = Unclear response ] → "To help me understand better: Are you interested in technical consultancy, or voice agent development?"
- - [ 2.4 If R = Asks for explanation ] → "Technical consultancy is a paid meeting where we discuss your specific needs and provide detailed advice. Voice agent development involves building a custom solution, starting with a free discovery call."
- - [ 2.5 If R = Asks other questions ] → ~Silently record interest_type=qa, name as <name>~
-"""
-        ),
+        **get_name_and_interest_prompt(),
         "functions": [
             {
                 "type": "function",
@@ -126,16 +109,7 @@ def create_consultancy_node() -> Dict:
     Create node for handling technical consultation path."""
     return {
         **get_role_prompt(),
-        **get_task_prompt(
-            """# Steps
-1. Consultancy Booking
-~Use the `navigate` tool to navigate to `/consultancy`~
-"I've navigated you to our consultancy booking page where you can set up a video conference with our founder to discuss your needs in more detail. Please note that this will require an up-front payment which is non-refundable in the case of no-show or cancellation. Please provide as much detail as you can when you book, to assist us in preparing for the call."
-~Ask if they have any more questions~
- - [ 1.1 If R = No more questions ] -> ~This step is complete~
- - [ 1.2 If R = Has more questions ] -> ~Only answer questions directly related to the provision of our voice AI services, anything else can be asked during the consultation~
-"""
-        ),
+        **get_consultancy_prompt(),
         "functions": [
             {
                 "type": "function",
@@ -172,34 +146,7 @@ def create_development_node() -> Dict:
     Create node for handling voice agent development path."""
     return {
         **get_role_prompt(),
-        **get_task_prompt(
-            """# Steps
-1. Use Case Elaboration
-"What tasks or interactions are you hoping your voice AI agent will handle?"
- - [ 1.1 If R = Specific use case provided ] -> ~Record use case as `<use_case>`, go to step 2~
- - [ 1.2 If R = Vague response ] -> "To help me understand better, could you describe what you're hoping to achieve with this solution?"
- - [ 1.3 If R = Asks for examples ] -> ~Present these as examples: customer service inquiries, support, returns; lead qualification; appointment scheduling; cold or warm outreach~
-
-2. Timeline Establishment
-"What's your desired timeline for this project, and are there any specific deadlines?"
- - [ 2.1 If R = Specific or rough timeline provided ] -> ~Record timeline as `<timeline>`, go to step 3~
- - [ 2.2 If R = No timeline or ASAP ] -> "Just a rough estimate would be helpful. Are we discussing weeks, months, or quarters for implementation?"
-
-3. Budget Discussion
-"What budget have you allocated for this project?"
- * Development services begin at £1,000 for a simple voice agent with a single external integration
- * Advanced solutions with multiple integrations and post-deployment testing can range up to £10,000
- * Custom platform development is available but must be discussed on a case-by-case basis
- * All implementations will require ongoing costs associated with call costs, to be discussed on a case-by-case basis
- * We also offer support packages for ongoing maintenance and updates, again to be discussed on a case-by-case basis
- - [ 3.1 If R = Budget > £1,000 ] -> ~Record budget as `<budget>`, go to step 4~
- - [ 3.2 If R = Budget < £1,000 or no budget provided ] -> ~Explain our development services begin at £1,000 and ask if this is acceptable~
- - [ 3.3 If R = Vague response ] -> ~attempt to clarify the budget~
-
-4. Interaction Assessment
-"Before we proceed, I'd like to quickly ask for your feedback on the call quality so far. You're interacting with the kind of system you might be considering purchasing, so it's important for us to ensure it meets your expectations. Could you please give us your thoughts on the speed, clarity, and naturalness of the interaction?"
-~This step is complete~"""
-        ),
+        **get_development_prompt(),
         "functions": [
             {
                 "type": "function",
@@ -229,21 +176,7 @@ def create_qa_node() -> Dict:
     Create node for handling general questions about services."""
     return {
         **get_role_prompt(),
-        **get_task_prompt(
-            """# Steps
-1. Handle General Questions
-"Please feel free to ask any questions you have about our voice AI services."
-* Common topics include:
-* - Service offerings and capabilities
-* - Technology and integration options
-* - Pricing and timelines
-* - Case studies and success stories
-- [ 1.1 If R = Asks specific question ] → ~Provide clear, concise answer based on available information~
-- [ 1.2 If R = No more questions ] → ~Proceed to Node #6 (close call)~
-- [ 1.3 If R = Shows interest in services ] → "Would you like to discuss technical consultancy or voice agent development in more detail?"
-- [ 1.4 If R = Question outside scope ] → "That's a bit outside my scope. I can best help with questions about our voice AI services, technical consultancy, or voice agent development. What would you like to know about those?"
-"""
-        ),
+        **get_qa_prompt(),
         "functions": [
             {
                 "type": "function",
@@ -282,14 +215,7 @@ def create_any_more_questions_node() -> Dict:
     Create node that asks if the user has any more questions."""
     return {
         **get_role_prompt(),
-        **get_task_prompt(
-            """# Steps
-1. Ask About Additional Questions
-"Do you have any more questions about our services?"
-- [ 1.1 If R = Yes, any affirmative response or a question ] → ~Set any_more_questions=True~
-- [ 1.2 If R = Any other response ] → ~Set any_more_questions=False~
-"""
-        ),
+        **get_any_more_questions_prompt(),
         "functions": [
             {
                 "type": "function",
@@ -319,13 +245,7 @@ def create_close_call_node() -> Dict:
     Create node to conclude the conversation."""
     return {
         **get_role_prompt(),
-        **get_task_prompt(
-            """# Steps
-1. Close the Call
-"Thank you for your time. We appreciate you choosing John George Voice AI Solutions. Goodbye."
-- ~End the call~
-"""
-        ),
+        **get_close_call_prompt(),
         "functions": [],
         "post_actions": [{"type": "end_conversation"}],
     }
