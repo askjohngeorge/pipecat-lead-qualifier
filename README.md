@@ -29,27 +29,27 @@ The project qualifies leads by guiding users through a series of conversational 
 #### Directory Structure
 ```
 server/
-├── __init__.py              # Package initialization and version info
-├── main.py                  # FastAPI server entry point
-├── Dockerfile              # Container configuration
-├── requirements.txt        # Python dependencies
+├── __init__.py            # Package initialization and version info
+├── main.py                # FastAPI server entry point
+├── Dockerfile             # Container configuration
+├── requirements.txt       # Python dependencies
 ├── bots/                  # Bot implementations
 │   ├── __init__.py
 │   ├── base_bot.py        # Shared bot framework
-│   ├── flow.py           # Flow-based bot implementation
-│   └── simple.py         # Simple bot implementation
-├── config/               # Configuration management
+│   ├── flow.py            # Flow-based bot implementation
+│   └── simple.py          # Simple bot implementation
+├── config/                # Configuration management
 │   ├── __init__.py
-│   └── settings.py       # Environment and app settings
-├── prompts/             # LLM system prompts
+│   └── settings.py        # Environment and app settings
+├── prompts/               # LLM system prompts
 │   ├── __init__.py
-│   └── prompts.py       # Prompt templates and helpers
-├── services/            # External API integrations
+│   └── prompts.py         # Prompt templates and helpers
+├── services/              # External API integrations
 │   ├── __init__.py
-│   └── calcom_api.py    # Cal.com API client
-└── utils/               # Common utilities
+│   └── calcom_api.py      # Cal.com API client
+└── utils/                 # Common utilities
     ├── __init__.py
-    └── run_helpers.py   # Bot lifecycle helpers
+    └── run_helpers.py     # Bot lifecycle helpers
 ```
 
 #### Key Components
