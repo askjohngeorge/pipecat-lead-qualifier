@@ -44,6 +44,13 @@ class AppConfig:
     def tts_provider(self) -> str:
         return os.getenv("TTS_PROVIDER", "deepgram")
 
+    @tts_provider.setter
+    def tts_provider(self, value: str):
+        if value not in ("deepgram", "cartesia"):
+            raise ValueError(f"Invalid TTS provider: {value}")
+
+        os.environ["TTS_PROVIDER"] = value
+
     @property
     def deepgram_api_key(self) -> str:
         return os.getenv("DEEPGRAM_API_KEY")
@@ -51,6 +58,10 @@ class AppConfig:
     @property
     def deepgram_voice(self) -> str:
         return os.getenv("DEEPGRAM_VOICE", "aura-athena-en")
+
+    @deepgram_voice.setter
+    def deepgram_voice(self, value: str):
+        os.environ["DEEPGRAM_VOICE"] = value
 
     @property
     def openai_api_key(self) -> str:
@@ -64,14 +75,26 @@ class AppConfig:
     def cartesia_voice(self) -> str:
         return os.getenv("CARTESIA_VOICE", "79a125e8-cd45-4c13-8a67-188112f4dd22")
 
+    @cartesia_voice.setter
+    def cartesia_voice(self, value: str):
+        os.environ["CARTESIA_VOICE"] = value
+
     @property
     def openai_model(self) -> str:
         return os.getenv("OPENAI_MODEL", "gpt-4o")
+
+    @openai_model.setter
+    def openai_model(self, value: str):
+        os.environ["OPENAI_MODEL"] = value
 
     @property
     def openai_params(self) -> BaseOpenAILLMService.InputParams:
         temperature = os.getenv("OPENAI_TEMPERATURE", 0.2)
         return BaseOpenAILLMService.InputParams(temperature=temperature)
+
+    @openai_params.setter
+    def openai_params(self, value: BaseOpenAILLMService.InputParams):
+        os.environ["OPENAI_TEMPERATURE"] = str(value.temperature)
 
     @property
     def bot_type(self) -> BotType:
@@ -80,3 +103,4 @@ class AppConfig:
     @bot_type.setter
     def bot_type(self, value: BotType):
         self._bot_type = value
+        os.environ["BOT_TYPE"] = value
