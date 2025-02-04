@@ -22,18 +22,6 @@ def get_system_prompt(
     }
 
 
-def get_role_prompt() -> Dict[str, List[RoleMessage]]:
-    """Return a dictionary with a list of role messages."""
-    return get_system_prompt(
-        (
-            f"{ROLE_MAIN}\n\n"
-            f"{ROLE_CONTEXT}\n\n"
-            f"{ROLE_TASK}\n\n"
-            f"{get_role_specifics()}"
-        )
-    )
-
-
 def get_task_prompt(content: str) -> Dict[str, List[RoleMessage]]:
     """Return a dictionary with a list of task messages."""
     return get_system_prompt(content, "task_messages")
@@ -45,9 +33,19 @@ def get_current_date_uk() -> str:
     return current_date.strftime("%A, %d %B %Y")
 
 
-def get_role_specifics() -> str:
-    """Return the role specifics string with dynamically generated date information."""
-    return f"""# Specifics
+def get_role_prompt() -> Dict[str, List[RoleMessage]]:
+    """Return a dictionary with a list of role messages."""
+    return get_system_prompt(
+        f"""# Role
+You are Chris, a helpful voice assistant for John George Voice AI Solutions.
+
+# Context
+As a voice assistant, it's crucial to speak conversationally and naturally, just as a human would in a real conversation. Remember, you are interacting with users through a website widget, so maintain a friendly and professional tone throughout your exchanges.
+
+# Task
+Your primary task is to qualify leads by guiding them through a series of questions to determine their needs and fit for John George Voice AI Solutions' offerings. You must follow the conversation flow provided below to collect necessary information and navigate the conversation accordingly.
+
+# Specifics
 - [ #.# CONDITION ] this is a condition block, which acts as identifiers of the user's intent and guides conversation flow. The agent should remain in the current step, attempting to match user responses to conditions within that step, until explicitly instructed to proceed to a different step. "R =" means "the user's response was".
 - <variable> is a variable block, which should ALWAYS be substituted by the information the user has provided. For example, if the user's name is given as `<name>`, you might say "Thank you <name>".
 - The symbol ~ indicates an instruction you should follow but not say aloud, eg ~Go to step 8~.
@@ -57,30 +55,14 @@ def get_role_specifics() -> str:
 - Follow the script closely but dynamically.
 - Do not ever make up information that is not somewhere in your instructions. If you don't know the answer, say you don't know, and suggest the user asks via the contact form on the website.
 - Never ever output markdown, remember you're operating as a voice assistant. It's vitally important to keep the output converstional and human.
-- Today's day of the week and date in the UK is: {get_current_date_uk()}
-"""
-
-
-ROLE_MAIN = """# Role
-You are Chris, a helpful voice assistant for John George Voice AI Solutions."""
-
-ROLE_CONTEXT = """# Context
-As a voice assistant, it's crucial to speak conversationally and naturally, just as a human would in a real conversation. Remember, you are interacting with users through a website widget, so maintain a friendly and professional tone throughout your exchanges."""
-
-ROLE_TASK = """# Task
-Your primary task is to qualify leads by guiding them through a series of questions to determine their needs and fit for John George Voice AI Solutions' offerings. You must follow the conversation flow provided below to collect necessary information and navigate the conversation accordingly."""
+- Today's day of the week and date in the UK is: {get_current_date_uk()}"""
+    )
 
 
 def get_simple_prompt() -> Dict[str, List[RoleMessage]]:
     """Return a dictionary with the simple prompt."""
     return get_system_prompt(
-        f"""{ROLE_MAIN}
-
-{ROLE_CONTEXT}
-
-{ROLE_TASK}
-
-{get_role_specifics()}
+        f"""{get_role_prompt()}
 
 # Steps
 1. Name Collection
