@@ -6,7 +6,6 @@ from functools import partial
 from typing import Dict
 import sys
 
-import pytz
 from dotenv import load_dotenv
 from loguru import logger
 
@@ -17,7 +16,7 @@ from pipecat_flows.types import ContextStrategy, ContextStrategyConfig
 
 from bots.base_bot import BaseBot
 from utils.config import AppConfig
-from prompts import ROLE_MAIN, ROLE_CONTEXT, ROLE_TASK, ROLE_SPECIFICS
+from prompts import get_role_messages
 
 # Load environment variables from .env file
 load_dotenv()
@@ -36,18 +35,7 @@ def create_recording_consent_node() -> Dict:
     """# Node 1: Recording Consent Node
     Create initial node that requests recording consent."""
     return {
-        "role_messages": [
-            {
-                "role": "system",
-                "content": f"""{ROLE_MAIN}
-
-{ROLE_CONTEXT}
-
-{ROLE_TASK}
-
-{ROLE_SPECIFICS}""",
-            }
-        ],
+        **get_role_messages(),
         "task_messages": [
             {
                 "role": "system",
@@ -90,6 +78,7 @@ def create_name_and_interest_node() -> Dict:
     """# Node 2: Collect Name and Interest Node
     Create node that collects user's name and primary interest."""
     return {
+        **get_role_messages(),
         "task_messages": [
             {
                 "role": "system",
@@ -143,6 +132,7 @@ def create_consultancy_node() -> Dict:
     """# Node 3: Consultancy Node
     Create node for handling technical consultation path."""
     return {
+        **get_role_messages(),
         "task_messages": [
             {
                 "role": "system",
@@ -191,6 +181,7 @@ def create_development_node() -> Dict:
     """# Node 4: Development Node
     Create node for handling voice agent development path."""
     return {
+        **get_role_messages(),
         "task_messages": [
             {
                 "role": "system",
@@ -204,7 +195,7 @@ def create_development_node() -> Dict:
 2. Timeline Establishment
 "What's your desired timeline for this project, and are there any specific deadlines?"
  - [ 2.1 If R = Specific or rough timeline provided ] -> ~Record timeline as `<timeline>`, go to step 3~
- - [ 2.2 If R = No timeline or ASAP ] -> "Just a rough estimate would be helpful - are we discussing weeks, months, or quarters for implementation?"
+ - [ 2.2 If R = No timeline or ASAP ] -> "Just a rough estimate would be helpful. Are we discussing weeks, months, or quarters for implementation?"
 
 3. Budget Discussion
 "What budget have you allocated for this project?"
@@ -250,6 +241,7 @@ def create_qa_node() -> Dict:
     """# Node 5: Q&A Node
     Create node for handling general questions about services."""
     return {
+        **get_role_messages(),
         "task_messages": [
             {
                 "role": "system",
@@ -305,6 +297,7 @@ def create_any_more_questions_node() -> Dict:
     """# Node 6: Any More Questions Node
     Create node that asks if the user has any more questions."""
     return {
+        **get_role_messages(),
         "task_messages": [
             {
                 "role": "system",
@@ -344,6 +337,7 @@ def create_close_call_node() -> Dict:
     """# Node 7: Final Close Node
     Create node to conclude the conversation."""
     return {
+        **get_role_messages(),
         "task_messages": [
             {
                 "role": "system",

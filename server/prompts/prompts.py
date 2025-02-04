@@ -1,5 +1,43 @@
 from datetime import datetime
 import pytz
+from typing import TypedDict, List, Dict
+
+
+class RoleMessage(TypedDict):
+    role: str
+    content: str
+
+
+def get_role_messages() -> Dict[str, List[RoleMessage]]:
+    """
+    Return a dictionary with a list of role messages.
+
+    The returned dictionary follows the structure:
+    {
+        "role_messages": [
+            {
+                "role": "system",
+                "content": "<combined role content>"
+            }
+        ]
+    }
+
+    Returns:
+        Dict[str, List[RoleMessage]]: The constructed role_messages dictionary.
+    """
+    return {
+        "role_messages": [
+            {
+                "role": "system",
+                "content": (
+                    f"{ROLE_MAIN}\n\n"
+                    f"{ROLE_CONTEXT}\n\n"
+                    f"{ROLE_TASK}\n\n"
+                    f"{ROLE_SPECIFICS}"
+                ),
+            }
+        ]
+    }
 
 
 def get_current_date_uk() -> str:
