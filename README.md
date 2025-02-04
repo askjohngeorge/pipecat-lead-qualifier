@@ -42,8 +42,11 @@ server/
 │   ├── __init__.py
 │   └── settings.py        # Environment and app settings
 ├── prompts/               # LLM system prompts
-│   ├── __init__.py
-│   └── prompts.py         # Prompt templates and helpers
+│   ├── __init__.py        # Package initialization; exposes flow, simple, helpers, and types modules
+│   ├── flow.py            # Flow-based prompt definitions for conversation workflows
+│   ├── simple.py          # Simple, direct prompt definitions for one-off interactions
+│   ├── helpers.py         # Helper functions for prompt generation and manipulation
+│   └── types.py           # Type definitions for prompt structures
 ├── services/              # External API integrations
 │   ├── __init__.py
 │   └── calcom_api.py      # Cal.com API client
@@ -73,13 +76,20 @@ server/
   - Type-safe settings classes
   - Default value handling
 
+- **`prompts/`**  
+  Contains the modular LLM system prompts including:
+  - `flow.py`: Flow-based prompt definitions for conversational flows
+  - `simple.py`: Simple prompt definitions for the single prompt agent
+  - `helpers.py`: Functions to assist in prompt generation and maintenance
+  - `types.py`: Definitions for prompt structure and types
+
 - **`services/`**  
   External API integrations:
   - Cal.com API for appointment scheduling
-  - Future integrations can be added here
+  - Additional integrations can be added as needed
 
 - **`utils/`**  
-  Common utilities and helpers:
+  Common utilities and helper functions:
   - Bot lifecycle management
   - Shared helper functions
 
@@ -90,7 +100,7 @@ server/
 
 #### Overview
 - Developed with Next.js using TypeScript with strict type checking.
-- Follows Next.js conventions: routes under `/app` (or `/pages`), shared components in `/components`, and styles in `/styles` or via CSS Modules.
+- Follows Next.js conventions: routes under `/app` or `/pages`, shared components in `/components`, and styles in `/styles` or via CSS Modules.
 - Managed with pnpm for dependency handling.
 
 ## Setup and Installation
