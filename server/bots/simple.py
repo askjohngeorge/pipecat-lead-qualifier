@@ -5,7 +5,7 @@ import asyncio
 from bots.base_bot import BaseBot
 from config.settings import AppConfig
 from utils.run_helpers import run_bot
-from prompts import SIMPLE_PROMPT
+from prompts import get_simple_prompt
 
 
 class SimpleBot(BaseBot):
@@ -13,12 +13,7 @@ class SimpleBot(BaseBot):
 
     def __init__(self, config: AppConfig):
         # Define the initial system message with conversation instructions
-        system_messages = [
-            {
-                "role": "system",
-                "content": f"{SIMPLE_PROMPT}",
-            }
-        ]
+        system_messages = get_simple_prompt()["role_messages"]
         super().__init__(config, system_messages)
 
     async def _handle_first_participant(self):

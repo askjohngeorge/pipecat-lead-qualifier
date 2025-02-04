@@ -8,50 +8,45 @@ class RoleMessage(TypedDict):
     content: str
 
 
-def get_role_messages() -> Dict[str, List[RoleMessage]]:
-    """
-    Return a dictionary with a list of role messages.
-
-    The returned dictionary follows the structure:
-    {
-        "role_messages": [
-            {
-                "role": "system",
-                "content": "<combined role content>"
-            }
-        ]
-    }
-
-    Returns:
-        Dict[str, List[RoleMessage]]: The constructed role_messages dictionary.
-    """
+def get_system_prompt(
+    content: str, message_type: str = "role_messages"
+) -> Dict[str, List[RoleMessage]]:
+    """Return a dictionary with a system prompt."""
     return {
-        "role_messages": [
+        message_type: [
             {
                 "role": "system",
-                "content": (
-                    f"{ROLE_MAIN}\n\n"
-                    f"{ROLE_CONTEXT}\n\n"
-                    f"{ROLE_TASK}\n\n"
-                    f"{ROLE_SPECIFICS}"
-                ),
+                "content": content,
             }
         ]
     }
+
+
+def get_role_prompt() -> Dict[str, List[RoleMessage]]:
+    """Return a dictionary with a list of role messages."""
+    return get_system_prompt(
+        (
+            f"{ROLE_MAIN}\n\n"
+            f"{ROLE_CONTEXT}\n\n"
+            f"{ROLE_TASK}\n\n"
+            f"{get_role_specifics()}"
+        )
+    )
+
+
+def get_task_prompt(content: str) -> Dict[str, List[RoleMessage]]:
+    """Return a dictionary with a list of task messages."""
+    return get_system_prompt(content, "task_messages")
 
 
 def get_current_date_uk() -> str:
-    """
-    Return the current day and date formatted for the UK timezone.
-    """
+    """Return the current day and date formatted for the UK timezone."""
     current_date = datetime.now(pytz.timezone("Europe/London"))
     return current_date.strftime("%A, %d %B %Y")
 
 
 def get_role_specifics() -> str:
-    """
-    Return the role specifics string with dynamically generated date information.
-    """
+    """Return the role specifics string with dynamically generated date information."""
     return f"""# Specifics
 - [ #.# CONDITION ] this is a condition block, which acts as identifiers of the user's intent and guides conversation flow. The agent should remain in the current step, attempting to match user responses to conditions within that step, until explicitly instructed to proceed to a different step. "R =" means "the user's response was".
 - <variable> is a variable block, which should ALWAYS be substituted by the information the user has provided. For example, if the user's name is given as `<name>`, you might say "Thank you <name>".
@@ -75,15 +70,17 @@ As a voice assistant, it's crucial to speak conversationally and naturally, just
 ROLE_TASK = """# Task
 Your primary task is to qualify leads by guiding them through a series of questions to determine their needs and fit for John George Voice AI Solutions' offerings. You must follow the conversation flow provided below to collect necessary information and navigate the conversation accordingly."""
 
-ROLE_SPECIFICS = get_role_specifics()
 
-SIMPLE_PROMPT = f"""{ROLE_MAIN}
+def get_simple_prompt() -> Dict[str, List[RoleMessage]]:
+    """Return a dictionary with the simple prompt."""
+    return get_system_prompt(
+        f"""{ROLE_MAIN}
 
 {ROLE_CONTEXT}
 
 {ROLE_TASK}
 
-{ROLE_SPECIFICS}
+{get_role_specifics()}
 
 # Steps
 1. Name Collection
@@ -155,3 +152,4 @@ SIMPLE_PROMPT = f"""{ROLE_MAIN}
 11. Close the Call
 "Thank you for your time. We appreciate you choosing John George Voice AI Solutions. Goodbye."
 - ~End the call~"""
+    )
