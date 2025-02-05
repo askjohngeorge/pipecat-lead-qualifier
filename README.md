@@ -31,6 +31,7 @@ The project qualifies leads by guiding users through a series of conversational 
 server/
 ├── __init__.py            # Package initialization and version info
 ├── main.py                # FastAPI server entry point
+├── runner.py              # Bot runner CLI and lifecycle management
 ├── Dockerfile             # Container configuration
 ├── requirements.txt       # Python dependencies
 ├── bots/                  # Bot implementations
@@ -40,7 +41,8 @@ server/
 │   └── simple.py          # Simple bot implementation
 ├── config/                # Configuration management
 │   ├── __init__.py
-│   └── settings.py        # Environment and app settings
+│   ├── bot.py             # Bot-specific settings and env var handling
+│   └── server.py          # Server network and runtime configuration
 ├── prompts/               # LLM system prompts
 │   ├── __init__.py        # Package initialization; exposes flow, simple, helpers, and types modules
 │   ├── flow.py            # Flow-based prompt definitions for conversation workflows
@@ -50,9 +52,6 @@ server/
 ├── services/              # External API integrations
 │   ├── __init__.py
 │   └── calcom_api.py      # Cal.com API client
-└── utils/                 # Common utilities
-    ├── __init__.py
-    └── run_helpers.py     # Bot lifecycle helpers
 ```
 
 #### Key Components
@@ -63,6 +62,22 @@ server/
   - Bot process lifecycle
   - HTTP endpoints for browser and RTVI access
   - Connection credential management
+
+- **`runner.py`**  
+  The bot runner CLI that handles:
+  - Bot configuration via CLI arguments
+  - Environment variable overrides
+  - Bot process initialization
+  - Supported CLI arguments:
+    ```bash
+    -u/--room-url      Daily room URL (required)
+    -t/--token         Daily room token (required)
+    -b/--bot-type      Bot variant [simple|flow]
+    -p/--tts-provider  TTS service [deepgram|cartesia|elevenlabs]
+    -m/--openai-model  OpenAI model name
+    -T/--temperature   LLM temperature (0.0-2.0)
+    -n/--bot-name      Custom bot name
+    ```
 
 - **`bots/`**  
   Contains bot implementations with:
