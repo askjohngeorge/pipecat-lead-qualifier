@@ -141,3 +141,14 @@ class AppConfig:
     @property
     def enable_stt_mute_filter(self) -> bool:
         return self._is_truthy(os.getenv("ENABLE_STT_MUTE_FILTER", "false"))
+
+    @enable_stt_mute_filter.setter
+    def enable_stt_mute_filter(self, value: bool):
+        os.environ["ENABLE_STT_MUTE_FILTER"] = str(value)
+
+
+class ServerConfig:
+    def __init__(self):
+        self.host: str = os.getenv("HOST", "0.0.0.0")
+        self.port: int = int(os.getenv("FAST_API_PORT", "7860"))
+        self.reload: bool = os.getenv("RELOAD", "false").lower() == "true"

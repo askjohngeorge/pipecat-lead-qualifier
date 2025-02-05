@@ -1,18 +1,16 @@
-"""Main entry point for the FastAPI server.
+"""
+Main entry point for the FastAPI server.
 
-This FastAPI server manages RTVI bot instances and provides endpoints for both
-direct browser access and RTVI client connections. It handles:
-- Creating Daily rooms
-- Managing bot processes
-- Providing connection credentials
-- Monitoring bot status
+This module defines the FastAPI application, its endpoints,
+and lifecycle management. It relies on environment variables for configuration
+(e.g., HOST, FAST_API_PORT, BOT_TYPE) and does not include CLI logic for bot startup.
+Use your dedicated CLI in run_helpers.py for direct bot launches.
 """
 
-import argparse
-import asyncio
 import os
 import subprocess
 import sys
+import asyncio
 from contextlib import asynccontextmanager
 from typing import Any, Dict
 
@@ -26,53 +24,70 @@ from pipecat.transports.services.helpers.daily_rest import (
     DailyRESTHelper,
     DailyRoomParams,
 )
+from config.settings import AppConfig, ServerConfig
 
-from config.settings import AppConfig
+# Read server settings and bot type from environment variables (with defaults)
+BOT_TYPE: str = os.getenv("BOT_TYPE", "simple")
+HOST: str = os.getenv("HOST", "0.0.0.0")
+FAST_API_PORT: int = int(os.getenv("FAST_API_PORT", "7860"))
+RELOAD: bool = os.getenv("RELOAD", "false").lower() == "true"
 
-# Parse command line arguments for server configuration
-default_host = os.getenv("HOST", "0.0.0.0")
-default_port = int(os.getenv("FAST_API_PORT", "7860"))
+# Initialize our configuration (used by DailyRESTHelper later)
+config: AppConfig = AppConfig()
 
-parser = argparse.ArgumentParser(description="Bot FastAPI server")
-parser.add_argument("--host", type=str, default=default_host, help="Host address")
-parser.add_argument("--port", type=int, default=default_port, help="Port number")
-parser.add_argument("--reload", action="store_true", help="Reload code on change")
-parser.add_argument(
-    "--bot-type",
-    type=str,
-    choices=["simple", "flow"],
-    default="simple",
-    help="Type of bot to run (simple or flow)",
-)
-
-args = parser.parse_args()
-
-# Initialize configuration with command line arguments
-os.environ["BOT_TYPE"] = args.bot_type
-config = AppConfig()
-
-# Configure loguru - remove default handler and add our own
-logger.remove()  # Remove default handler
+# Configure loguru (removing default handler and adding our custom handler)
+logger.remove()
 logger.add(
     sys.stderr,
     level="DEBUG",
-    format="<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>",
-    enqueue=True,  # Ensure thread-safe logging
-    backtrace=True,  # Add exception context
-    diagnose=True,  # Add variables to traceback
+    format="<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{level: <8}</level> | "
+    "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>",
+    enqueue=True,  # Thread-safe logging
+    backtrace=True,  # Include exception context
+    diagnose=True,  # Include variables in traceback
 )
 
 # Maximum number of bot instances allowed per room
-MAX_BOTS_PER_ROOM = 1
+MAX_BOTS_PER_ROOM: int = 1
 
 # Dictionary to track bot processes: {pid: (process, room_url)}
-bot_procs = {}
+bot_procs: Dict[int, tuple] = {}
 
-# Store Daily API helpers
-daily_helpers = {}
+# Store Daily API helpers (initialized in the lifespan context)
+daily_helpers: Dict[str, DailyRESTHelper] = {}
+
+server_config = ServerConfig()
 
 
-async def cleanup_finished_processes():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    FastAPI lifespan manager that handles startup and shutdown tasks.
+    It initializes the DailyRESTHelper and starts a background cleanup task.
+    """
+    aiohttp_session = aiohttp.ClientSession()
+    daily_helpers["rest"] = DailyRESTHelper(
+        daily_api_key=config.daily["api_key"],
+        daily_api_url=config.daily["api_url"],
+        aiohttp_session=aiohttp_session,
+    )
+
+    cleanup_task = asyncio.create_task(cleanup_finished_processes())
+    try:
+        yield
+    finally:
+        cleanup_task.cancel()
+        try:
+            await cleanup_task
+        except asyncio.CancelledError:
+            pass
+        await aiohttp_session.close()
+
+
+async def cleanup_finished_processes() -> None:
+    """
+    Background task to clean up finished bot processes and delete their Daily rooms.
+    """
     while True:
         try:
             for pid in list(bot_procs.keys()):
@@ -92,44 +107,10 @@ async def cleanup_finished_processes():
         await asyncio.sleep(5)
 
 
-def cleanup():
-    """Terminate all bot processes and cleanup resources."""
-    for entry in bot_procs.values():
-        proc, room_url = entry
+# Create the FastAPI app with the lifespan context
+app: FastAPI = FastAPI(lifespan=lifespan)
 
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """FastAPI lifespan manager that handles startup and shutdown tasks."""
-    aiohttp_session = aiohttp.ClientSession()
-    daily_helpers["rest"] = DailyRESTHelper(
-        daily_api_key=config.daily["api_key"],
-        daily_api_url=config.daily["api_url"],
-        aiohttp_session=aiohttp_session,
-    )
-
-    # Start background cleanup task before yield
-    cleanup_task = asyncio.create_task(cleanup_finished_processes())
-
-    try:
-        yield
-    finally:
-        # Cancel cleanup task
-        cleanup_task.cancel()
-        try:
-            await cleanup_task
-        except asyncio.CancelledError:
-            pass
-
-        # Cleanup tasks
-        await aiohttp_session.close()
-        cleanup()
-
-
-# Initialize FastAPI app with lifespan manager
-app = FastAPI(lifespan=lifespan)
-
-# Configure CORS to allow requests from any origin
+# Configure CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -140,41 +121,41 @@ app.add_middleware(
 
 
 async def create_room_and_token() -> tuple[str, str]:
-    """Helper function to create a Daily room and generate an access token."""
+    """
+    Create a Daily room and get an access token.
+    """
     room = await daily_helpers["rest"].create_room(DailyRoomParams())
     if not room.url:
         raise HTTPException(status_code=500, detail="Failed to create room")
-
     token = await daily_helpers["rest"].get_token(room.url)
     if not token:
         raise HTTPException(
             status_code=500, detail=f"Failed to get token for room: {room.url}"
         )
-
     return room.url, token
 
 
 @app.get("/")
 async def start_agent(request: Request):
-    """Endpoint for direct browser access to the bot."""
-    logger.info(f"Creating room for {config.bot_type} bot")
+    """
+    Endpoint for direct browser access to the bot.
+    Creates a room and spawns a bot subprocess.
+    """
+    logger.info(f"Creating room for {BOT_TYPE} bot")
     room_url, token = await create_room_and_token()
     logger.info(f"Room URL: {room_url}")
 
-    # Check if there is already an existing process running in this room
+    # Ensure a maximum number of bot instances per room.
     num_bots_in_room = sum(
-        1
-        for proc in bot_procs.values()
-        if proc[1] == room_url and proc[0].poll() is None
+        1 for proc, url in bot_procs.values() if url == room_url and proc.poll() is None
     )
     if num_bots_in_room >= MAX_BOTS_PER_ROOM:
         raise HTTPException(
             status_code=500, detail=f"Max bot limit reached for room: {room_url}"
         )
 
-    # Spawn a new bot process based on bot_type
     try:
-        bot_module = "bots.flow" if config.bot_type == "flow" else "bots.simple"
+        bot_module = "bots.flow" if BOT_TYPE == "flow" else "bots.simple"
         env = os.environ.copy()
         env["PYTHONPATH"] = os.path.dirname(os.path.abspath(__file__))
         proc = subprocess.Popen(
@@ -192,14 +173,16 @@ async def start_agent(request: Request):
 
 @app.post("/connect")
 async def rtvi_connect(request: Request) -> Dict[Any, Any]:
-    """RTVI connect endpoint that creates a room and returns connection credentials."""
-    logger.info(f"Creating room for RTVI connection with {config.bot_type} bot")
+    """
+    RTVI connect endpoint that creates a room and returns connection credentials.
+    It also spawns a bot process.
+    """
+    logger.info(f"Creating room for RTVI connection with {BOT_TYPE} bot")
     room_url, token = await create_room_and_token()
     logger.info(f"Room URL: {room_url}")
 
-    # Start the bot process
     try:
-        bot_module = "bots.flow" if config.bot_type == "flow" else "bots.simple"
+        bot_module = "bots.flow" if BOT_TYPE == "flow" else "bots.simple"
         env = os.environ.copy()
         env["PYTHONPATH"] = os.path.dirname(os.path.abspath(__file__))
         proc = subprocess.Popen(
@@ -212,33 +195,32 @@ async def rtvi_connect(request: Request) -> Dict[Any, Any]:
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to start subprocess: {e}")
 
-    # Return the authentication bundle in format expected by DailyTransport
     return {"room_url": room_url, "token": token}
 
 
 @app.get("/status/{pid}")
 def get_status(pid: int):
-    """Get the status of a specific bot process."""
-    proc = bot_procs.get(pid)
-
-    if not proc:
+    """
+    Get the status of a specific bot process.
+    """
+    proc_tuple = bot_procs.get(pid)
+    if not proc_tuple:
         raise HTTPException(
             status_code=404, detail=f"Bot with process id: {pid} not found"
         )
-
-    status = "running" if proc[0].poll() is None else "finished"
+    proc, _ = proc_tuple
+    status = "running" if proc.poll() is None else "finished"
     return JSONResponse({"bot_id": pid, "status": status})
 
 
 if __name__ == "__main__":
+    # When running via "python -m main", start the FastAPI server using uvicorn.
     import uvicorn
 
-    logger.info(f"Starting server with {config.bot_type} bot")
-
-    # Start the FastAPI server
+    logger.info(f"Starting FastAPI server for {BOT_TYPE} bot")
     uvicorn.run(
         "main:app",
-        host=args.host,
-        port=args.port,
-        reload=args.reload,
+        host=server_config.host,
+        port=server_config.port,
+        reload=server_config.reload,
     )
