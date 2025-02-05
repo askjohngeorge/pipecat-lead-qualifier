@@ -150,7 +150,7 @@ async def start_bot_process(room_url: str, token: str) -> int:
     try:
         # Get the server directory (where main.py is located)
         server_dir = os.path.dirname(os.path.abspath(__file__))
-        run_helpers_path = os.path.join(server_dir, "utils", "run_helpers.py")
+        run_helpers_path = os.path.join(server_dir, "runner.py")
 
         # Build command to run the script directly
         cmd = [
