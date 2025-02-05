@@ -43,7 +43,7 @@ def cli() -> None:
     # Bot type selection
     parser.add_argument(
         "--bot-type",
-        type=str,
+        type=str.lower,
         choices=["simple", "flow"],
         help="Type of bot (overrides BOT_TYPE in configuration)",
     )
@@ -51,7 +51,7 @@ def cli() -> None:
     # TTS configuration
     parser.add_argument(
         "--tts-provider",
-        type=str,
+        type=str.lower,
         choices=["deepgram", "cartesia", "elevenlabs"],
         help="Override TTS_PROVIDER (default: deepgram)",
     )
