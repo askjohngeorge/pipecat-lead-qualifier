@@ -42,6 +42,7 @@ def cli() -> None:
 
     # Bot type selection
     parser.add_argument(
+        "-b",
         "--bot-type",
         type=str.lower,
         choices=["simple", "flow"],
@@ -50,6 +51,7 @@ def cli() -> None:
 
     # TTS configuration
     parser.add_argument(
+        "-p",
         "--tts-provider",
         type=str.lower,
         choices=["deepgram", "cartesia", "elevenlabs"],
@@ -75,11 +77,13 @@ def cli() -> None:
 
     # OpenAI configuration
     parser.add_argument(
+        "-m",
         "--openai-model",
         type=str,
         help="Override OPENAI_MODEL (default: gpt-4o)",
     )
     parser.add_argument(
+        "-T",
         "--openai-temperature",
         type=float,
         help="Override OPENAI_TEMPERATURE (default: 0.2)",
@@ -87,6 +91,7 @@ def cli() -> None:
 
     # Bot name configuration
     parser.add_argument(
+        "-n",
         "--bot-name",
         type=str,
         help="Override BOT_NAME",
