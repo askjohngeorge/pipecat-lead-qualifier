@@ -133,7 +133,7 @@ grep -qxF ".env" .gitignore || echo ".env" >> .gitignore
 
 ### Advanced Configuration Options
 
-In addition to the required environment variables (`DAILY_API_KEY`, `DEEPGRAM_API_KEY`, `CARTESIA_API_KEY`, and `OPENAI_API_KEY`), you can customize the behavior of the application by setting the following optional environment variables in your `.env` file:
+In addition to the required environment variables (`DAILY_API_KEY`, `DEEPGRAM_API_KEY`, and `OPENAI_API_KEY`), you can customize the behavior of the application by setting the following optional environment variables in your `.env` file:
 
 - **DAILY_API_URL**  
   - **Default:** `https://api.daily.co/v1`  
@@ -148,6 +148,10 @@ In addition to the required environment variables (`DAILY_API_KEY`, `DEEPGRAM_AP
 - **DEEPGRAM_VOICE**  
   - **Default:** `aura-athena-en`  
   - **Usage:** Specifies the voice identifier for the Deepgram TTS service when **TTS_PROVIDER** is not set to `cartesia`.
+
+- **CARTESIA_API_KEY**  
+  - **Default:** `null`  
+  - **Usage:** Specifies the API key for the Cartesia TTS service. This is used only **required** if **TTS_PROVIDER** is set to `cartesia`.
 
 - **CARTESIA_VOICE**  
   - **Default:** `79a125e8-cd45-4c13-8a67-188112f4dd22`  
@@ -166,18 +170,11 @@ In addition to the required environment variables (`DAILY_API_KEY`, `DEEPGRAM_AP
   - **Valid Values:** `simple` or `flow`  
   - **Usage:** Specifies which bot variant to launch. This setting is checked at startup and used to determine the corresponding bot implementation within the `server/bots/` package.
 
-These optional variables are processed by the `AppConfig` class in `config/settings.py`. In the `bots/base_bot.py` module, the configuration is used as follows:
+- **ENABLE_STT_MUTE_FILTER**  
+  - **Default:** `false`  
+  - **Usage:** Determines whether the STT mute filter is enabled. This affects the STT service and logic sequence within the bot's processing pipeline.
 
-- **STT & TTS Initialization:**  
-  The bot initializes Deepgram's STT service using **DEEPGRAM_API_KEY**. Depending on **TTS_PROVIDER**, it either initializes the Deepgram TTS service (using **DEEPGRAM_VOICE**) or the Cartesia TTS service (using **CARTESIA_API_KEY** and **CARTESIA_VOICE**).
-
-- **LLM Setup:**  
-  The bot sets up the OpenAI LLM service with **OPENAI_API_KEY**, **OPENAI_MODEL**, and additional parameters (such as **OPENAI_TEMPERATURE** bundled into the `InputParams`). This is used to drive conversation logic.
-
-- **Bot Behavior:**  
-  The **BOT_TYPE** variable determines whether a "simple" or "flow" bot implementation is executed; this affects the orchestration and logic sequence within the bot's processing pipeline.
-
-By adjusting these variables in your `.env` file, you can fine-tune service integrations and bot behavior without modifying the application code.
+These optional variables are processed by the `AppConfig` class in `config/settings.py`. In the `bots/base_bot.py` module.
 
 ### Server Setup
 

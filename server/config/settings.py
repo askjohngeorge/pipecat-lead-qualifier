@@ -40,6 +40,9 @@ class AppConfig:
         if self._bot_type not in ("simple", "flow"):
             self._bot_type = "flow"  # Default to flow bot if invalid value
 
+    def _is_truthy(self, value: str) -> bool:
+        return value.lower() in ("true", "1", "t", "yes", "y")
+
     @property
     def tts_provider(self) -> str:
         return os.getenv("TTS_PROVIDER", "deepgram")
@@ -104,3 +107,7 @@ class AppConfig:
     def bot_type(self, value: BotType):
         self._bot_type = value
         os.environ["BOT_TYPE"] = value
+
+    @property
+    def enable_stt_mute_filter(self) -> bool:
+        return self._is_truthy(os.getenv("ENABLE_STT_MUTE_FILTER", "false"))

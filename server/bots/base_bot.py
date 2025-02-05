@@ -52,11 +52,18 @@ class BaseBot(ABC):
         )
 
         # Initialize mute filter
-        self.stt_mute_config = STTMuteConfig(
-            strategies={STTMuteStrategy.FIRST_SPEECH, STTMuteStrategy.FUNCTION_CALL}
-        )
-        self.stt_mute_filter = STTMuteFilter(
-            stt_service=self.stt, config=self.stt_mute_config
+        self.stt_mute_filter = (
+            STTMuteFilter(
+                stt_service=self.stt,
+                config=STTMuteConfig(
+                    strategies={
+                        STTMuteStrategy.FIRST_SPEECH,
+                        STTMuteStrategy.FUNCTION_CALL,
+                    }
+                ),
+            )
+            if config.enable_stt_mute_filter
+            else None
         )
 
         # Initialize context
@@ -104,15 +111,19 @@ class BaseBot(ABC):
         # Build the pipeline using a simple, flat processor list
         pipeline = Pipeline(
             [
-                self.rtvi,  # RTVI processor
-                self.transport.input(),  # Transport for user input
-                self.stt_mute_filter,  # STT mute filter
-                self.stt,  # STT service
-                self.context_aggregator.user(),  # User side context aggregation
-                self.llm,  # LLM processor
-                self.tts,  # TTS service
-                self.transport.output(),  # Transport for delivering output
-                self.context_aggregator.assistant(),  # Assistant side context aggregation
+                processor
+                for processor in [
+                    self.rtvi,  # RTVI processor
+                    self.transport.input(),  # Transport for user input
+                    self.stt_mute_filter,  # STT mute filter
+                    self.stt,  # STT service
+                    self.context_aggregator.user(),  # User side context aggregation
+                    self.llm,  # LLM processor
+                    self.tts,  # TTS service
+                    self.transport.output(),  # Transport for delivering output
+                    self.context_aggregator.assistant(),  # Assistant side context aggregation
+                ]
+                if processor is not None  # Remove processors disabled via config
             ]
         )
 
