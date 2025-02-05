@@ -9,6 +9,7 @@ from pipecat.pipeline.runner import PipelineRunner
 from pipecat.processors.frameworks.rtvi import RTVIConfig, RTVIProcessor
 from pipecat.services.deepgram import DeepgramSTTService, DeepgramTTSService
 from pipecat.services.cartesia import CartesiaTTSService
+from pipecat.services.elevenlabs import ElevenLabsTTSService
 from pipecat.services.openai import OpenAILLMService
 from pipecat.processors.aggregators.openai_llm_context import OpenAILLMContext
 from pipecat.processors.filters.stt_mute_filter import (
@@ -34,7 +35,14 @@ class BaseBot(ABC):
 
         # Initialize services
         self.stt = DeepgramSTTService(api_key=config.deepgram_api_key)
-        if config.tts_provider == "cartesia":
+        if config.tts_provider == "elevenlabs":
+            if not config.elevenlabs_api_key:
+                raise ValueError("ElevenLabs API key is required for ElevenLabs TTS")
+
+            self.tts = ElevenLabsTTSService(
+                api_key=config.elevenlabs_api_key, voice_id=config.elevenlabs_voice_id
+            )
+        elif config.tts_provider == "cartesia":
             if not config.cartesia_api_key:
                 raise ValueError("Cartesia API key is required for Cartesia TTS")
 

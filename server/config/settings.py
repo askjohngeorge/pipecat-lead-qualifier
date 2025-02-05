@@ -54,11 +54,12 @@ class AppConfig:
 
     @property
     def tts_provider(self) -> str:
-        return os.getenv("TTS_PROVIDER", "deepgram")
+        return os.getenv("TTS_PROVIDER", "deepgram").lower()
 
     @tts_provider.setter
     def tts_provider(self, value: str):
-        if value not in ("deepgram", "cartesia"):
+        value = value.lower()
+        if value not in ("deepgram", "cartesia", "elevenlabs"):
             raise ValueError(f"Invalid TTS provider: {value}")
 
         os.environ["TTS_PROVIDER"] = value
@@ -90,6 +91,18 @@ class AppConfig:
     @cartesia_voice.setter
     def cartesia_voice(self, value: str):
         os.environ["CARTESIA_VOICE"] = value
+
+    @property
+    def elevenlabs_api_key(self) -> str:
+        return os.getenv("ELEVENLABS_API_KEY")
+
+    @property
+    def elevenlabs_voice_id(self) -> str:
+        return os.getenv("ELEVENLABS_VOICE_ID", "JBFqnCBsd6RMkjVDRZzb")
+
+    @elevenlabs_voice_id.setter
+    def elevenlabs_voice_id(self, value: str):
+        os.environ["ELEVENLABS_VOICE_ID"] = value
 
     @property
     def openai_model(self) -> str:
