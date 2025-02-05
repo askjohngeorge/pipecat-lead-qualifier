@@ -1,6 +1,5 @@
 import argparse
 import asyncio
-import os
 from typing import Type
 
 from config.bot import BotConfig
@@ -29,10 +28,7 @@ async def run_bot(
 
 
 def cli() -> None:
-    """Parse command-line arguments, override configuration if needed, and start the bot.
-
-    The --bot-type argument (if provided) will override the BOT_TYPE setting in the configuration.
-    """
+    """Parse command-line arguments, override configuration if needed, and start the bot."""
     parser = argparse.ArgumentParser(description="Unified Bot Runner")
     parser.add_argument(
         "-u", "--room-url", type=str, required=True, help="Daily room URL"
