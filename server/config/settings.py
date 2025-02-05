@@ -53,6 +53,14 @@ class AppConfig:
         )
 
     @property
+    def bot_name(self) -> str:
+        return os.getenv("BOT_NAME", "AskJohnGeorge Lead Qualifier")
+
+    @bot_name.setter
+    def bot_name(self, value: str):
+        os.environ["BOT_NAME"] = value
+
+    @property
     def tts_provider(self) -> str:
         return os.getenv("TTS_PROVIDER", "deepgram").lower()
 

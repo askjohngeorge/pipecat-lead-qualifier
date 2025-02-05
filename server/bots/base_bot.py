@@ -97,7 +97,7 @@ class BaseBot(ABC):
     async def setup_transport(self, url: str, token: str):
         """Set up the transport with the given URL and token."""
         self.transport = DailyTransport(
-            url, token, "Lead Qualification Bot", self.transport_params
+            url, token, self.config.bot_name, self.transport_params
         )
 
         # Set up basic event handlers
