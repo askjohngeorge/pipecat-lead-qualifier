@@ -21,7 +21,6 @@ from prompts import (
     get_role_prompt,
     get_recording_consent_prompt,
     get_name_and_interest_prompt,
-    get_consultancy_prompt,
     get_development_prompt,
     get_qa_prompt,
     get_any_more_questions_prompt,
@@ -106,45 +105,8 @@ def create_name_and_interest_node() -> Dict:
     }
 
 
-def create_consultancy_node() -> Dict:
-    """# Node 3: Consultancy Node
-    Create node for handling technical consultation path."""
-    return {
-        **get_role_prompt(),
-        **get_consultancy_prompt(),
-        "functions": [
-            {
-                "type": "function",
-                "function": {
-                    "name": "handle_any_more_questions",
-                    "description": "Check if the user has more questions",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "any_more_questions": {
-                                "type": "boolean",
-                                "description": "Whether the user has more questions",
-                            }
-                        },
-                        "required": ["any_more_questions"],
-                    },
-                    "handler": handle_any_more_questions,
-                    "transition_callback": handle_any_more_questions_transition,
-                },
-            }
-        ],
-        "post_actions": [
-            {
-                "type": "execute_navigation",
-                "path": "/consultancy",
-                "message": "I've navigated you to our consultancy booking page where you can schedule a paid consultation with our founder.",
-            }
-        ],
-    }
-
-
 def create_development_node() -> Dict:
-    """# Node 4: Development Node
+    """# Node 3: Development Node
     Create node for handling voice agent development path."""
     return {
         **get_role_prompt(),
@@ -174,7 +136,7 @@ def create_development_node() -> Dict:
 
 
 def create_qa_node() -> Dict:
-    """# Node 5: Q&A Node
+    """# Node 4: Q&A Node
     Create node for handling general questions about services."""
     return {
         **get_role_prompt(),
@@ -213,7 +175,7 @@ def create_qa_node() -> Dict:
 
 
 def create_any_more_questions_node() -> Dict:
-    """# Node 6: Any More Questions Node
+    """# Node 5: Any More Questions Node
     Create node that asks if the user has any more questions."""
     return {
         **get_role_prompt(),
@@ -243,7 +205,7 @@ def create_any_more_questions_node() -> Dict:
 
 
 def create_close_call_node() -> Dict:
-    """# Node 7: Final Close Node
+    """# Node 6: Final Close Node
     Create node to conclude the conversation."""
     return {
         **get_role_prompt(),
@@ -320,11 +282,19 @@ async def handle_name_and_interest(args: Dict, flow_manager: FlowManager):
     flow_manager.state.update(args)
     interest_type = args["interest_type"]
     if interest_type == "technical_consultation":
-        await flow_manager.set_node("consultancy", create_consultancy_node())
-    elif interest_type == "qa":
-        await flow_manager.set_node("qa", create_qa_node())
-    else:  # voice_agent_development
+        close_node = create_close_call_node()
+        close_node["pre_actions"] = [
+            {
+                "type": "tts_say",
+                "text": "I've navigated you to our consultancy booking page where you can set up a video conference with our founder to discuss your needs in more detail. Please note that this will require an up-front payment which is non-refundable in the case of no-show or cancellation. Please provide as much detail as you can when you book, to assist us in preparing for the call.",
+            },
+            {"type": "execute_navigation", "path": "/consultancy"},
+        ]
+        await flow_manager.set_node("close_call", close_node)
+    elif interest_type == "voice_agent_development":
         await flow_manager.set_node("development", create_development_node())
+    else:  # qa
+        await flow_manager.set_node("qa", create_qa_node())
 
 
 async def handle_qualification_data(args: Dict, flow_manager: FlowManager):

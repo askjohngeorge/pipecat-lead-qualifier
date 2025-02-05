@@ -64,20 +64,6 @@ def get_name_and_interest_prompt() -> NodeMessage:
     )
 
 
-def get_consultancy_prompt() -> NodeMessage:
-    """Return a dictionary with the consultancy task."""
-    return get_task_prompt(
-        """# Steps
-1. Consultancy Booking
-~Use the `navigate` tool to navigate to `/consultancy`~
-"I've navigated you to our consultancy booking page where you can set up a video conference with our founder to discuss your needs in more detail. Please note that this will require an up-front payment which is non-refundable in the case of no-show or cancellation. Please provide as much detail as you can when you book, to assist us in preparing for the call."
-~Ask if they have any more questions~
- - [ 1.1 If R = No more questions ] -> ~This step is complete~
- - [ 1.2 If R = Has more questions ] -> ~Only answer questions directly related to the provision of our voice AI services, anything else can be asked during the consultation~
-"""
-    )
-
-
 def get_development_prompt() -> NodeMessage:
     """Return a dictionary with the development task."""
     return get_task_prompt(
