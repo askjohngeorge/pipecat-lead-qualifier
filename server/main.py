@@ -3,8 +3,7 @@ Main entry point for the FastAPI server.
 
 This module defines the FastAPI application, its endpoints,
 and lifecycle management. It relies on environment variables for configuration
-(e.g., HOST, FAST_API_PORT, BOT_TYPE) and does not include CLI logic for bot startup.
-Use your dedicated CLI in run_helpers.py for direct bot launches.
+(e.g., HOST, FAST_API_PORT) and uses run_helpers.py for bot startup.
 """
 
 import os
@@ -25,17 +24,16 @@ from pipecat.transports.services.helpers.daily_rest import (
     DailyRoomParams,
 )
 
-from config.bot import BotConfig
 from config.server import ServerConfig
 
-# Read server settings and bot type from environment variables (with defaults)
-BOT_TYPE: str = os.getenv("BOT_TYPE", "simple")
-HOST: str = os.getenv("HOST", "0.0.0.0")
-FAST_API_PORT: int = int(os.getenv("FAST_API_PORT", "7860"))
-RELOAD: bool = os.getenv("RELOAD", "false").lower() == "true"
+# Server configuration
+server_config = ServerConfig()
 
-# Initialize our configuration (used by DailyRESTHelper later)
-config: BotConfig = BotConfig()
+# Runtime state
+bot_procs: Dict[int, tuple] = {}  # Track bot processes: {pid: (process, room_url)}
+daily_helpers: Dict[str, DailyRESTHelper] = (
+    {}
+)  # Store Daily API helpers (initialized in lifespan)
 
 # Configure loguru (removing default handler and adding our custom handler)
 logger.remove()
@@ -49,17 +47,6 @@ logger.add(
     diagnose=True,  # Include variables in traceback
 )
 
-# Maximum number of bot instances allowed per room
-MAX_BOTS_PER_ROOM: int = 1
-
-# Dictionary to track bot processes: {pid: (process, room_url)}
-bot_procs: Dict[int, tuple] = {}
-
-# Store Daily API helpers (initialized in the lifespan context)
-daily_helpers: Dict[str, DailyRESTHelper] = {}
-
-server_config = ServerConfig()
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -69,8 +56,8 @@ async def lifespan(app: FastAPI):
     """
     aiohttp_session = aiohttp.ClientSession()
     daily_helpers["rest"] = DailyRESTHelper(
-        daily_api_key=config.daily["api_key"],
-        daily_api_url=config.daily["api_url"],
+        daily_api_key=server_config.daily_api_key,
+        daily_api_url=server_config.daily_api_url,
         aiohttp_session=aiohttp_session,
     )
 
@@ -138,7 +125,7 @@ async def create_room_and_token() -> tuple[str, str]:
 
 
 async def start_bot_process(room_url: str, token: str) -> int:
-    """Start a bot subprocess and track it in bot_procs.
+    """Start a bot subprocess via run_helpers CLI.
 
     Args:
         room_url: Daily room URL for the bot to join
@@ -154,20 +141,35 @@ async def start_bot_process(room_url: str, token: str) -> int:
     num_bots_in_room = sum(
         1 for proc, url in bot_procs.values() if url == room_url and proc.poll() is None
     )
-    if num_bots_in_room >= MAX_BOTS_PER_ROOM:
+    if num_bots_in_room >= server_config.max_bots_per_room:
         raise HTTPException(
             status_code=429,
-            detail=f"Room {room_url} at capacity ({MAX_BOTS_PER_ROOM} bots)",
+            detail=f"Room {room_url} at capacity ({server_config.max_bots_per_room} bots)",
         )
 
     try:
-        bot_module = "bots.flow" if BOT_TYPE == "flow" else "bots.simple"
+        # Get the server directory (where main.py is located)
+        server_dir = os.path.dirname(os.path.abspath(__file__))
+        run_helpers_path = os.path.join(server_dir, "utils", "run_helpers.py")
+
+        # Build command to run the script directly
+        cmd = [
+            sys.executable,  # Use same Python interpreter
+            run_helpers_path,  # Run the script directly
+            "-u",
+            room_url,
+            "-t",
+            token,
+        ]
+
+        # Set up environment with proper Python path
         env = os.environ.copy()
-        env["PYTHONPATH"] = os.path.dirname(os.path.abspath(__file__))
+        env["PYTHONPATH"] = server_dir  # Set server directory as Python path
+
         proc = subprocess.Popen(
-            ["python3", "-m", bot_module, "-u", room_url, "-t", token],
+            cmd,
             bufsize=1,
-            cwd=os.path.dirname(os.path.abspath(__file__)),
+            cwd=server_dir,  # Run from server directory
             env=env,
         )
         bot_procs[proc.pid] = (proc, room_url)
@@ -183,7 +185,7 @@ async def start_agent(request: Request):
     Endpoint for direct browser access to the bot.
     Creates a room and spawns a bot subprocess.
     """
-    logger.info(f"Creating room for {BOT_TYPE} bot (browser access)")
+    logger.info("Creating room for bot (browser access)")
     room_url, token = await create_room_and_token()
     logger.info(f"Room URL: {room_url}")
 
@@ -199,7 +201,7 @@ async def rtvi_connect(request: Request) -> Dict[str, Any]:
     Returns:
         Dict containing room_url, token, bot_pid, and status_endpoint
     """
-    logger.info(f"Creating room for RTVI connection ({BOT_TYPE} bot)")
+    logger.info("Creating room for RTVI connection")
     room_url, token = await create_room_and_token()
     logger.info(f"Room URL: {room_url}")
 
@@ -232,7 +234,7 @@ if __name__ == "__main__":
     # When running via "python -m main", start the FastAPI server using uvicorn.
     import uvicorn
 
-    logger.info(f"Starting FastAPI server for {BOT_TYPE} bot")
+    logger.info("Starting FastAPI server")
     uvicorn.run(
         "main:app",
         host=server_config.host,
