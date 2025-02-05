@@ -137,67 +137,80 @@ async def create_room_and_token() -> tuple[str, str]:
     return room.url, token
 
 
+async def start_bot_process(room_url: str, token: str) -> int:
+    """Start a bot subprocess and track it in bot_procs.
+
+    Args:
+        room_url: Daily room URL for the bot to join
+        token: Daily token for authentication
+
+    Returns:
+        Process ID of the started bot
+
+    Raises:
+        HTTPException: If subprocess startup fails or room is at capacity
+    """
+    # Check room capacity
+    num_bots_in_room = sum(
+        1 for proc, url in bot_procs.values() if url == room_url and proc.poll() is None
+    )
+    if num_bots_in_room >= MAX_BOTS_PER_ROOM:
+        raise HTTPException(
+            status_code=429,
+            detail=f"Room {room_url} at capacity ({MAX_BOTS_PER_ROOM} bots)",
+        )
+
+    try:
+        bot_module = "bots.flow" if BOT_TYPE == "flow" else "bots.simple"
+        env = os.environ.copy()
+        env["PYTHONPATH"] = os.path.dirname(os.path.abspath(__file__))
+        proc = subprocess.Popen(
+            ["python3", "-m", bot_module, "-u", room_url, "-t", token],
+            bufsize=1,
+            cwd=os.path.dirname(os.path.abspath(__file__)),
+            env=env,
+        )
+        bot_procs[proc.pid] = (proc, room_url)
+        return proc.pid
+    except Exception as e:
+        logger.error(f"Bot startup failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to start bot process: {e}")
+
+
 @app.get("/")
 async def start_agent(request: Request):
     """
     Endpoint for direct browser access to the bot.
     Creates a room and spawns a bot subprocess.
     """
-    logger.info(f"Creating room for {BOT_TYPE} bot")
+    logger.info(f"Creating room for {BOT_TYPE} bot (browser access)")
     room_url, token = await create_room_and_token()
     logger.info(f"Room URL: {room_url}")
 
-    # Ensure a maximum number of bot instances per room.
-    num_bots_in_room = sum(
-        1 for proc, url in bot_procs.values() if url == room_url and proc.poll() is None
-    )
-    if num_bots_in_room >= MAX_BOTS_PER_ROOM:
-        raise HTTPException(
-            status_code=500, detail=f"Max bot limit reached for room: {room_url}"
-        )
-
-    try:
-        bot_module = "bots.flow" if BOT_TYPE == "flow" else "bots.simple"
-        env = os.environ.copy()
-        env["PYTHONPATH"] = os.path.dirname(os.path.abspath(__file__))
-        proc = subprocess.Popen(
-            ["python3", "-m", bot_module, "-u", room_url, "-t", token],
-            bufsize=1,
-            cwd=os.path.dirname(os.path.abspath(__file__)),
-            env=env,
-        )
-        bot_procs[proc.pid] = (proc, room_url)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to start subprocess: {e}")
-
+    # Start bot and redirect to room
+    await start_bot_process(room_url, token)
     return RedirectResponse(room_url)
 
 
 @app.post("/connect")
-async def rtvi_connect(request: Request) -> Dict[Any, Any]:
+async def rtvi_connect(request: Request) -> Dict[str, Any]:
+    """API-friendly endpoint returning connection credentials.
+
+    Returns:
+        Dict containing room_url, token, bot_pid, and status_endpoint
     """
-    RTVI connect endpoint that creates a room and returns connection credentials.
-    It also spawns a bot process.
-    """
-    logger.info(f"Creating room for RTVI connection with {BOT_TYPE} bot")
+    logger.info(f"Creating room for RTVI connection ({BOT_TYPE} bot)")
     room_url, token = await create_room_and_token()
     logger.info(f"Room URL: {room_url}")
 
-    try:
-        bot_module = "bots.flow" if BOT_TYPE == "flow" else "bots.simple"
-        env = os.environ.copy()
-        env["PYTHONPATH"] = os.path.dirname(os.path.abspath(__file__))
-        proc = subprocess.Popen(
-            ["python3", "-m", bot_module, "-u", room_url, "-t", token],
-            bufsize=1,
-            cwd=os.path.dirname(os.path.abspath(__file__)),
-            env=env,
-        )
-        bot_procs[proc.pid] = (proc, room_url)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to start subprocess: {e}")
-
-    return {"room_url": room_url, "token": token}
+    # Start bot and return credentials
+    pid = await start_bot_process(room_url, token)
+    return {
+        "room_url": room_url,
+        "token": token,
+        "bot_pid": pid,
+        "status_endpoint": f"/status/{pid}",
+    }
 
 
 @app.get("/status/{pid}")
