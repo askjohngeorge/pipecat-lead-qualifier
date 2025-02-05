@@ -23,7 +23,6 @@ from prompts import (
     get_name_and_interest_prompt,
     get_development_prompt,
     get_qa_prompt,
-    get_any_more_questions_prompt,
     get_close_call_prompt,
 )
 
@@ -150,21 +149,16 @@ def create_qa_node() -> Dict:
                     "parameters": {
                         "type": "object",
                         "properties": {
-                            "any_more_questions": {
-                                "type": "boolean",
-                                "description": "Whether the user has more questions",
-                            },
                             "switch_to_service": {
                                 "type": "string",
                                 "enum": [
                                     "technical_consultation",
                                     "voice_agent_development",
-                                    "none",
                                 ],
                                 "description": "If user wants to switch to discussing a specific service",
                             },
                         },
-                        "required": ["any_more_questions", "switch_to_service"],
+                        "required": ["switch_to_service"],
                     },
                     "handler": handle_qa,
                     "transition_callback": handle_qa_transition,
@@ -174,38 +168,8 @@ def create_qa_node() -> Dict:
     }
 
 
-def create_any_more_questions_node() -> Dict:
-    """# Node 5: Any More Questions Node
-    Create node that asks if the user has any more questions."""
-    return {
-        **get_role_prompt(),
-        **get_any_more_questions_prompt(),
-        "functions": [
-            {
-                "type": "function",
-                "function": {
-                    "name": "handle_any_more_questions",
-                    "description": "Process user response to determine if they have additional questions",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "any_more_questions": {
-                                "type": "boolean",
-                                "description": "Whether the user has more questions",
-                            }
-                        },
-                        "required": ["any_more_questions"],
-                    },
-                    "handler": handle_any_more_questions,
-                    "transition_callback": handle_any_more_questions_transition,
-                },
-            }
-        ],
-    }
-
-
 def create_close_call_node() -> Dict:
-    """# Node 6: Final Close Node
+    """# Node 5: Final Close Node
     Create node to conclude the conversation."""
     return {
         **get_role_prompt(),
@@ -248,11 +212,6 @@ async def handle_qa(args: FlowArgs) -> FlowResult:
     }
 
 
-async def handle_any_more_questions(args: FlowArgs) -> FlowResult:
-    """Process user response about having additional questions."""
-    return {"any_more_questions": args["any_more_questions"]}
-
-
 # ==============================================================================
 # Transition Callbacks
 # ==============================================================================
@@ -282,15 +241,8 @@ async def handle_name_and_interest(args: Dict, flow_manager: FlowManager):
     flow_manager.state.update(args)
     interest_type = args["interest_type"]
     if interest_type == "technical_consultation":
-        close_node = create_close_call_node()
-        close_node["pre_actions"] = [
-            {
-                "type": "tts_say",
-                "text": "I've navigated you to our consultancy booking page where you can set up a video conference with our founder to discuss your needs in more detail. Please note that this will require an up-front payment which is non-refundable in the case of no-show or cancellation. Please provide as much detail as you can when you book, to assist us in preparing for the call.",
-            },
-            {"type": "execute_navigation", "path": "/consultancy"},
-        ]
-        await flow_manager.set_node("close_call", close_node)
+        close_call = add_consultancy_pre_actions(create_close_call_node())
+        await flow_manager.set_node("close_call", close_call)
     elif interest_type == "voice_agent_development":
         await flow_manager.set_node("development", create_development_node())
     else:  # qa
@@ -310,63 +262,62 @@ async def handle_qualification_data(args: Dict, flow_manager: FlowManager):
 
     logger.debug(f"Qualified: {qualified} based on: {args}")
 
-    # Create any more questions node with navigation as pre-action
-    questions_node = create_any_more_questions_node()
+    # Create close call node with navigation as pre-action
+    close_call = add_development_pre_actions(create_close_call_node(), qualified)
 
-    # Add TTS message and navigation as separate pre-actions
-    nav_message = (
-        "I've navigated you to our discovery call booking page where you can schedule a free consultation."
-        if qualified
-        else "I've navigated you to our contact form where you can send us more details about your requirements."
-    )
-
-    questions_node["pre_actions"] = [
-        {"type": "tts_say", "text": nav_message},
-        {
-            "type": "execute_navigation",
-            "path": "/discovery" if qualified else "/contact",
-        },
-    ]
-
-    # Transition to any more questions node
-    await flow_manager.set_node("any_more_questions", questions_node)
+    # Transition to close call node
+    await flow_manager.set_node("close_call", close_call)
 
 
 async def handle_qa_transition(args: Dict, flow_manager: FlowManager):
     """Handle transition after Q&A interaction."""
     flow_manager.state.update(args)
 
-    if not args["any_more_questions"]:
-        if args["switch_to_service"] == "technical_consultation":
-            await flow_manager.set_node("consultancy", create_consultancy_node())
-        elif args["switch_to_service"] == "voice_agent_development":
-            await flow_manager.set_node("development", create_development_node())
-        else:
-            # No more questions and no service interest - go to close call
-            close_node = create_close_call_node()
-            close_node["pre_actions"] = [
-                {
-                    "type": "tts_say",
-                    "text": "I've navigated you to our contact form where you can find more information and reach out to us with any future questions.",
-                },
-                {"type": "execute_navigation", "path": "/contact"},
-            ]
-            await flow_manager.set_node("close_call", close_node)
-
-
-async def handle_any_more_questions_transition(args: Dict, flow_manager: FlowManager):
-    """Handle transition after checking for additional questions."""
-    flow_manager.state.update(args)
-
-    if args["any_more_questions"]:
-        await flow_manager.set_node("qa", create_qa_node())
+    close_node = create_close_call_node()
+    if args["switch_to_service"] == "technical_consultation":
+        close_node = add_consultancy_pre_actions(close_node)
+        await flow_manager.set_node("close_call", close_node)
+    elif args["switch_to_service"] == "voice_agent_development":
+        await flow_manager.set_node("development", create_development_node())
     else:
-        await flow_manager.set_node("close_call", create_close_call_node())
+        # No more questions and no service interest - go to close call
+        close_node = add_development_pre_actions(create_close_call_node(), False)
+        await flow_manager.set_node("close_call", close_node)
 
 
 # ==============================================================================
 # Navigation Handling
 # ==============================================================================
+
+
+def add_consultancy_pre_actions(node: Dict) -> Dict:
+    """Add pre-actions for consultancy navigation."""
+    node["pre_actions"] = [
+        {
+            "type": "tts_say",
+            "text": "I've navigated you to our consultancy booking page where you can set up a video conference with our founder to discuss your needs in more detail. Please note that this will require an up-front payment which is non-refundable in the case of no-show or cancellation. Please provide as much detail as you can when you book, to assist us in preparing for the call.",
+        },
+        {"type": "execute_navigation", "path": "/consultancy"},
+    ]
+    return node
+
+
+def add_development_pre_actions(node: Dict, qualified: bool) -> Dict:
+    """Add pre-actions for development navigation."""
+    nav_message = (
+        "I've navigated you to our discovery call booking page where you can schedule a free discovery call to discuss your requirements in more detail."
+        if qualified
+        else "I've navigated you to our contact form where you can send us more details about your requirements."
+    )
+
+    node["pre_actions"] = [
+        {"type": "tts_say", "text": nav_message},
+        {
+            "type": "execute_navigation",
+            "path": "/discovery" if qualified else "/contact",
+        },
+    ]
+    return node
 
 
 class NavigationCoordinator:

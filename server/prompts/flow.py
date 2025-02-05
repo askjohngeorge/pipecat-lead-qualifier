@@ -115,18 +115,6 @@ def get_qa_prompt() -> NodeMessage:
     )
 
 
-def get_any_more_questions_prompt() -> NodeMessage:
-    """Return a dictionary with the any more questions task."""
-    get_task_prompt(
-        """# Steps
-1. Ask About Additional Questions
-"Do you have any more questions about our services?"
-- [ 1.1 If R = Yes, any affirmative response or a question ] → ~Set any_more_questions=True~
-- [ 1.2 If R = Any other response ] → ~Set any_more_questions=False~
-"""
-    )
-
-
 def get_close_call_prompt() -> NodeMessage:
     """Return a dictionary with the close call task."""
     return get_task_prompt(
