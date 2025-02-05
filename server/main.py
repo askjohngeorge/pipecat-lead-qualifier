@@ -34,6 +34,7 @@ bot_procs: Dict[int, tuple] = {}  # Track bot processes: {pid: (process, room_ur
 daily_helpers: Dict[str, DailyRESTHelper] = (
     {}
 )  # Store Daily API helpers (initialized in lifespan)
+bot_args: list[str] = []
 
 # Configure loguru (removing default handler and adding our custom handler)
 logger.remove()
@@ -124,19 +125,37 @@ async def create_room_and_token() -> tuple[str, str]:
     return room.url, token
 
 
+def parse_server_args():
+    """Parse server-specific arguments and store remaining args for bot processes"""
+    import argparse
+
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("--host", help="Server host")
+    parser.add_argument("--port", type=int, help="Server port")
+    parser.add_argument("--reload", action="store_true", help="Enable auto-reload")
+
+    # Parse known server args and keep remaining for bots
+    server_args, remaining_args = parser.parse_known_args()
+
+    # Update server config with parsed args
+    global server_config
+    if server_args.host:
+        server_config.host = server_args.host
+    if server_args.port:
+        server_config.port = server_args.port
+    if server_args.reload:
+        server_config.reload = server_args.reload
+
+    global bot_args
+    bot_args = remaining_args
+
+
+# Call this before starting the app
+parse_server_args()
+
+
 async def start_bot_process(room_url: str, token: str) -> int:
-    """Start a bot subprocess via run_helpers CLI.
-
-    Args:
-        room_url: Daily room URL for the bot to join
-        token: Daily token for authentication
-
-    Returns:
-        Process ID of the started bot
-
-    Raises:
-        HTTPException: If subprocess startup fails or room is at capacity
-    """
+    """Start a bot subprocess with forwarded CLI arguments"""
     # Check room capacity
     num_bots_in_room = sum(
         1 for proc, url in bot_procs.values() if url == room_url and proc.poll() is None
@@ -148,18 +167,18 @@ async def start_bot_process(room_url: str, token: str) -> int:
         )
 
     try:
-        # Get the server directory (where main.py is located)
         server_dir = os.path.dirname(os.path.abspath(__file__))
         run_helpers_path = os.path.join(server_dir, "runner.py")
 
-        # Build command to run the script directly
+        # Build command with forwarded arguments
         cmd = [
-            sys.executable,  # Use same Python interpreter
-            run_helpers_path,  # Run the script directly
+            sys.executable,
+            run_helpers_path,
             "-u",
             room_url,
             "-t",
             token,
+            *bot_args,  # Forward stored CLI arguments
         ]
 
         # Set up environment with proper Python path
