@@ -6,6 +6,7 @@ from typing import Optional, List, Dict
 from pipecat.pipeline.task import PipelineParams, PipelineTask
 from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.runner import PipelineRunner
+from pipecat.processors.frameworks.rtvi import RTVIConfig, RTVIProcessor
 from pipecat.services.deepgram import DeepgramSTTService, DeepgramTTSService
 from pipecat.services.cartesia import CartesiaTTSService
 from pipecat.services.openai import OpenAILLMService
@@ -70,6 +71,9 @@ class BaseBot(ABC):
             vad_audio_passthrough=True,
         )
 
+        # Initialize RTVI with default config
+        self.rtvi = RTVIProcessor(config=RTVIConfig(config=[]))
+
         # These will be set up when needed
         self.transport: Optional[DailyTransport] = None
         self.task: Optional[PipelineTask] = None
@@ -100,6 +104,7 @@ class BaseBot(ABC):
         # Build the pipeline using a simple, flat processor list
         pipeline = Pipeline(
             [
+                self.rtvi,  # RTVI processor
                 self.transport.input(),  # Transport for user input
                 self.stt_mute_filter,  # STT mute filter
                 self.stt,  # STT service

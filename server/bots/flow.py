@@ -4,12 +4,14 @@ import asyncio
 from functools import partial
 from typing import Dict
 import sys
+import uuid
 
 from dotenv import load_dotenv
 from loguru import logger
 
 from pipecat.processors.aggregators.openai_llm_context import OpenAILLMContext
 from pipecat.processors.frame_processor import FrameProcessor
+from pipecat.processors.frameworks.rtvi import RTVIProcessor
 from pipecat_flows import FlowArgs, FlowManager, FlowResult
 from pipecat_flows.types import ContextStrategy, ContextStrategyConfig
 
@@ -398,21 +400,29 @@ async def handle_any_more_questions_transition(args: Dict, flow_manager: FlowMan
 
 
 class NavigationCoordinator:
-    """Handles navigation between pages with proper error handling."""
+    """Handles navigation between pages"""
 
-    def __init__(self, llm: FrameProcessor, context: OpenAILLMContext):
+    def __init__(
+        self, rtvi: RTVIProcessor, llm: FrameProcessor, context: OpenAILLMContext
+    ):
+        self.rtvi = rtvi
         self.llm = llm
         self.context = context
 
     async def navigate(self, path: str) -> bool:
-        """Handle navigation with error tracking."""
+        """Handle navigation with error tracking"""
         try:
-            # TODO: Implement navigation without RTVI
-            # For now, just log and return success
-            logger.info(f"Navigating to {path}")
+            logger.debug(f"Navigating to {path} from NavigationCoordinator")
+            await self.rtvi.handle_function_call(
+                function_name="navigate",
+                tool_call_id=f"nav_{uuid.uuid4()}",
+                arguments={"path": path},
+                llm=self.llm,
+                context=self.context,
+                result_callback=None,
+            )
             return True
-        except Exception as e:
-            logger.error(f"Navigation failed to {path}: {str(e)}")
+        except Exception:
             return False
 
 
@@ -435,7 +445,7 @@ class FlowBot(BaseBot):
         """Handle first participant by initializing flow manager."""
         # Set up navigation coordinator
         self.navigation_coordinator = NavigationCoordinator(
-            llm=self.llm, context=self.context
+            rtvi=self.rtvi, llm=self.llm, context=self.context
         )
 
         # Set up flow manager
@@ -464,6 +474,7 @@ class FlowBot(BaseBot):
         self, action: dict, coordinator: NavigationCoordinator
     ):
         """Handle navigation with proper error handling."""
+        logger.debug(f"Handling navigation action: {action}")
         path = action["path"]
 
         try:
