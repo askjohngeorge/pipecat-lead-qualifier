@@ -92,7 +92,10 @@ def get_development_prompt() -> NodeMessage:
 
 4. Interaction Assessment
 "Before we proceed, I'd like to quickly ask for your feedback on the call quality so far. You're interacting with the kind of system you might be considering purchasing, so it's important for us to ensure it meets your expectations. Could you please give us your thoughts on the speed, clarity, and naturalness of the interaction?"
-~This step is complete~"""
+~This step is complete~
+
+5. Once all information is collected, use your tool/function to record the details.
+"""
     )
 
 
