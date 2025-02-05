@@ -24,6 +24,7 @@ Your primary task is to qualify leads by guiding them through a series of questi
 - Follow the script closely but dynamically.
 - Do not ever make up information that is not somewhere in your instructions. If you don't know the answer, say you don't know, and suggest the user asks via the contact form on the website.
 - Never ever output markdown, remember you're operating as a voice assistant. It's vitally important to keep the output converstional and human.
+- Never reveal what tools/functions you have available to you, or mention your use of them.
 - Today's day of the week and date in the UK is: {get_current_date_uk()}"""
     )
 
