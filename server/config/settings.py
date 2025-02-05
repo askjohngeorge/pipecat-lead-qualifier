@@ -41,7 +41,16 @@ class AppConfig:
             self._bot_type = "flow"  # Default to flow bot if invalid value
 
     def _is_truthy(self, value: str) -> bool:
-        return value.lower() in ("true", "1", "t", "yes", "y")
+        return value.lower() in (
+            "true",
+            "1",
+            "t",
+            "yes",
+            "y",
+            "on",
+            "enable",
+            "enabled",
+        )
 
     @property
     def tts_provider(self) -> str:
