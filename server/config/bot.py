@@ -1,4 +1,4 @@
-"""Configuration management module for server components."""
+"""Bot configuration management module."""
 
 import os
 from typing import TypedDict, Literal, NotRequired
@@ -15,7 +15,7 @@ class DailyConfig(TypedDict):
 BotType = Literal["simple", "flow"]
 
 
-class AppConfig:
+class BotConfig:
     def __init__(self):
         load_dotenv()
 
@@ -35,7 +35,7 @@ class AppConfig:
             "api_url": os.getenv("DAILY_API_URL", "https://api.daily.co/v1"),
         }
 
-        # Server configuration
+        # Bot configuration
         self._bot_type: BotType = os.getenv("BOT_TYPE", "flow")
         if self._bot_type not in ("simple", "flow"):
             self._bot_type = "flow"  # Default to flow bot if invalid value
@@ -145,10 +145,3 @@ class AppConfig:
     @enable_stt_mute_filter.setter
     def enable_stt_mute_filter(self, value: bool):
         os.environ["ENABLE_STT_MUTE_FILTER"] = str(value)
-
-
-class ServerConfig:
-    def __init__(self):
-        self.host: str = os.getenv("HOST", "0.0.0.0")
-        self.port: int = int(os.getenv("FAST_API_PORT", "7860"))
-        self.reload: bool = os.getenv("RELOAD", "false").lower() == "true"

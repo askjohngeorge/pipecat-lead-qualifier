@@ -3,11 +3,11 @@ import asyncio
 import os
 from typing import Type
 
-from config.settings import AppConfig
+from config.bot import BotConfig
 
 
 async def run_bot(
-    bot_class: Type, config: AppConfig, room_url: str, token: str
+    bot_class: Type, config: BotConfig, room_url: str, token: str
 ) -> None:
     """Universal bot runner handling bot lifecycle.
 
@@ -49,7 +49,7 @@ def cli() -> None:
     args = parser.parse_args()
 
     # Instantiate the configuration.
-    config = AppConfig()
+    config = BotConfig()
 
     # Override the bot type if provided in command-line arguments.
     if args.bot_type:

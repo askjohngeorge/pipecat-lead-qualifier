@@ -7,6 +7,7 @@ This package manages application-wide configuration through:
 - Default value handling
 """
 
-from .settings import AppConfig
+from .bot import BotConfig
+from .server import ServerConfig
 
-__all__ = ["AppConfig"]
+__all__ = ["BotConfig", "ServerConfig"]

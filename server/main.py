@@ -24,7 +24,9 @@ from pipecat.transports.services.helpers.daily_rest import (
     DailyRESTHelper,
     DailyRoomParams,
 )
-from config.settings import AppConfig, ServerConfig
+
+from config.bot import BotConfig
+from config.server import ServerConfig
 
 # Read server settings and bot type from environment variables (with defaults)
 BOT_TYPE: str = os.getenv("BOT_TYPE", "simple")
@@ -33,7 +35,7 @@ FAST_API_PORT: int = int(os.getenv("FAST_API_PORT", "7860"))
 RELOAD: bool = os.getenv("RELOAD", "false").lower() == "true"
 
 # Initialize our configuration (used by DailyRESTHelper later)
-config: AppConfig = AppConfig()
+config: BotConfig = BotConfig()
 
 # Configure loguru (removing default handler and adding our custom handler)
 logger.remove()
