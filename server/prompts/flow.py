@@ -109,11 +109,14 @@ def get_development_task() -> NodeMessage:
 
 3. Budget Discussion
 "What budget have you allocated for this project?"
+Below is your knowledge of our services, which you should only use to inform your responses if the user asks:
+<knowledge>
  * Development services begin at £1,000 for a simple voice agent with a single external integration
  * Advanced solutions with multiple integrations and post-deployment testing can range up to £10,000
  * Custom platform development is available but must be discussed on a case-by-case basis
  * All implementations will require ongoing costs associated with call costs, to be discussed on a case-by-case basis
  * We also offer support packages for ongoing maintenance and updates, again to be discussed on a case-by-case basis
+</knowledge>
  - [ 3.1 If R = Budget > £1,000 ] -> ~Record budget as `<budget>`, go to step 4~
  - [ 3.2 If R = Budget < £1,000 or no budget provided ] -> ~Explain our development services begin at £1,000 and ask if this is acceptable~
  - [ 3.3 If R = Vague response ] -> ~attempt to clarify the budget~
