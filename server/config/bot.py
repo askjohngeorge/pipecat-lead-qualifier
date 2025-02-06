@@ -77,6 +77,10 @@ class BotConfig:
     def elevenlabs_api_key(self) -> str:
         return os.getenv("ELEVENLABS_API_KEY")
 
+    @property
+    def rime_api_key(self) -> str:
+        return os.getenv("RIME_API_KEY")
+
     ###########################################################################
     # Bot configuration
     ###########################################################################
@@ -142,7 +146,7 @@ class BotConfig:
     @tts_provider.setter
     def tts_provider(self, value: str):
         value = value.lower()
-        if value not in ("deepgram", "cartesia", "elevenlabs"):
+        if value not in ("deepgram", "cartesia", "elevenlabs", "rime"):
             raise ValueError(f"Invalid TTS provider: {value}")
 
         os.environ["TTS_PROVIDER"] = value
@@ -170,6 +174,14 @@ class BotConfig:
     @elevenlabs_voice_id.setter
     def elevenlabs_voice_id(self, value: str):
         os.environ["ELEVENLABS_VOICE_ID"] = value
+
+    @property
+    def rime_voice_id(self) -> str:
+        return os.getenv("RIME_VOICE_ID", "eva")
+
+    @rime_voice_id.setter
+    def rime_voice_id(self, value: str):
+        os.environ["RIME_VOICE_ID"] = value
 
     @property
     def bot_type(self) -> BotType:

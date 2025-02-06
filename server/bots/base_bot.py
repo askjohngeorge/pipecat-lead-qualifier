@@ -18,6 +18,7 @@ from pipecat.processors.filters.stt_mute_filter import (
     STTMuteConfig,
     STTMuteStrategy,
 )
+from pipecat.services.rime import RimeHttpTTSService
 from pipecat.transports.services.daily import DailyTransport, DailyParams
 from pipecat.audio.vad.silero import SileroVADAnalyzer
 
@@ -57,6 +58,12 @@ class BaseBot(ABC):
             case "deepgram":
                 self.tts = DeepgramTTSService(
                     api_key=config.deepgram_api_key, voice=config.deepgram_voice
+                )
+            case "rime":
+                self.tts = RimeHttpTTSService(
+                    api_key=config.rime_api_key,
+                    voice_id=config.rime_voice_id,
+                    params=RimeHttpTTSService.InputParams(reduce_latency=True),
                 )
             case _:
                 raise ValueError(f"Invalid TTS provider: {config.tts_provider}")

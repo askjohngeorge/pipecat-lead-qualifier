@@ -48,7 +48,7 @@ def cli() -> None:
         "-p",
         "--tts-provider",
         type=str.lower,
-        choices=["deepgram", "cartesia", "elevenlabs"],
+        choices=["deepgram", "cartesia", "elevenlabs", "rime"],
         help="Override TTS_PROVIDER (default: deepgram)",
     )
 
