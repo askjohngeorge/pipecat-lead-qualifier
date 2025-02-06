@@ -10,6 +10,7 @@ from pipecat.processors.frameworks.rtvi import RTVIConfig, RTVIProcessor
 from pipecat.services.deepgram import DeepgramSTTService, DeepgramTTSService
 from pipecat.services.cartesia import CartesiaTTSService
 from pipecat.services.elevenlabs import ElevenLabsTTSService
+from pipecat.services.google import GoogleLLMService
 from pipecat.services.openai import OpenAILLMService
 from pipecat.processors.aggregators.openai_llm_context import OpenAILLMContext
 from pipecat.processors.filters.stt_mute_filter import (
@@ -33,31 +34,61 @@ class BaseBot(ABC):
         """
         self.config = config
 
-        # Initialize services
+        # Initialize STT service
         self.stt = DeepgramSTTService(api_key=config.deepgram_api_key)
-        if config.tts_provider == "elevenlabs":
-            if not config.elevenlabs_api_key:
-                raise ValueError("ElevenLabs API key is required for ElevenLabs TTS")
 
-            self.tts = ElevenLabsTTSService(
-                api_key=config.elevenlabs_api_key, voice_id=config.elevenlabs_voice_id
-            )
-        elif config.tts_provider == "cartesia":
-            if not config.cartesia_api_key:
-                raise ValueError("Cartesia API key is required for Cartesia TTS")
+        # Initialize TTS service
+        match config.tts_provider:
+            case "elevenlabs":
+                if not config.elevenlabs_api_key:
+                    raise ValueError(
+                        "ElevenLabs API key is required for ElevenLabs TTS"
+                    )
 
-            self.tts = CartesiaTTSService(
-                api_key=config.cartesia_api_key, voice_id=config.cartesia_voice
-            )
-        else:
-            self.tts = DeepgramTTSService(
-                api_key=config.deepgram_api_key, voice=config.deepgram_voice
-            )
-        self.llm = OpenAILLMService(
-            api_key=config.openai_api_key,
-            model=config.openai_model,
-            params=config.openai_params,
-        )
+                self.tts = ElevenLabsTTSService(
+                    api_key=config.elevenlabs_api_key,
+                    voice_id=config.elevenlabs_voice_id,
+                )
+            case "cartesia":
+                if not config.cartesia_api_key:
+                    raise ValueError("Cartesia API key is required for Cartesia TTS")
+
+                self.tts = CartesiaTTSService(
+                    api_key=config.cartesia_api_key, voice_id=config.cartesia_voice
+                )
+            case "deepgram":
+                self.tts = DeepgramTTSService(
+                    api_key=config.deepgram_api_key, voice=config.deepgram_voice
+                )
+            case _:
+                raise ValueError(f"Invalid TTS provider: {config.tts_provider}")
+
+        # Initialize LLM service
+        match config.llm_provider:
+            case "google":
+                if not config.google_api_key:
+                    raise ValueError("Google API key is required for Google LLM")
+
+                self.llm = GoogleLLMService(
+                    api_key=config.google_api_key,
+                    model=config.google_model,
+                    params=config.google_params,
+                )
+            case "openai":
+                if not config.openai_api_key:
+                    raise ValueError("OpenAI API key is required for OpenAI LLM")
+
+                self.llm = OpenAILLMService(
+                    api_key=config.openai_api_key,
+                    model=config.openai_model,
+                    params=config.openai_params,
+                )
+            case _:
+                raise ValueError(f"Invalid LLM provider: {config.llm_provider}")
+
+        # Initialize context
+        self.context = OpenAILLMContext(system_messages)
+        self.context_aggregator = self.llm.create_context_aggregator(self.context)
 
         # Initialize mute filter
         self.stt_mute_filter = (
@@ -73,10 +104,6 @@ class BaseBot(ABC):
             if config.enable_stt_mute_filter
             else None
         )
-
-        # Initialize context
-        self.context = OpenAILLMContext(system_messages)
-        self.context_aggregator = self.llm.create_context_aggregator(self.context)
 
         # Initialize transport params
         self.transport_params = DailyParams(
