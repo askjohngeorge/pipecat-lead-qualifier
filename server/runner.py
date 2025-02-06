@@ -68,16 +68,34 @@ def cli() -> None:
         type=str,
         help="Override ELEVENLABS_VOICE_ID",
     )
+    parser.add_argument(
+        "--rime-voice-id",
+        type=str,
+        help="Override RIME_VOICE_ID",
+    )
+
+    # Google configuration
+    parser.add_argument(
+        "-m",
+        "--google-model",
+        type=str,
+        help="Override GOOGLE_MODEL",
+    )
+
+    parser.add_argument(
+        "-T",
+        "--google-temperature",
+        type=float,
+        help="Override GOOGLE_TEMPERATURE (default: 0.7)",
+    )
 
     # OpenAI configuration
     parser.add_argument(
-        "-m",
         "--openai-model",
         type=str,
         help="Override OPENAI_MODEL (default: gpt-4o)",
     )
     parser.add_argument(
-        "-T",
         "--openai-temperature",
         type=float,
         help="Override OPENAI_TEMPERATURE (default: 0.2)",
@@ -111,6 +129,12 @@ def cli() -> None:
         os.environ["CARTESIA_VOICE"] = args.cartesia_voice
     if args.elevenlabs_voice_id:
         os.environ["ELEVENLABS_VOICE_ID"] = args.elevenlabs_voice_id
+    if args.rime_voice_id:
+        os.environ["RIME_VOICE_ID"] = args.rime_voice_id
+    if args.google_model:
+        os.environ["GOOGLE_MODEL"] = args.google_model
+    if args.google_temperature is not None:
+        os.environ["GOOGLE_TEMPERATURE"] = str(args.google_temperature)
     if args.openai_model:
         os.environ["OPENAI_MODEL"] = args.openai_model
     if args.openai_temperature is not None:
