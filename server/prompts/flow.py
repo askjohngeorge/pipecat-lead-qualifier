@@ -80,7 +80,6 @@ def get_name_and_interest_task() -> NodeMessage:
  - [ 2.2 If R = Voice agent development ] → ~Silently use function/tool to record interest_type=voice_agent_development, name as $name$~
  - [ 2.3 If R = Unclear response ] → "To help me understand better: Are you interested in setting up a meeting for technical consultancy, or having a voice agent developed for your business?"
  - [ 2.4 If R = Asks for explanation ] → "Technical consultancy is a paid meeting where we discuss your specific needs and provide detailed advice. Voice agent development involves building a custom solution, starting with a free discovery call."
- - [ 2.5 If R = Asks other questions ] → ~Silently use function/tool to record interest_type=qa, name as $name$~
 </instructions>"""
     )
 

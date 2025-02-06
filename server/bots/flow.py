@@ -252,8 +252,8 @@ async def handle_name_and_interest(args: Dict, flow_manager: FlowManager):
         await flow_manager.set_node("close_call", close_call)
     elif interest_type == "voice_agent_development":
         await flow_manager.set_node("development", create_development_node())
-    else:  # qa
-        await flow_manager.set_node("qa", create_qa_node())
+    # else:  # qa
+    #     await flow_manager.set_node("qa", create_qa_node())
 
 
 async def handle_qualification_data(args: Dict, flow_manager: FlowManager):
