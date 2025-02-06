@@ -114,7 +114,7 @@ def create_development_node(name: str = "$none_given$") -> Dict:
     Create node for handling voice agent development path."""
     return {
         **get_development_role(extra=[f"Caller has given their name as: {name}"]),
-        **get_development_task(),
+        **get_development_task(extra=[f"Caller has given their name as: {name}"]),
         "functions": [
             {
                 "function_declarations": [
@@ -180,7 +180,7 @@ def create_close_call_node(name: str = "$none_given$") -> Dict:
     Create node to conclude the conversation."""
     return {
         **get_close_call_role(extra=[f"Caller has given their name as: {name}"]),
-        **get_close_call_task(),
+        **get_close_call_task(extra=[f"Caller has given their name as: {name}"]),
         "functions": [],
         "post_actions": [{"type": "end_conversation"}],
     }
