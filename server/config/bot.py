@@ -115,7 +115,7 @@ class BotConfig:
 
     @property
     def google_params(self) -> GoogleLLMService.InputParams:
-        temperature = float(os.getenv("GOOGLE_TEMPERATURE", 1.0))
+        temperature = os.getenv("GOOGLE_TEMPERATURE", 1.0)
         return GoogleLLMService.InputParams(temperature=temperature)
 
     @google_params.setter
@@ -132,7 +132,7 @@ class BotConfig:
 
     @property
     def openai_params(self) -> BaseOpenAILLMService.InputParams:
-        temperature = float(os.getenv("OPENAI_TEMPERATURE", 0.2))
+        temperature = os.getenv("OPENAI_TEMPERATURE", 0.2)
         return BaseOpenAILLMService.InputParams(temperature=temperature)
 
     @openai_params.setter
