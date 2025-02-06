@@ -6,11 +6,7 @@ import {
   useRTVIClientEvent,
   RTVIClientAudio,
 } from "@pipecat-ai/client-react";
-import {
-  LLMFunctionCallData,
-  RTVIEvent,
-  LLMHelper,
-} from "@pipecat-ai/client-js";
+import { LLMFunctionCallData, RTVIEvent, LLMHelper } from "@pipecat-ai/client-js";
 import { useCallback, useState, useEffect } from "react";
 import { AIVoiceInput } from "./ui/ai-voice-input";
 
@@ -35,12 +31,7 @@ export function PipecatWidget() {
   useRTVIClientEvent(
     RTVIEvent.LLMFunctionCall,
     useCallback((data: LLMFunctionCallData) => {
-      if (
-        data.function_name === "navigate" &&
-        typeof data.args === "object" &&
-        data.args &&
-        "path" in data.args
-      ) {
+      if (data.function_name === "navigate" && typeof data.args === "object" && data.args && "path" in data.args) {
         const args = data.args as NavigationArgs;
         const { path } = args;
 
@@ -92,10 +83,7 @@ export function PipecatWidget() {
           await client.disconnect();
         }
       } catch (error) {
-        console.error(
-          isActive ? "Connection error:" : "Disconnection error:",
-          error
-        );
+        console.error(isActive ? "Connection error:" : "Disconnection error:", error);
         setIsConnecting(false);
       }
     },
