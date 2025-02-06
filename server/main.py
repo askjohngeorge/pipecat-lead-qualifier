@@ -31,9 +31,7 @@ server_config = ServerConfig()
 
 # Runtime state
 bot_procs: Dict[int, tuple] = {}  # Track bot processes: {pid: (process, room_url)}
-daily_helpers: Dict[str, DailyRESTHelper] = (
-    {}
-)  # Store Daily API helpers (initialized in lifespan)
+daily_helpers: Dict[str, DailyRESTHelper] = {}  # Store Daily API helpers (initialized in lifespan)
 bot_args: list[str] = []
 
 # Configure loguru (removing default handler and adding our custom handler)
@@ -83,9 +81,7 @@ async def cleanup_finished_processes() -> None:
             for pid in list(bot_procs.keys()):
                 proc, room_url = bot_procs[pid]
                 if proc.poll() is not None:
-                    logger.info(
-                        f"Cleaning up finished bot process {pid} for room {room_url}"
-                    )
+                    logger.info(f"Cleaning up finished bot process {pid} for room {room_url}")
                     try:
                         await daily_helpers["rest"].delete_room_by_url(room_url)
                         logger.success(f"Successfully deleted room {room_url}")
@@ -119,9 +115,7 @@ async def create_room_and_token() -> tuple[str, str]:
         raise HTTPException(status_code=500, detail="Failed to create room")
     token = await daily_helpers["rest"].get_token(room.url)
     if not token:
-        raise HTTPException(
-            status_code=500, detail=f"Failed to get token for room: {room.url}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to get token for room: {room.url}")
     return room.url, token
 
 
@@ -241,9 +235,7 @@ def get_status(pid: int):
     """
     proc_tuple = bot_procs.get(pid)
     if not proc_tuple:
-        raise HTTPException(
-            status_code=404, detail=f"Bot with process id: {pid} not found"
-        )
+        raise HTTPException(status_code=404, detail=f"Bot with process id: {pid} not found")
     proc, _ = proc_tuple
     status = "running" if proc.poll() is None else "finished"
     return JSONResponse({"bot_id": pid, "status": status})

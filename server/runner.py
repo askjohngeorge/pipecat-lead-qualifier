@@ -6,9 +6,7 @@ from typing import Type
 from config.bot import BotConfig
 
 
-async def run_bot(
-    bot_class: Type, config: BotConfig, room_url: str, token: str
-) -> None:
+async def run_bot(bot_class: Type, config: BotConfig, room_url: str, token: str) -> None:
     """Universal bot runner handling bot lifecycle.
 
     Args:
@@ -33,12 +31,8 @@ def cli() -> None:
     parser = argparse.ArgumentParser(description="Unified Bot Runner")
 
     # Required arguments
-    parser.add_argument(
-        "-u", "--room-url", type=str, required=True, help="Daily room URL"
-    )
-    parser.add_argument(
-        "-t", "--token", type=str, required=True, help="Authentication token"
-    )
+    parser.add_argument("-u", "--room-url", type=str, required=True, help="Daily room URL")
+    parser.add_argument("-t", "--token", type=str, required=True, help="Authentication token")
 
     # Bot type selection
     parser.add_argument(
@@ -100,8 +94,7 @@ def cli() -> None:
     # STT mute filter configuration
     parser.add_argument(
         "--enable-stt-mute-filter",
-        type=lambda x: str(x).lower()
-        in ("true", "1", "t", "yes", "y", "on", "enable", "enabled"),
+        type=lambda x: str(x).lower() in ("true", "1", "t", "yes", "y", "on", "enable", "enabled"),
         help="Override ENABLE_STT_MUTE_FILTER (true/false)",
     )
 

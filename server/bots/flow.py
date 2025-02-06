@@ -326,9 +326,7 @@ def add_development_pre_actions(node: Dict, qualified: bool) -> Dict:
 class NavigationCoordinator:
     """Handles navigation between pages"""
 
-    def __init__(
-        self, rtvi: RTVIProcessor, llm: FrameProcessor, context: OpenAILLMContext
-    ):
+    def __init__(self, rtvi: RTVIProcessor, llm: FrameProcessor, context: OpenAILLMContext):
         self.rtvi = rtvi
         self.llm = llm
         self.context = context
@@ -359,7 +357,7 @@ class FlowBot(BaseBot):
     """Flow-based bot implementation with clean navigation separation."""
 
     def __init__(self, config: BotConfig):
-        super().__init__(config, create_recording_consent_node()["role_messages"])
+        super().__init__(config)
 
         # Initialize flow-specific components
         self.navigation_coordinator = None
@@ -377,26 +375,20 @@ class FlowBot(BaseBot):
             task=self.task,
             llm=self.llm,
             context_aggregator=self.context_aggregator,
-            context_strategy=ContextStrategyConfig(strategy=ContextStrategy.RESET),
+            context_strategy=ContextStrategyConfig(strategy=ContextStrategy.APPEND),
         )
 
         # Register navigation action
         self.flow_manager.register_action(
             "execute_navigation",
-            partial(
-                self._handle_navigation_action, coordinator=self.navigation_coordinator
-            ),
+            partial(self._handle_navigation_action, coordinator=self.navigation_coordinator),
         )
 
         # Initialize flow
         await self.flow_manager.initialize()
-        await self.flow_manager.set_node(
-            "recording_consent", create_recording_consent_node()
-        )
+        await self.flow_manager.set_node("recording_consent", create_recording_consent_node())
 
-    async def _handle_navigation_action(
-        self, action: dict, coordinator: NavigationCoordinator
-    ):
+    async def _handle_navigation_action(self, action: dict, coordinator: NavigationCoordinator):
         """Handle navigation with proper error handling."""
         logger.debug(f"Handling navigation action: {action}")
         path = action["path"]

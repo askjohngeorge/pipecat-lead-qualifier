@@ -41,9 +41,7 @@ class BaseBot(ABC):
         match config.tts_provider:
             case "elevenlabs":
                 if not config.elevenlabs_api_key:
-                    raise ValueError(
-                        "ElevenLabs API key is required for ElevenLabs TTS"
-                    )
+                    raise ValueError("ElevenLabs API key is required for ElevenLabs TTS")
 
                 self.tts = ElevenLabsTTSService(
                     api_key=config.elevenlabs_api_key,
@@ -123,9 +121,7 @@ class BaseBot(ABC):
 
     async def setup_transport(self, url: str, token: str):
         """Set up the transport with the given URL and token."""
-        self.transport = DailyTransport(
-            url, token, self.config.bot_name, self.transport_params
-        )
+        self.transport = DailyTransport(url, token, self.config.bot_name, self.transport_params)
 
         # Set up basic event handlers
         @self.transport.event_handler("on_participant_left")
@@ -175,9 +171,7 @@ class BaseBot(ABC):
     async def start(self):
         """Start the bot's main task."""
         if not self.runner or not self.task:
-            raise RuntimeError(
-                "Bot not properly initialized. Call create_pipeline first."
-            )
+            raise RuntimeError("Bot not properly initialized. Call create_pipeline first.")
         await self.runner.run(self.task)
 
     async def cleanup(self):

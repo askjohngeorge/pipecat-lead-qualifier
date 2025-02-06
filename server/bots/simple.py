@@ -16,6 +16,4 @@ class SimpleBot(BaseBot):
     async def _handle_first_participant(self):
         """Handle actions when the first participant joins."""
         # Queue the context frame for processing
-        await self.task.queue_frames(
-            [self.context_aggregator.user().get_context_frame()]
-        )
+        await self.task.queue_frames([self.context_aggregator.user().get_context_frame()])

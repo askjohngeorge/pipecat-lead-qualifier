@@ -128,9 +128,7 @@ class CalComAPI:
                 )
 
         # Sort dates
-        dates = sorted(
-            formatted.keys(), key=lambda x: datetime.strptime(x, "%A, %B %d")
-        )
+        dates = sorted(formatted.keys(), key=lambda x: datetime.strptime(x, "%A, %B %d"))
 
         return {"dates": dates, "slots_by_date": formatted}
 
@@ -167,9 +165,7 @@ class CalComAPI:
                     "usernameList[]": self.config.USERNAME,
                 }
 
-                logger.info(
-                    f"Cal.com Availability Request (Attempt {attempt + 1}/{retry_count}):"
-                )
+                logger.info(f"Cal.com Availability Request (Attempt {attempt + 1}/{retry_count}):")
                 logger.info(f"URL: {self.config.BASE_URL}/slots/available")
                 logger.info(f"Params: {json.dumps(params, indent=2)}")
                 logger.info(
@@ -190,15 +186,11 @@ class CalComAPI:
                             logger.error(
                                 f"Failed to fetch availability (Attempt {attempt + 1}): {error_text}"
                             )
-                            last_error = (
-                                f"Failed to fetch availability: {response.status}"
-                            )
+                            last_error = f"Failed to fetch availability: {response.status}"
                             continue
 
                         data = await response.json()
-                        if data.get("status") == "success" and "slots" in data.get(
-                            "data", {}
-                        ):
+                        if data.get("status") == "success" and "slots" in data.get("data", {}):
                             logger.success(
                                 f"Successfully fetched availability (Attempt {attempt + 1})"
                             )
@@ -218,9 +210,7 @@ class CalComAPI:
                         continue
 
             except Exception as e:
-                logger.exception(
-                    f"Failed to fetch availability (Attempt {attempt + 1}): {str(e)}"
-                )
+                logger.exception(f"Failed to fetch availability (Attempt {attempt + 1}): {str(e)}")
                 last_error = f"Failed to fetch availability: {str(e)}"
                 continue
 
@@ -254,9 +244,7 @@ class CalComAPI:
                 if details.get("notes"):
                     booking_data["bookingFieldsResponses"]["notes"] = details["notes"]
 
-                logger.info(
-                    f"Cal.com Booking Request (Attempt {attempt + 1}/{retry_count}):"
-                )
+                logger.info(f"Cal.com Booking Request (Attempt {attempt + 1}/{retry_count}):")
                 logger.info(f"URL: https://api.cal.com/v2/bookings")
                 logger.info(f"Data: {json.dumps(booking_data, indent=2)}")
                 logger.info(
@@ -282,15 +270,11 @@ class CalComAPI:
                             continue
 
                         booking = await response.json()
-                        logger.success(
-                            f"Successfully created booking (Attempt {attempt + 1})"
-                        )
+                        logger.success(f"Successfully created booking (Attempt {attempt + 1})")
                         return {"success": True, "booking": booking}
 
             except Exception as e:
-                logger.exception(
-                    f"Failed to create booking (Attempt {attempt + 1}): {str(e)}"
-                )
+                logger.exception(f"Failed to create booking (Attempt {attempt + 1}): {str(e)}")
                 last_error = f"Failed to create booking: {str(e)}"
                 continue
 
