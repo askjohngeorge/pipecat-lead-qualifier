@@ -74,6 +74,14 @@ def cli() -> None:
         help="Override RIME_VOICE_ID",
     )
 
+    # LLM configuration
+    parser.add_argument(
+        "-l",
+        "--llm-provider",
+        type=str.lower,
+        choices=["google", "openai"],
+    )
+
     # Google configuration
     parser.add_argument(
         "-m",
@@ -131,6 +139,8 @@ def cli() -> None:
         os.environ["ELEVENLABS_VOICE_ID"] = args.elevenlabs_voice_id
     if args.rime_voice_id:
         os.environ["RIME_VOICE_ID"] = args.rime_voice_id
+    if args.llm_provider:
+        os.environ["LLM_PROVIDER"] = args.llm_provider.lower()
     if args.google_model:
         os.environ["GOOGLE_MODEL"] = args.google_model
     if args.google_temperature is not None:
