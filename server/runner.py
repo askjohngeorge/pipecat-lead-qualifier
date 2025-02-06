@@ -43,35 +43,12 @@ def cli() -> None:
         help="Type of bot (overrides BOT_TYPE in configuration)",
     )
 
-    # TTS configuration
+    # Bot name configuration
     parser.add_argument(
-        "-p",
-        "--tts-provider",
-        type=str.lower,
-        choices=["deepgram", "cartesia", "elevenlabs", "rime"],
-        help="Override TTS_PROVIDER (default: deepgram)",
-    )
-
-    # Voice configuration
-    parser.add_argument(
-        "--deepgram-voice",
+        "-n",
+        "--bot-name",
         type=str,
-        help="Override DEEPGRAM_VOICE (default: aura-athena-en)",
-    )
-    parser.add_argument(
-        "--cartesia-voice",
-        type=str,
-        help="Override CARTESIA_VOICE",
-    )
-    parser.add_argument(
-        "--elevenlabs-voice-id",
-        type=str,
-        help="Override ELEVENLABS_VOICE_ID",
-    )
-    parser.add_argument(
-        "--rime-voice-id",
-        type=str,
-        help="Override RIME_VOICE_ID",
+        help="Override BOT_NAME",
     )
 
     # LLM configuration
@@ -109,12 +86,35 @@ def cli() -> None:
         help="Override OPENAI_TEMPERATURE (default: 0.2)",
     )
 
-    # Bot name configuration
+    # TTS configuration
     parser.add_argument(
-        "-n",
-        "--bot-name",
+        "-p",
+        "--tts-provider",
+        type=str.lower,
+        choices=["deepgram", "cartesia", "elevenlabs", "rime"],
+        help="Override TTS_PROVIDER (default: deepgram)",
+    )
+
+    # Voice configuration
+    parser.add_argument(
+        "--deepgram-voice",
         type=str,
-        help="Override BOT_NAME",
+        help="Override DEEPGRAM_VOICE (default: aura-athena-en)",
+    )
+    parser.add_argument(
+        "--cartesia-voice",
+        type=str,
+        help="Override CARTESIA_VOICE",
+    )
+    parser.add_argument(
+        "--elevenlabs-voice-id",
+        type=str,
+        help="Override ELEVENLABS_VOICE_ID",
+    )
+    parser.add_argument(
+        "--rime-voice-id",
+        type=str,
+        help="Override RIME_VOICE_ID",
     )
 
     # STT mute filter configuration
@@ -129,16 +129,8 @@ def cli() -> None:
     # Set environment variables based on CLI arguments
     if args.bot_type:
         os.environ["BOT_TYPE"] = args.bot_type
-    if args.tts_provider:
-        os.environ["TTS_PROVIDER"] = args.tts_provider.lower()
-    if args.deepgram_voice:
-        os.environ["DEEPGRAM_VOICE"] = args.deepgram_voice
-    if args.cartesia_voice:
-        os.environ["CARTESIA_VOICE"] = args.cartesia_voice
-    if args.elevenlabs_voice_id:
-        os.environ["ELEVENLABS_VOICE_ID"] = args.elevenlabs_voice_id
-    if args.rime_voice_id:
-        os.environ["RIME_VOICE_ID"] = args.rime_voice_id
+    if args.bot_name:
+        os.environ["BOT_NAME"] = args.bot_name
     if args.llm_provider:
         os.environ["LLM_PROVIDER"] = args.llm_provider.lower()
     if args.google_model:
@@ -149,8 +141,16 @@ def cli() -> None:
         os.environ["OPENAI_MODEL"] = args.openai_model
     if args.openai_temperature is not None:
         os.environ["OPENAI_TEMPERATURE"] = str(args.openai_temperature)
-    if args.bot_name:
-        os.environ["BOT_NAME"] = args.bot_name
+    if args.tts_provider:
+        os.environ["TTS_PROVIDER"] = args.tts_provider.lower()
+    if args.deepgram_voice:
+        os.environ["DEEPGRAM_VOICE"] = args.deepgram_voice
+    if args.cartesia_voice:
+        os.environ["CARTESIA_VOICE"] = args.cartesia_voice
+    if args.elevenlabs_voice_id:
+        os.environ["ELEVENLABS_VOICE_ID"] = args.elevenlabs_voice_id
+    if args.rime_voice_id:
+        os.environ["RIME_VOICE_ID"] = args.rime_voice_id
     if args.enable_stt_mute_filter is not None:
         os.environ["ENABLE_STT_MUTE_FILTER"] = str(args.enable_stt_mute_filter).lower()
 
