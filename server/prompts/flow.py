@@ -29,7 +29,7 @@ Your primary task is to qualify leads by guiding them through a series of questi
     )
 
 
-def get_recording_consent_prompt() -> NodeMessage:
+def get_recording_consent_task() -> NodeMessage:
     """Return a dictionary with the recording consent task."""
     return get_task_prompt(
         """# Steps
@@ -44,7 +44,7 @@ def get_recording_consent_prompt() -> NodeMessage:
     )
 
 
-def get_name_and_interest_prompt() -> NodeMessage:
+def get_name_and_interest_task() -> NodeMessage:
     """Return a dictionary with the name and interest task."""
     return get_task_prompt(
         """# Steps
@@ -65,7 +65,7 @@ def get_name_and_interest_prompt() -> NodeMessage:
     )
 
 
-def get_development_prompt() -> NodeMessage:
+def get_development_task() -> NodeMessage:
     """Return a dictionary with the development task."""
     return get_task_prompt(
         """# Steps
@@ -100,7 +100,7 @@ def get_development_prompt() -> NodeMessage:
     )
 
 
-def get_qa_prompt() -> NodeMessage:
+def get_qa_task() -> NodeMessage:
     """Return a dictionary with the Q&A task."""
     return get_task_prompt(
         """# Steps
@@ -119,7 +119,7 @@ def get_qa_prompt() -> NodeMessage:
     )
 
 
-def get_close_call_prompt() -> NodeMessage:
+def get_close_call_task() -> NodeMessage:
     """Return a dictionary with the close call task."""
     return get_task_prompt(
         """# Steps

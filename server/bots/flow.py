@@ -18,11 +18,11 @@ from bots.base_bot import BaseBot
 from config.bot import BotConfig
 from prompts import (
     get_role_prompt,
-    get_recording_consent_prompt,
-    get_name_and_interest_prompt,
-    get_development_prompt,
-    get_qa_prompt,
-    get_close_call_prompt,
+    get_recording_consent_task,
+    get_name_and_interest_task,
+    get_development_task,
+    get_qa_task,
+    get_close_call_task,
 )
 
 # Load environment variables from .env file
@@ -43,7 +43,7 @@ def create_recording_consent_node() -> Dict:
     Create initial node that requests recording consent."""
     return {
         **get_role_prompt(),
-        **get_recording_consent_prompt(),
+        **get_recording_consent_task(),
         "functions": [
             {
                 "function_declarations": [
@@ -74,7 +74,7 @@ def create_name_and_interest_node() -> Dict:
     Create node that collects user's name and primary interest."""
     return {
         **get_role_prompt(),
-        **get_name_and_interest_prompt(),
+        **get_name_and_interest_task(),
         "functions": [
             {
                 "function_declarations": [
@@ -110,7 +110,7 @@ def create_development_node() -> Dict:
     Create node for handling voice agent development path."""
     return {
         **get_role_prompt(),
-        **get_development_prompt(),
+        **get_development_task(),
         "functions": [
             {
                 "function_declarations": [
@@ -141,7 +141,7 @@ def create_qa_node() -> Dict:
     Create node for handling general questions about services."""
     return {
         **get_role_prompt(),
-        **get_qa_prompt(),
+        **get_qa_task(),
         "functions": [
             {
                 "function_declarations": [
@@ -176,7 +176,7 @@ def create_close_call_node() -> Dict:
     Create node to conclude the conversation."""
     return {
         **get_role_prompt(),
-        **get_close_call_prompt(),
+        **get_close_call_task(),
         "functions": [],
         "post_actions": [{"type": "end_conversation"}],
     }
