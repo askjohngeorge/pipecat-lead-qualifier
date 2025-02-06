@@ -46,23 +46,24 @@ def create_recording_consent_node() -> Dict:
         **get_recording_consent_prompt(),
         "functions": [
             {
-                "type": "function",
-                "function": {
-                    "name": "collect_recording_consent",
-                    "description": "Record whether the user consents to call recording",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "recording_consent": {
-                                "type": "boolean",
-                                "description": "Whether the user consents to call recording",
-                            }
+                "function_declarations": [
+                    {
+                        "name": "collect_recording_consent",
+                        "description": "Record whether the user consents to call recording",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "recording_consent": {
+                                    "type": "boolean",
+                                    "description": "Whether the user consents to call recording",
+                                }
+                            },
+                            "required": ["recording_consent"],
                         },
-                        "required": ["recording_consent"],
-                    },
-                    "handler": collect_recording_consent,
-                    "transition_callback": handle_recording_consent,
-                },
+                        "handler": collect_recording_consent,
+                        "transition_callback": handle_recording_consent,
+                    }
+                ]
             }
         ],
     }
@@ -76,28 +77,29 @@ def create_name_and_interest_node() -> Dict:
         **get_name_and_interest_prompt(),
         "functions": [
             {
-                "type": "function",
-                "function": {
-                    "name": "collect_name_and_interest",
-                    "description": "Collect user's name and primary interest",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "name": {"type": "string"},
-                            "interest_type": {
-                                "type": "string",
-                                "enum": [
-                                    "technical_consultation",
-                                    "qa",
-                                    "voice_agent_development",
-                                ],
+                "function_declarations": [
+                    {
+                        "name": "collect_name_and_interest",
+                        "description": "Collect user's name and primary interest",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "name": {"type": "string"},
+                                "interest_type": {
+                                    "type": "string",
+                                    "enum": [
+                                        "technical_consultation",
+                                        "qa",
+                                        "voice_agent_development",
+                                    ],
+                                },
                             },
+                            "required": ["interest_type"],
                         },
-                        "required": ["interest_type"],
-                    },
-                    "handler": collect_name_and_interest,
-                    "transition_callback": handle_name_and_interest,
-                },
+                        "handler": collect_name_and_interest,
+                        "transition_callback": handle_name_and_interest,
+                    }
+                ]
             }
         ],
     }
@@ -111,23 +113,24 @@ def create_development_node() -> Dict:
         **get_development_prompt(),
         "functions": [
             {
-                "type": "function",
-                "function": {
-                    "name": "collect_qualification_data",
-                    "handler": collect_qualification_data,
-                    "description": "Collect qualification information",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "use_case": {"type": "string"},
-                            "timeline": {"type": "string"},
-                            "budget": {"type": "integer"},
-                            "feedback": {"type": "string"},
+                "function_declarations": [
+                    {
+                        "name": "collect_qualification_data",
+                        "handler": collect_qualification_data,
+                        "description": "Collect qualification information",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "use_case": {"type": "string"},
+                                "timeline": {"type": "string"},
+                                "budget": {"type": "integer"},
+                                "feedback": {"type": "string"},
+                            },
+                            "required": ["use_case", "timeline", "budget", "feedback"],
                         },
-                        "required": ["use_case", "timeline", "budget", "feedback"],
-                    },
-                    "transition_callback": handle_qualification_data,
-                },
+                        "transition_callback": handle_qualification_data,
+                    }
+                ]
             }
         ],
     }
@@ -141,27 +144,28 @@ def create_qa_node() -> Dict:
         **get_qa_prompt(),
         "functions": [
             {
-                "type": "function",
-                "function": {
-                    "name": "handle_qa",
-                    "description": "Handle Q&A interaction and determine next steps",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "switch_to_service": {
-                                "type": "string",
-                                "enum": [
-                                    "technical_consultation",
-                                    "voice_agent_development",
-                                ],
-                                "description": "If user wants to switch to discussing a specific service",
+                "function_declarations": [
+                    {
+                        "name": "handle_qa",
+                        "description": "Handle Q&A interaction and determine next steps",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "switch_to_service": {
+                                    "type": "string",
+                                    "enum": [
+                                        "technical_consultation",
+                                        "voice_agent_development",
+                                    ],
+                                    "description": "If user wants to switch to discussing a specific service",
+                                },
                             },
+                            "required": ["switch_to_service"],
                         },
-                        "required": ["switch_to_service"],
-                    },
-                    "handler": handle_qa,
-                    "transition_callback": handle_qa_transition,
-                },
+                        "handler": handle_qa,
+                        "transition_callback": handle_qa_transition,
+                    }
+                ]
             }
         ],
     }
