@@ -56,10 +56,16 @@ class BaseBot(ABC):
                     api_key=config.cartesia_api_key, voice_id=config.cartesia_voice
                 )
             case "deepgram":
+                if not config.deepgram_api_key:
+                    raise ValueError("Deepgram API key is required for Deepgram TTS")
+
                 self.tts = DeepgramTTSService(
                     api_key=config.deepgram_api_key, voice=config.deepgram_voice
                 )
             case "rime":
+                if not config.rime_api_key:
+                    raise ValueError("Rime API key is required for Rime TTS")
+
                 self.tts = RimeHttpTTSService(
                     api_key=config.rime_api_key,
                     voice_id=config.rime_voice_id,
