@@ -109,11 +109,11 @@ def create_name_and_interest_node() -> Dict:
     }
 
 
-def create_development_node() -> Dict:
+def create_development_node(name: str) -> Dict:
     """# Node 3: Development Node
     Create node for handling voice agent development path."""
     return {
-        **get_development_role(),
+        **get_development_role(extra=[f"Caller has given their name as: {name}"]),
         **get_development_task(),
         "functions": [
             {
@@ -175,11 +175,11 @@ def create_qa_node() -> Dict:
     }
 
 
-def create_close_call_node() -> Dict:
+def create_close_call_node(name: str) -> Dict:
     """# Node 5: Final Close Node
     Create node to conclude the conversation."""
     return {
-        **get_close_call_role(),
+        **get_close_call_role(extra=[f"Caller has given their name as: {name}"]),
         **get_close_call_task(),
         "functions": [],
         "post_actions": [{"type": "end_conversation"}],
@@ -247,11 +247,12 @@ async def handle_name_and_interest(args: Dict, flow_manager: FlowManager):
     """Handle transition after collecting user's name and interest."""
     flow_manager.state.update(args)
     interest_type = args["interest_type"]
+    name = flow_manager.state.get("name")
     if interest_type == "technical_consultation":
-        close_call = add_consultancy_pre_actions(create_close_call_node())
+        close_call = add_consultancy_pre_actions(create_close_call_node(name))
         await flow_manager.set_node("close_call", close_call)
     elif interest_type == "voice_agent_development":
-        await flow_manager.set_node("development", create_development_node())
+        await flow_manager.set_node("development", create_development_node(name))
     # else:  # qa
     #     await flow_manager.set_node("qa", create_qa_node())
 
@@ -270,7 +271,8 @@ async def handle_qualification_data(args: Dict, flow_manager: FlowManager):
     logger.debug(f"Qualified: {qualified} based on: {args}")
 
     # Create close call node with navigation as pre-action
-    close_call = add_development_pre_actions(create_close_call_node(), qualified)
+    name = flow_manager.state.get("name")
+    close_call = add_development_pre_actions(create_close_call_node(name), qualified)
 
     # Transition to close call node
     await flow_manager.set_node("close_call", close_call)
@@ -281,14 +283,15 @@ async def handle_qa_transition(args: Dict, flow_manager: FlowManager):
     flow_manager.state.update(args)
 
     close_node = create_close_call_node()
+    name = flow_manager.state.get("name")
     if args["switch_to_service"] == "technical_consultation":
         close_node = add_consultancy_pre_actions(close_node)
         await flow_manager.set_node("close_call", close_node)
     elif args["switch_to_service"] == "voice_agent_development":
-        await flow_manager.set_node("development", create_development_node())
+        await flow_manager.set_node("development", create_development_node(name))
     else:
         # No more questions and no service interest - go to close call
-        close_node = add_development_pre_actions(create_close_call_node(), False)
+        close_node = add_development_pre_actions(create_close_call_node(name), False)
         await flow_manager.set_node("close_call", close_node)
 
 
