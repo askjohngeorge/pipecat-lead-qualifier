@@ -103,7 +103,7 @@ class BotConfig:
 
     @property
     def google_model(self) -> str:
-        return os.getenv("GOOGLE_MODEL", "gemini-2.0-flash")
+        return os.getenv("GOOGLE_MODEL", "gemini-2.0-flash-001")
 
     @google_model.setter
     def google_model(self, value: str):
