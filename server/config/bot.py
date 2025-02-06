@@ -107,7 +107,7 @@ class BotConfig:
 
     @property
     def google_model(self) -> str:
-        return os.getenv("GOOGLE_MODEL", "gemini-2.0-flash-001")
+        return os.getenv("GOOGLE_MODEL", "gemini-2.0-flash")
 
     @google_model.setter
     def google_model(self, value: str):
@@ -115,7 +115,7 @@ class BotConfig:
 
     @property
     def google_params(self) -> GoogleLLMService.InputParams:
-        temperature = float(os.getenv("GOOGLE_TEMPERATURE", 0.7))
+        temperature = float(os.getenv("GOOGLE_TEMPERATURE", 1.0))
         return GoogleLLMService.InputParams(temperature=temperature)
 
     @google_params.setter
