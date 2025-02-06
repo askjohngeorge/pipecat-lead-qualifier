@@ -375,7 +375,7 @@ class FlowBot(BaseBot):
             task=self.task,
             llm=self.llm,
             context_aggregator=self.context_aggregator,
-            context_strategy=ContextStrategyConfig(strategy=ContextStrategy.APPEND),
+            context_strategy=ContextStrategyConfig(strategy=ContextStrategy.RESET),
         )
 
         # Register navigation action
