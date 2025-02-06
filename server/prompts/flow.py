@@ -48,8 +48,8 @@ def get_recording_consent_task() -> NodeMessage:
 1. Request Recording Consent
 "Hi there, I'm Chris an AI voice assistant from John George Voice AI Solutions. For quality assurance purposes, this call will be recorded. Do you consent to this recording?"
 ~Never answer any questions or do anything else other than obtain recording consent~
-- [ 1.1 If R = Unconditional and unambiguous yes ] → ~Thank the user~
-- [ 1.2 If R = Unconditional and unambiguous no ] → ~End the call immediately~
+- [ 1.1 If R = Unconditional and unambiguous yes ] → ~Thank the user and record consent=true~
+- [ 1.2 If R = Unconditional and unambiguous no ] → ~End the call immediately and record consent=false~
 - [ 1.3 If R = Asks why we need recording ] → "We record calls to improve our service quality and ensure we accurately capture your requirements."
 - [ 1.4 If R = Any other response, including ambiguous or conditional responses ] → "I'm afraid I need a clear yes or no - do you consent to this call being recorded?"
 </instructions>"""
@@ -80,8 +80,8 @@ def get_name_and_interest_task() -> NodeMessage:
 
 2. Primary Interest Identification
 "Could you tell me if you're interested in technical consultancy, or voice agent development?"
- - [ 2.1 If R = Technical consultancy ] → ~Silently use function/tool to record interest_type=technical_consultation, name as $name$~
- - [ 2.2 If R = Voice agent development ] → ~Silently use function/tool to record interest_type=voice_agent_development, name as $name$~
+ - [ 2.1 If R = Technical consultancy ] → ~Thank the user and record interest_type=technical_consultation, name as $name$~
+ - [ 2.2 If R = Voice agent development ] → ~Thank the user and record interest_type=voice_agent_development, name as $name$~
  - [ 2.3 If R = Unclear response ] → "To help me understand better: Are you interested in setting up a meeting for technical consultancy, or having a voice agent developed for your business?"
  - [ 2.4 If R = Asks for explanation ] → "Technical consultancy is a paid meeting where we discuss your specific needs and provide detailed advice. Voice agent development involves building a custom solution, starting with a free discovery call."
 </instructions>"""
@@ -106,13 +106,13 @@ def get_development_task() -> NodeMessage:
         """<instructions>
 1. Use Case Elaboration
 "What tasks or interactions are you hoping your voice AI agent will handle?"
- - [ 1.1 If R = Specific use case provided ] -> ~Go to step 2~
+ - [ 1.1 If R = Specific use case provided ] -> ~Thank the user and go to step 2~
  - [ 1.2 If R = Vague response ] -> "To help me understand better, could you describe what you're hoping to achieve with this solution?"
  - [ 1.3 If R = Asks for examples ] -> ~Present these as examples: customer service inquiries, support, returns; lead qualification; appointment scheduling; cold or warm outreach~
 
 2. Timeline Establishment
 "What's your desired timeline for this project, and are there any specific deadlines?"
- - [ 2.1 If R = Specific or rough timeline provided ] -> ~Go to step 3~
+ - [ 2.1 If R = Specific or rough timeline provided ] -> ~Thank the user and go to step 3~
  - [ 2.2 If R = No timeline or ASAP ] -> "Just a rough estimate would be helpful. Are we discussing weeks, months, or quarters for implementation?"
 
 3. Budget Discussion
@@ -125,13 +125,13 @@ Below is your knowledge of our services, which you should only use to inform you
  * All implementations will require ongoing costs associated with call costs, to be discussed on a case-by-case basis
  * We also offer support packages for ongoing maintenance and updates, again to be discussed on a case-by-case basis
 </knowledge>
- - [ 3.1 If R = Budget > £1,000 ] -> ~Go to step 4~
+ - [ 3.1 If R = Budget > £1,000 ] -> ~Thank the user and go to step 4~
  - [ 3.2 If R = Budget < £1,000 or no budget provided ] -> ~Explain our development services begin at £1,000 and ask if this is acceptable~
  - [ 3.3 If R = Vague response ] -> ~Attempt to clarify the budget~
 
 4. Interaction Assessment
 "Before we proceed, I'd like to quickly ask for your feedback on the call quality so far. You're interacting with the kind of system you might be considering purchasing, so it's important for us to ensure it meets your expectations. Could you please give us your thoughts on the speed, clarity, and naturalness of the interaction?"
-~Go to step 5~
+~Thank the user and go to step 5~
 
 5. Once all information is collected, use your tool/function to record the details.
 </instructions>"""
