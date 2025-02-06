@@ -302,7 +302,8 @@ def add_consultancy_pre_actions(node: Dict) -> Dict:
     node["pre_actions"] = [
         {
             "type": "tts_say",
-            "text": "I've navigated you to our consultancy booking page where you can set up a video conference with our founder to discuss your needs in more detail. Please note that this will require an up-front payment which is non-refundable in the case of no-show or cancellation. Please provide as much detail as you can when you book, to assist us in preparing for the call.",
+            # "text": "I've navigated you to our consultancy booking page where you can set up a video conference with our founder to discuss your needs in more detail. Please note that this will require an up-front payment which is non-refundable in the case of no-show or cancellation. Please provide as much detail as you can when you book, to assist us in preparing for the call.",
+            "text": "I've navigated you to our consultancy booking page where you can set up a video conference with our founder to discuss your needs in more detail. Please provide as much detail as you can when you book, to assist us in preparing for the call.",
         },
         {"type": "execute_navigation", "path": "/consultancy"},
     ]
