@@ -1,3 +1,4 @@
+from typing import List
 from .types import NodeContent, NodeMessage
 from .helpers import get_system_prompt, get_task_prompt, get_current_date_uk
 
@@ -19,13 +20,16 @@ META_INSTRUCTIONS = """<meta_instructions>
 </meta_instructions>"""
 
 
-def get_additional_context() -> str:
+def get_additional_context(extra: List[str] = []) -> str:
+    date_context = f"Today's day of the week and date in the UK is: {get_current_date_uk()}"
+    additional_context = [date_context, *extra]
+    context_items = "\n".join([f"- {c}" for c in additional_context])
     return f"""<additional_context>
-- Today's day of the week and date in the UK is: {get_current_date_uk()}
+{context_items}
 </additional_context>"""
 
 
-def get_recording_consent_role() -> NodeContent:
+def get_recording_consent_role(extra: List[str] = []) -> NodeContent:
     """Return a dictionary with a list of role messages."""
     return get_system_prompt(
         f"""{ROLE}
@@ -33,7 +37,7 @@ def get_recording_consent_role() -> NodeContent:
 Your primary task is to explicitly obtain the caller's unambiguous and unconditional consent to be recorded. You must ensure the caller understands they are consenting to the recording of the call. Follow the conversation flow provided below to establish understanding and collect unambiguous and unconditional consent.
 </task>
 {META_INSTRUCTIONS}
-{get_additional_context()}"""
+{get_additional_context(extra)}"""
     )
 
 
@@ -52,7 +56,7 @@ def get_recording_consent_task() -> NodeMessage:
     )
 
 
-def get_name_and_interest_role() -> NodeContent:
+def get_name_and_interest_role(extra: List[str] = []) -> NodeContent:
     """Return a dictionary with a list of role messages."""
     return get_system_prompt(
         f"""{ROLE}
@@ -60,7 +64,7 @@ def get_name_and_interest_role() -> NodeContent:
 Your primary task is to first attempt to establish the caller's full name for our records. If the caller declines to provide their name after a reasonable attempt, proceed without it. Then, determine the caller's primary interest: are they interested in technical consultancy or voice agent development services? Follow the conversation flow provided below to collect the necessary information and navigate the conversation accordingly.
 </task>
 {META_INSTRUCTIONS}
-{get_additional_context()}"""
+{get_additional_context(extra)}"""
     )
 
 
@@ -84,7 +88,7 @@ def get_name_and_interest_task() -> NodeMessage:
     )
 
 
-def get_development_role() -> NodeContent:
+def get_development_role(extra: List[str] = []) -> NodeContent:
     """Return a dictionary with a list of role messages."""
     return get_system_prompt(
         f"""{ROLE}
@@ -92,7 +96,7 @@ def get_development_role() -> NodeContent:
 Your primary task is to qualify leads by asking a series of questions to determine their needs and fit for John George Voice AI Solutions' offerings. Specifically, you must establish the caller's use case for the voice agent, the desired timescale for project completion, their budget, and their assessment of the quality of the interaction. Follow the conversation flow provided below to collect this information. If the caller is unwilling to provide any of this information, you may use "unqualified" as a placeholder to proceed and conclude the call.
 </task>
 {META_INSTRUCTIONS}
-{get_additional_context()}"""
+{get_additional_context(extra)}"""
     )
 
 
@@ -134,7 +138,7 @@ Below is your knowledge of our services, which you should only use to inform you
     )
 
 
-def get_qa_role() -> NodeContent:
+def get_qa_role(extra: List[str] = []) -> NodeContent:
     """Return a dictionary with a list of role messages."""
     return get_system_prompt(
         f"""{ROLE}
@@ -142,7 +146,7 @@ def get_qa_role() -> NodeContent:
 Your primary task is to qualify leads by guiding them through a series of questions to determine their needs and fit for John George Voice AI Solutions' offerings. You must follow the conversation flow provided below to collect necessary information and navigate the conversation accordingly.
 </task>
 {META_INSTRUCTIONS}
-{get_additional_context()}"""
+{get_additional_context(extra)}"""
     )
 
 
@@ -165,7 +169,7 @@ def get_qa_task() -> NodeMessage:
     )
 
 
-def get_close_call_role() -> NodeContent:
+def get_close_call_role(extra: List[str] = []) -> NodeContent:
     """Return a dictionary with a list of role messages."""
     return get_system_prompt(
         f"""{ROLE}
@@ -173,7 +177,7 @@ def get_close_call_role() -> NodeContent:
 Your only task is to thank the user for their time.
 </task>
 {META_INSTRUCTIONS}
-{get_additional_context()}"""
+{get_additional_context(extra)}"""
     )
 
 
