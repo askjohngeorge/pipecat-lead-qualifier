@@ -203,7 +203,7 @@ source venv/bin/activate
 # On Windows:
 # venv\Scripts\activate
 pip install -r requirements.txt
-pip install -e "../external/pipecat[daily,openai,deepgram,cartesia,silero]"
+pip install -e "../external/pipecat[daily,google,anthropic,openai,deepgram,cartesia,silero]"
 pip install -e "../external/pipecat-flows"
 ```
 

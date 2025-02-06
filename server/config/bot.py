@@ -3,6 +3,7 @@
 import os
 from typing import TypedDict, Literal, NotRequired
 from dotenv import load_dotenv
+from pipecat.services.google import GoogleLLMService
 from pipecat.services.openai import BaseOpenAILLMService
 
 
@@ -52,6 +53,34 @@ class BotConfig:
             "enabled",
         )
 
+    ###########################################################################
+    # API keys
+    ###########################################################################
+
+    @property
+    def google_api_key(self) -> str:
+        return os.getenv("GOOGLE_API_KEY")
+
+    @property
+    def openai_api_key(self) -> str:
+        return os.getenv("OPENAI_API_KEY")
+
+    @property
+    def deepgram_api_key(self) -> str:
+        return os.getenv("DEEPGRAM_API_KEY")
+
+    @property
+    def cartesia_api_key(self) -> str:
+        return os.getenv("CARTESIA_API_KEY")
+
+    @property
+    def elevenlabs_api_key(self) -> str:
+        return os.getenv("ELEVENLABS_API_KEY")
+
+    ###########################################################################
+    # Bot configuration
+    ###########################################################################
+
     @property
     def bot_name(self) -> str:
         return os.getenv("BOT_NAME", "AskJohnGeorge Lead Qualifier")
@@ -61,56 +90,33 @@ class BotConfig:
         os.environ["BOT_NAME"] = value
 
     @property
-    def tts_provider(self) -> str:
-        return os.getenv("TTS_PROVIDER", "deepgram").lower()
+    def llm_provider(self) -> str:
+        return os.getenv("LLM_PROVIDER", "google").lower()
 
-    @tts_provider.setter
-    def tts_provider(self, value: str):
+    @llm_provider.setter
+    def llm_provider(self, value: str):
         value = value.lower()
-        if value not in ("deepgram", "cartesia", "elevenlabs"):
-            raise ValueError(f"Invalid TTS provider: {value}")
+        if value not in ("google", "openai"):
+            raise ValueError(f"Invalid LLM provider: {value}")
 
-        os.environ["TTS_PROVIDER"] = value
-
-    @property
-    def deepgram_api_key(self) -> str:
-        return os.getenv("DEEPGRAM_API_KEY")
+        os.environ["LLM_PROVIDER"] = value
 
     @property
-    def deepgram_voice(self) -> str:
-        return os.getenv("DEEPGRAM_VOICE", "aura-athena-en")
+    def google_model(self) -> str:
+        return os.getenv("GOOGLE_MODEL", "gemini-2.0-flash")
 
-    @deepgram_voice.setter
-    def deepgram_voice(self, value: str):
-        os.environ["DEEPGRAM_VOICE"] = value
-
-    @property
-    def openai_api_key(self) -> str:
-        return os.getenv("OPENAI_API_KEY")
+    @google_model.setter
+    def google_model(self, value: str):
+        os.environ["GOOGLE_MODEL"] = value
 
     @property
-    def cartesia_api_key(self) -> str:
-        return os.getenv("CARTESIA_API_KEY")
+    def google_params(self) -> GoogleLLMService.InputParams:
+        temperature = os.getenv("GOOGLE_TEMPERATURE", 0.2)
+        return GoogleLLMService.InputParams(temperature=temperature)
 
-    @property
-    def cartesia_voice(self) -> str:
-        return os.getenv("CARTESIA_VOICE", "79a125e8-cd45-4c13-8a67-188112f4dd22")
-
-    @cartesia_voice.setter
-    def cartesia_voice(self, value: str):
-        os.environ["CARTESIA_VOICE"] = value
-
-    @property
-    def elevenlabs_api_key(self) -> str:
-        return os.getenv("ELEVENLABS_API_KEY")
-
-    @property
-    def elevenlabs_voice_id(self) -> str:
-        return os.getenv("ELEVENLABS_VOICE_ID", "JBFqnCBsd6RMkjVDRZzb")
-
-    @elevenlabs_voice_id.setter
-    def elevenlabs_voice_id(self, value: str):
-        os.environ["ELEVENLABS_VOICE_ID"] = value
+    @google_params.setter
+    def google_params(self, value: GoogleLLMService.InputParams):
+        os.environ["GOOGLE_TEMPERATURE"] = str(value.temperature)
 
     @property
     def openai_model(self) -> str:
@@ -128,6 +134,42 @@ class BotConfig:
     @openai_params.setter
     def openai_params(self, value: BaseOpenAILLMService.InputParams):
         os.environ["OPENAI_TEMPERATURE"] = str(value.temperature)
+
+    @property
+    def tts_provider(self) -> str:
+        return os.getenv("TTS_PROVIDER", "deepgram").lower()
+
+    @tts_provider.setter
+    def tts_provider(self, value: str):
+        value = value.lower()
+        if value not in ("deepgram", "cartesia", "elevenlabs"):
+            raise ValueError(f"Invalid TTS provider: {value}")
+
+        os.environ["TTS_PROVIDER"] = value
+
+    @property
+    def deepgram_voice(self) -> str:
+        return os.getenv("DEEPGRAM_VOICE", "aura-athena-en")
+
+    @deepgram_voice.setter
+    def deepgram_voice(self, value: str):
+        os.environ["DEEPGRAM_VOICE"] = value
+
+    @property
+    def cartesia_voice(self) -> str:
+        return os.getenv("CARTESIA_VOICE", "79a125e8-cd45-4c13-8a67-188112f4dd22")
+
+    @cartesia_voice.setter
+    def cartesia_voice(self, value: str):
+        os.environ["CARTESIA_VOICE"] = value
+
+    @property
+    def elevenlabs_voice_id(self) -> str:
+        return os.getenv("ELEVENLABS_VOICE_ID", "JBFqnCBsd6RMkjVDRZzb")
+
+    @elevenlabs_voice_id.setter
+    def elevenlabs_voice_id(self, value: str):
+        os.environ["ELEVENLABS_VOICE_ID"] = value
 
     @property
     def bot_type(self) -> BotType:
