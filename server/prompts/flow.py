@@ -138,37 +138,6 @@ Below is your knowledge of our services, which you should only use to inform you
     )
 
 
-def get_qa_role(extra: List[str] = []) -> NodeContent:
-    """Return a dictionary with a list of role messages."""
-    return get_system_prompt(
-        f"""{ROLE}
-<task>
-Your primary task is to qualify leads by guiding them through a series of questions to determine their needs and fit for John George Voice AI Solutions' offerings. You must follow the conversation flow provided below to collect necessary information and navigate the conversation accordingly.
-</task>
-{META_INSTRUCTIONS}
-{get_additional_context(extra)}"""
-    )
-
-
-def get_qa_task() -> NodeMessage:
-    """Return a dictionary with the Q&A task."""
-    return get_task_prompt(
-        """<instructions>
-1. Handle General Questions
-"Please feel free to ask any questions you have about our voice AI services."
-* Common topics include:
-* - Service offerings and capabilities
-* - Technology and integration options
-* - Pricing and timelines
-* - Case studies and success stories
-- [ 1.1 If R = Asks specific question ] → ~Provide clear, concise answer based on available information~
-- [ 1.2 If R = No more questions ] → ~End the call~
-- [ 1.3 If R = Shows interest in services ] → "Would you like to discuss technical consultancy or voice agent development in more detail?"
-- [ 1.4 If R = Question outside scope ] → "That's a bit outside my scope. I can best help with questions about our voice AI services, technical consultancy, or voice agent development. What would you like to know about those?"
-</instructions>"""
-    )
-
-
 def get_close_call_role(extra: List[str] = []) -> NodeContent:
     """Return a dictionary with a list of role messages."""
     return get_system_prompt(

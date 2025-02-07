@@ -23,8 +23,6 @@ from prompts import (
     get_name_and_interest_task,
     get_development_role,
     get_development_task,
-    get_qa_role,
-    get_qa_task,
     get_close_call_role,
     get_close_call_task,
 )
@@ -133,41 +131,6 @@ def create_development_node(name: str = "$none_given$") -> Dict:
                             "required": ["use_case", "timeline", "budget", "feedback"],
                         },
                         "transition_callback": handle_qualification_data,
-                    }
-                ]
-            }
-        ],
-    }
-
-
-def create_qa_node() -> Dict:
-    """# Node 4: Q&A Node
-    Create node for handling general questions about services."""
-    return {
-        **get_qa_role(),
-        **get_qa_task(),
-        "functions": [
-            {
-                "function_declarations": [
-                    {
-                        "name": "handle_qa",
-                        "description": "Handle Q&A interaction and determine next steps",
-                        "parameters": {
-                            "type": "object",
-                            "properties": {
-                                "switch_to_service": {
-                                    "type": "string",
-                                    "enum": [
-                                        "technical_consultation",
-                                        "voice_agent_development",
-                                    ],
-                                    "description": "If user wants to switch to discussing a specific service",
-                                },
-                            },
-                            "required": ["switch_to_service"],
-                        },
-                        "handler": handle_qa,
-                        "transition_callback": handle_qa_transition,
                     }
                 ]
             }
