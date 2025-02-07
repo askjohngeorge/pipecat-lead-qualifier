@@ -73,10 +73,11 @@ server/
     -u/--room-url      Daily room URL (required)
     -t/--token         Daily room token (required)
     -b/--bot-type      Bot variant [simple|flow]
-    -p/--tts-provider  TTS service [deepgram|cartesia|elevenlabs]
+    -p/--tts-provider  TTS service [deepgram|cartesia|elevenlabs|rime]
     -m/--openai-model  OpenAI model name
     -T/--temperature   LLM temperature (0.0-2.0)
     -n/--bot-name      Custom bot name
+    -V/--rime-voice-id Rime voice ID
     ```
 
 - **`bots/`**  
@@ -124,21 +125,38 @@ server/
 
 Create a `.env` file with the required environment variables:
 ```bash
-cat << 'EOF' > .env
+# Required API Keys
 DAILY_API_KEY=your_daily_api_key
 DEEPGRAM_API_KEY=your_deepgram_api_key
-OPENAI_API_KEY=your_openai_api_key
 
-# Optional variables (override defaults as needed)
-DAILY_API_URL=https://api.daily.co/v1
-TTS_PROVIDER=cartesia              # Optional: indicates a preference, but CARTESIA_API_KEY is what drives the Cartesia integration.
-DEEPGRAM_VOICE=aura-athena-en
-CARTESIA_API_KEY=your_cartesia_api_key  # Provide only if you want to use Cartesia TTS.
-CARTESIA_VOICE=your_cartesia_voice_identifier
-OPENAI_MODEL=gpt-4o
-OPENAI_TEMPERATURE=0.2
-BOT_TYPE=flow                      # or "simple"
-EOF
+# LLM Configuration (Google is default)
+GOOGLE_API_KEY=your_google_api_key        # Required for Google LLM
+GOOGLE_MODEL=gemini-2.0-flash             # Default Google model
+GOOGLE_TEMPERATURE=1.0                     # Default Google temperature
+
+# Optional OpenAI Configuration
+OPENAI_API_KEY=your_openai_api_key        # Required if using OpenAI
+OPENAI_MODEL=gpt-4o                       # Default OpenAI model
+OPENAI_TEMPERATURE=0.2                    # Default OpenAI temperature
+
+# TTS Configuration
+TTS_PROVIDER=deepgram                     # Options: deepgram, cartesia, elevenlabs, rime
+DEEPGRAM_VOICE=aura-athena-en            # Default Deepgram voice
+CARTESIA_API_KEY=your_cartesia_api_key   # Required if using Cartesia TTS
+CARTESIA_VOICE=your_cartesia_voice_id    # Default: 79a125e8-cd45-4c13-8a67-188112f4dd22
+ELEVENLABS_API_KEY=your_elevenlabs_key   # Required if using ElevenLabs TTS
+ELEVENLABS_VOICE_ID=JBFqnCBsd6RMkjVDRZzb # Default ElevenLabs voice
+RIME_API_KEY=your_rime_api_key           # Required if using Rime TTS
+RIME_VOICE_ID=marissa                    # Default Rime voice
+
+# Bot Configuration
+BOT_TYPE=flow                            # Options: flow, simple (default: flow)
+BOT_NAME="AskJohnGeorge Lead Qualifier"  # Default bot name
+LLM_PROVIDER=google                      # Options: google, openai (default: google)
+ENABLE_STT_MUTE_FILTER=false            # Enable STT mute filter (default: false)
+
+# Optional overrides
+DAILY_API_URL=https://api.daily.co/v1    # Default Daily API URL
 ```
 
 Ensure that the `.env` file is excluded from version control:
@@ -148,48 +166,70 @@ grep -qxF ".env" .gitignore || echo ".env" >> .gitignore
 
 ### Advanced Configuration Options
 
-In addition to the required environment variables (`DAILY_API_KEY`, `DEEPGRAM_API_KEY`, and `OPENAI_API_KEY`), you can customize the behavior of the application by setting the following optional environment variables in your `.env` file:
+The application supports extensive configuration through environment variables and CLI arguments. Here's a detailed breakdown:
 
-- **DAILY_API_URL**  
-  - **Default:** `https://api.daily.co/v1`  
-  - **Usage:** Sets the base URL for the Daily API. This URL is used when initializing the Daily transport in the bot.
+#### LLM Configuration
+- **LLM Provider Selection**
+  - Default provider is Google (Gemini)
+  - Can be switched to OpenAI via `LLM_PROVIDER=openai`
+  - Each provider has its own model and temperature settings
+
+- **Google LLM Settings**
+  - Model: `GOOGLE_MODEL` (default: gemini-2.0-flash)
+  - Temperature: `GOOGLE_TEMPERATURE` (default: 1.0)
+
+- **OpenAI Settings**
+  - Model: `OPENAI_MODEL` (default: gpt-4o)
+  - Temperature: `OPENAI_TEMPERATURE` (default: 0.2)
+
+#### TTS Configuration
+The application supports multiple TTS providers:
+- Deepgram (default)
+- Cartesia
+- ElevenLabs
+- Rime
+
+Each provider requires its own API key and has configurable voice settings.
+
+#### Bot Configuration
+- Bot Type: `flow` (default) or `simple`
+- Custom bot name
+- STT mute filter toggle
+
+### CLI Arguments
+
+The bot runner (`runner.py`) supports the following command-line arguments:
+
+```bash
+Required arguments:
+  -u, --room-url              Daily room URL
+  -t, --token                 Authentication token
+
+Bot configuration:
+  -b, --bot-type             Type of bot [simple|flow] (default: flow)
+  -n, --bot-name             Override BOT_NAME
+
+LLM configuration:
+  -l, --llm-provider         LLM service provider [google|openai] (default: google)
   
-- **TTS_PROVIDER**  
-  - **Default:** `deepgram`  
-  - **Usage:** Determines which Text-to-Speech service your bot will use.  
-    - If set to `cartesia`, the application uses the `CartesiaTTSService` and relies on the **CARTESIA_API_KEY** and **CARTESIA_VOICE** values.  
-    - Otherwise, it uses `DeepgramTTSService` along with **DEEPGRAM_API_KEY** and **DEEPGRAM_VOICE**.
+  # Google-specific options
+  -m, --google-model         Override GOOGLE_MODEL
+  -T, --google-temperature   Override GOOGLE_TEMPERATURE (default: 1.0)
+  
+  # OpenAI-specific options
+  --openai-model            Override OPENAI_MODEL (default: gpt-4o)
+  --openai-temperature      Override OPENAI_TEMPERATURE (default: 0.2)
 
-- **DEEPGRAM_VOICE**  
-  - **Default:** `aura-athena-en`  
-  - **Usage:** Specifies the voice identifier for the Deepgram TTS service when **TTS_PROVIDER** is not set to `cartesia`.
+TTS configuration:
+  -p, --tts-provider         TTS service [deepgram|cartesia|elevenlabs|rime] (default: deepgram)
+  --deepgram-voice           Override DEEPGRAM_VOICE
+  --cartesia-voice           Override CARTESIA_VOICE
+  --elevenlabs-voice-id      Override ELEVENLABS_VOICE_ID
+  --rime-voice-id            Override RIME_VOICE_ID
 
-- **CARTESIA_API_KEY**  
-  - **Default:** `null`  
-  - **Usage:** Specifies the API key for the Cartesia TTS service. This is used only **required** if **TTS_PROVIDER** is set to `cartesia`.
-
-- **CARTESIA_VOICE**  
-  - **Default:** `79a125e8-cd45-4c13-8a67-188112f4dd22`  
-  - **Usage:** Specifies the voice identifier for the Cartesia TTS service. This is used only if **TTS_PROVIDER** is set to `cartesia`.
-
-- **OPENAI_MODEL**  
-  - **Default:** `gpt-4o`  
-  - **Usage:** Determines which OpenAI model to use when initializing the LLM service in the bot.
-
-- **OPENAI_TEMPERATURE**  
-  - **Default:** `0.2`  
-  - **Usage:** Controls the temperature (randomness) of the OpenAI language model. The value is passed as part of the `InputParams` to the LLM service.
-
-- **BOT_TYPE**  
-  - **Default:** `simple`  
-  - **Valid Values:** `simple` or `flow`  
-  - **Usage:** Specifies which bot variant to launch. This setting is checked at startup and used to determine the corresponding bot implementation within the `server/bots/` package.
-
-- **ENABLE_STT_MUTE_FILTER**  
-  - **Default:** `false`  
-  - **Usage:** Determines whether the STT mute filter is enabled. This affects the STT service and logic sequence within the bot's processing pipeline.
-
-These optional variables are processed by the `AppConfig` class in `config/settings.py`. In the `bots/base_bot.py` module.
+Additional options:
+  --enable-stt-mute-filter   Enable STT mute filter [true|false] (default: false)
+```
 
 ### Server Setup
 
@@ -254,14 +294,6 @@ pnpm start
   
 - **Client:**  
   Execute frontend tests using your preferred test runner (e.g., Jest).
-
-## Contributing
-
-Please adhere to the project conventions:
-- Write clear, modular functions with single purposes.
-- Follow SOLID principles.
-- For client-side development, adhere to Next.js and TypeScript guidelines.
-- For server-side development, follow FastAPI and Pipecat conventions.
 
 ## License
 
