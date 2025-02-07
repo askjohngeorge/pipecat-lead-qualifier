@@ -87,7 +87,7 @@ class BotConfig:
 
     @property
     def bot_name(self) -> str:
-        return os.getenv("BOT_NAME", "AskJohnGeorge Lead Qualifier")
+        return os.getenv("BOT_NAME", "Marissa")
 
     @bot_name.setter
     def bot_name(self, value: str):
