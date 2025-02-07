@@ -53,7 +53,7 @@ def get_recording_consent_task(extra: List[str] = []) -> NodeMessage:
 - [ 1.1 If R = Unconditional and unambiguous yes ] → ~Thank the user and record consent=true~
 - [ 1.2 If R = Unconditional and unambiguous no ] → ~Use the functions available to you to record consent=false~
 - [ 1.3 If R = Asks why we need recording ] → ~Explain we record and review all of our calls to improve our service quality~
-- [ 1.4 If R = Any other response, including ambiguous or conditional responses ] → ~Explain we need their explicit consent to proceed~
+- [ 1.4 If R = Any other response, including ambiguous or conditional responses ] → ~Explain we need your explicit consent to proceed~
 </instructions>
 <examples>
 <example>
@@ -273,7 +273,7 @@ def get_close_call_task(extra: List[str] = []) -> NodeMessage:
         f"""{get_additional_context(extra)}
 <instructions>
 1. Close the Call
-"Thank you for your time. We appreciate you choosing John George Voice AI Solutions. Goodbye."
+"Thank you for your time. Have a wonderful rest of your day."
 - ~End the call~
 </instructions>"""
     )
