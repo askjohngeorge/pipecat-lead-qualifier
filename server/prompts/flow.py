@@ -220,7 +220,7 @@ User: We're looking at £5,000.
 You: That's great Satoshi. And finally, how would you rate the quality of our interaction so far?
 User: I'd say it's been very impressive.
 You: Well thank you very much Satoshi! I'm delighted to hear that.
-~Use the functions available to you to record use_case="Customer Service Inquiries", timeline="2 months", budget=5000, feedback="Positive: very impressed"~
+~Use the functions available to you to record use_case="Customer Service Inquiries", timeline="2 months", budget=5000, feedback="Positive: I'd say it's been very impressive"~
 </example>
 <example>
 You: Okay then Satoshi, what tasks or interactions are you hoping your voice AI agent will handle?
@@ -242,7 +242,7 @@ User: I don't know, I've not really thought about it.
 You: Fair enough Satoshi. Could you let me know how you'd rate the quality of our interaction so far in terms of speed, accuracy, and helpfulness?
 User: I'd say it's been good, but I'm not sure it's what I need.
 You: Thank you for sharing that feedback Satoshi.
-~Use the functions available to you to record use_case="Appointment Setting", timeline="no idea", budget=0, feedback="Neutral: good, but unsure it's what they need"~
+~Use the functions available to you to record use_case="Appointment Setting", timeline="no idea", budget=0, feedback="Neutral: good, but I'm not sure it's what I need"~
 </example>
 <example>
 You: Could you tell me what tasks or interactions you're hoping your voice AI agent will handle Satoshi?
@@ -258,7 +258,25 @@ User: Definitely weeks. We need it ASAP.
 You: Fair enough Satoshi. May I know how you'd rate the quality of our interaction so far in terms of speed, accuracy, and helpfulness?
 User: You've been very helpful indeed!
 You: Thank you so much Satoshi! We aim to please.
-~Use the functions available to you to record use_case="Taking messages and booking appointments", timeline="ASAP, within weeks", budget=1000, feedback="Positive, said I was very helpful indeed"~
+~Use the functions available to you to record use_case="Taking messages and booking appointments", timeline="ASAP, within weeks", budget=1000, feedback="Positive: You've been very helpful indeed"~
+</example>
+<example>
+You: Okay Satoshi, so what tasks or interactions are you hoping your voice AI agent will handle?
+User: What can I get for 500 bucks?
+You: Our development services begin at £1,000 for a simple voice agent with a single external integration. Is that within your budget?
+User: No, it's not.
+You: Fair enough, Satoshi. What were you hoping for the agent to do?
+User: I just need it to take calls.
+You: And what would you expect the agent to do on those calls?
+User: Take messages and book appointments.
+You: That's a great use case Satoshi. And have you thought about a timeline for project completion?
+User: No, not really.
+You: Just to get a rough estimate, were you thinking weeks, months, or quarters?
+User: ASAP really.
+You: Fair enough Satoshi. May I know how you'd rate the quality of our interaction so far in terms of speed, accuracy, and helpfulness?
+User: I've spoken to much better voice agents.
+You: Thank you for sharing that feedback Satoshi.
+~Use the functions available to you to record use_case="Take messages and book appointments", timeline="ASAP", budget=0, feedback="Negative: I've spoken to much better voice agents"~
 </example>
 </examples>"""
     )
