@@ -77,7 +77,6 @@ server/
     -m/--openai-model  OpenAI model name
     -T/--temperature   LLM temperature (0.0-2.0)
     -n/--bot-name      Custom bot name
-    -V/--rime-voice-id Rime voice ID
     ```
 
 - **`bots/`**  
