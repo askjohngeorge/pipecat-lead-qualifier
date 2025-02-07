@@ -29,22 +29,22 @@ def get_additional_context(extra: List[str] = []) -> str:
 </additional_context>"""
 
 
-def get_recording_consent_role(extra: List[str] = []) -> NodeContent:
+def get_recording_consent_role() -> NodeContent:
     """Return a dictionary with a list of role messages."""
     return get_system_prompt(
         f"""{ROLE}
 <task>
 Your primary task is to explicitly obtain the caller's unambiguous and unconditional consent to be recorded. You must ensure the caller understands they are consenting to the recording of the call. Follow the conversation flow provided below to establish understanding and collect unambiguous and unconditional consent.
 </task>
-{META_INSTRUCTIONS}
-{get_additional_context(extra)}"""
+{META_INSTRUCTIONS}"""
     )
 
 
-def get_recording_consent_task() -> NodeMessage:
+def get_recording_consent_task(extra: List[str] = []) -> NodeMessage:
     """Return a dictionary with the recording consent task."""
     return get_task_prompt(
-        """<instructions>
+        f"""{get_additional_context(extra)}
+        <instructions>
 1. Request Recording Consent
 "Hi there, I'm Chris an AI voice assistant from John George Voice AI Solutions. For quality assurance purposes, this call will be recorded. Do you consent to this recording?"
 ~Never answer any questions or do anything else other than obtain recording consent~
@@ -56,22 +56,22 @@ def get_recording_consent_task() -> NodeMessage:
     )
 
 
-def get_name_and_interest_role(extra: List[str] = []) -> NodeContent:
+def get_name_and_interest_role() -> NodeContent:
     """Return a dictionary with a list of role messages."""
     return get_system_prompt(
         f"""{ROLE}
 <task>
 Your primary task is to first attempt to establish the caller's full name for our records. If the caller declines to provide their name after a reasonable attempt, proceed without it. Then, determine the caller's primary interest: are they interested in technical consultancy or voice agent development services? Follow the conversation flow provided below to collect the necessary information and navigate the conversation accordingly.
 </task>
-{META_INSTRUCTIONS}
-{get_additional_context(extra)}"""
+{META_INSTRUCTIONS}"""
     )
 
 
-def get_name_and_interest_task() -> NodeMessage:
+def get_name_and_interest_task(extra: List[str] = []) -> NodeMessage:
     """Return a dictionary with the name and interest task."""
     return get_task_prompt(
-        """<instructions>
+        f"""{get_additional_context(extra)}
+<instructions>
 1. Name Collection
 "May I know your name please?"
  - [ 1.1 If R = Gives name ] -> "Thank you $name$" ~Proceed to step 2~
@@ -88,22 +88,22 @@ def get_name_and_interest_task() -> NodeMessage:
     )
 
 
-def get_development_role(extra: List[str] = []) -> NodeContent:
+def get_development_role() -> NodeContent:
     """Return a dictionary with a list of role messages."""
     return get_system_prompt(
         f"""{ROLE}
 <task>
 Your primary task is to qualify leads by asking a series of questions to determine their needs and fit for John George Voice AI Solutions' offerings. Specifically, you must establish the caller's use case for the voice agent, the desired timescale for project completion, their budget, and their assessment of the quality of the interaction. Follow the conversation flow provided below to collect this information. If the caller is unwilling to provide any of this information, you may use "unqualified" as a placeholder to proceed and conclude the call.
 </task>
-{META_INSTRUCTIONS}
-{get_additional_context(extra)}"""
+{META_INSTRUCTIONS}"""
     )
 
 
-def get_development_task() -> NodeMessage:
+def get_development_task(extra: List[str] = []) -> NodeMessage:
     """Return a dictionary with the development task."""
     return get_task_prompt(
-        """<instructions>
+        f"""{get_additional_context(extra)}
+        <instructions>
 1. Use Case Elaboration
 "What tasks or interactions are you hoping your voice AI agent will handle?"
  - [ 1.1 If R = Specific use case provided ] -> ~Thank the user and go to step 2~
@@ -138,22 +138,22 @@ Below is your knowledge of our services, which you should only use to inform you
     )
 
 
-def get_close_call_role(extra: List[str] = []) -> NodeContent:
+def get_close_call_role() -> NodeContent:
     """Return a dictionary with a list of role messages."""
     return get_system_prompt(
         f"""{ROLE}
 <task>
 Your only task is to thank the user for their time.
 </task>
-{META_INSTRUCTIONS}
-{get_additional_context(extra)}"""
+{META_INSTRUCTIONS}"""
     )
 
 
-def get_close_call_task() -> NodeMessage:
+def get_close_call_task(extra: List[str] = []) -> NodeMessage:
     """Return a dictionary with the close call task."""
     return get_task_prompt(
-        """<instructions>
+        f"""{get_additional_context(extra)}
+<instructions>
 1. Close the Call
 "Thank you for your time. We appreciate you choosing John George Voice AI Solutions. Goodbye."
 - ~End the call~
