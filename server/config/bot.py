@@ -86,6 +86,15 @@ class BotConfig:
     ###########################################################################
 
     @property
+    def bot_type(self) -> BotType:
+        return self._bot_type
+
+    @bot_type.setter
+    def bot_type(self, value: BotType):
+        self._bot_type = value
+        os.environ["BOT_TYPE"] = value
+
+    @property
     def bot_name(self) -> str:
         return os.getenv("BOT_NAME", "Marissa")
 
@@ -198,15 +207,6 @@ class BotConfig:
     @rime_speed_alpha.setter
     def rime_speed_alpha(self, value: float):
         os.environ["RIME_SPEED_ALPHA"] = str(value)
-
-    @property
-    def bot_type(self) -> BotType:
-        return self._bot_type
-
-    @bot_type.setter
-    def bot_type(self, value: BotType):
-        self._bot_type = value
-        os.environ["BOT_TYPE"] = value
 
     @property
     def enable_stt_mute_filter(self) -> bool:
