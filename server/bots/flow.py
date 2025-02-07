@@ -199,7 +199,7 @@ async def handle_recording_consent(args: Dict, flow_manager: FlowManager):
         close_node["pre_actions"] = [
             {
                 "type": "tts_say",
-                "text": "I understand. I've navigated you to our contact form where you can send us your questions or requirements in writing.",
+                "text": "Unfortunately we can't proceed without your consent. For now I've navigated you to our contact form where you can send us your questions or requirements in writing. Feel free to call back if you change your mind.",
             },
             {"type": "execute_navigation", "path": "/contact"},
         ]
