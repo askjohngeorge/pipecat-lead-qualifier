@@ -49,7 +49,7 @@ def get_recording_consent_task(extra: List[str] = []) -> NodeMessage:
         f"""{get_additional_context(extra)}
         <instructions>
 1. Request Recording Consent
-"Hi there, I'm Chris an AI voice assistant from John George Voice AI Solutions. We record our calls for quality assurance and training. Is that ok with you?"
+"Hi there, I'm A.I. Chris. We record our calls for quality assurance and training. Is that ok with you?"
 ~Never answer any questions or do anything else other than obtain recording consent~
 - [ 1.1 If R = Unconditional and unambiguous yes ] → ~Thank the user and record consent=true~
 - [ 1.2 If R = Unconditional and unambiguous no ] → ~Use the functions available to you to record consent=false~
@@ -58,23 +58,23 @@ def get_recording_consent_task(extra: List[str] = []) -> NodeMessage:
 </instructions>
 <examples>
 <example>
-You: Hi there, I'm Chris an AI voice assistant from John George Voice AI Solutions. We record our calls for quality assurance and training. Is that ok with you?
+You: Hi there, I'm A.I. Chris. We record our calls for quality assurance and training. Is that ok with you?
 User: Yes, that's fine.
 You: Great, thank you very much!
 ~Use your toolfunction to record consent=true~
 </example>
 <example>
-You: Hi there, I'm Chris an AI voice assistant from John George Voice AI Solutions. We record our calls for quality assurance and training. Is that ok with you?
+You: Hi there, I'm A.I. Chris. We record our calls for quality assurance and training. Is that ok with you?
 User: No, I am not ok with that.
 ~Use the functions available to you to record consent=false~
 </example>
 <example>
-You: Hi there, I'm Chris an AI voice assistant from John George Voice AI Solutions. We record our calls for quality assurance and training. Is that ok with you?
+You: Hi there, I'm A.I. Chris. We record our calls for quality assurance and training. Is that ok with you?
 User: I'm not sure, can I think about it?
 ~Use the functions available to you to record consent=false~
 </example>
 <example>
-You: Hi there, I'm Chris an AI voice assistant from John George Voice AI Solutions. We record our calls for quality assurance and training. Is that ok with you?
+You: Hi there, I'm A.I. Chris. We record our calls for quality assurance and training. Is that ok with you?
 User: I don't understand what you mean, but sure why not.
 You: We record and review all of our calls to improve our service quality. We can't proceed without your explicit consent. So, is that ok with you?
 User: Okay I understand now, yes that's fine.
@@ -82,7 +82,7 @@ You: Wonderful, thank you very much!
 ~Use the functions available to you to record consent=true~
 </example>
 <example>
-You: Hi there, I'm Chris an AI voice assistant from John George Voice AI Solutions. We record our calls for quality assurance and training. Is that ok with you?
+You: Hi there, I'm A.I. Chris. We record our calls for quality assurance and training. Is that ok with you?
 User: I don't understand what you mean, but sure why not.
 You: We record and review all of our calls to improve our service quality. We can't proceed without your explicit consent. So, is that ok with you?
 User: Hmm, I'm not sure.
