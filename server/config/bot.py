@@ -177,11 +177,27 @@ class BotConfig:
 
     @property
     def rime_voice_id(self) -> str:
-        return os.getenv("RIME_VOICE_ID", "tamra")
+        return os.getenv("RIME_VOICE_ID", "marissa")
 
     @rime_voice_id.setter
     def rime_voice_id(self, value: str):
         os.environ["RIME_VOICE_ID"] = value
+
+    @property
+    def rime_reduce_latency(self) -> bool:
+        return self._is_truthy(os.getenv("RIME_REDUCE_LATENCY", "false"))
+
+    @rime_reduce_latency.setter
+    def rime_reduce_latency(self, value: bool):
+        os.environ["RIME_REDUCE_LATENCY"] = str(value)
+
+    @property
+    def rime_speed_alpha(self) -> float:
+        return float(os.getenv("RIME_SPEED_ALPHA", 1.0))
+
+    @rime_speed_alpha.setter
+    def rime_speed_alpha(self, value: float):
+        os.environ["RIME_SPEED_ALPHA"] = str(value)
 
     @property
     def bot_type(self) -> BotType:
