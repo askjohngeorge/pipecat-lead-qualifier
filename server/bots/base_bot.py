@@ -69,7 +69,7 @@ class BaseBot(ABC):
                 self.tts = RimeHttpTTSService(
                     api_key=config.rime_api_key,
                     voice_id=config.rime_voice_id,
-                    params=RimeHttpTTSService.InputParams(reduce_latency=True),
+                    params=RimeHttpTTSService.InputParams(reduce_latency=True, speed_alpha=0.8),
                 )
             case _:
                 raise ValueError(f"Invalid TTS provider: {config.tts_provider}")

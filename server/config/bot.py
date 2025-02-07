@@ -177,7 +177,7 @@ class BotConfig:
 
     @property
     def rime_voice_id(self) -> str:
-        return os.getenv("RIME_VOICE_ID", "helen")
+        return os.getenv("RIME_VOICE_ID", "tamra")
 
     @rime_voice_id.setter
     def rime_voice_id(self, value: str):
