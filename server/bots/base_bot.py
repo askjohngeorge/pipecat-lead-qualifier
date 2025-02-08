@@ -22,6 +22,8 @@ from pipecat.services.rime import RimeHttpTTSService
 from pipecat.transports.services.daily import DailyTransport, DailyParams
 from pipecat.audio.vad.silero import SileroVADAnalyzer
 
+from loguru import logger
+
 
 class BaseBot(ABC):
     """Abstract base class for bot implementations."""
@@ -118,6 +120,8 @@ class BaseBot(ABC):
             if config.enable_stt_mute_filter
             else None
         )
+
+        logger.debug(f"Initialised bot with config: {config}")
 
         # Initialize transport params
         self.transport_params = DailyParams(
