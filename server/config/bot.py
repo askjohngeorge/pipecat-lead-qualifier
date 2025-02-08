@@ -128,7 +128,7 @@ class BotConfig:
     @property
     def google_params(self) -> GoogleLLMService.InputParams:
         temperature = os.getenv("GOOGLE_TEMPERATURE", 1.0)
-        return GoogleLLMService.InputParams(temperature=temperature)
+        return GoogleLLMService.InputParams(max_tokens=1048576, temperature=temperature)
 
     @google_params.setter
     def google_params(self, value: GoogleLLMService.InputParams):
