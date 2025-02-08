@@ -3,7 +3,7 @@ import pytz
 from .types import NodeMessage
 
 
-def get_system_prompt(content: str, message_type: str = "role_messages") -> NodeMessage:
+def get_system_prompt(content: str = "", message_type: str = "role_messages") -> NodeMessage:
     """Return a dictionary with a system prompt."""
     return {
         message_type: [

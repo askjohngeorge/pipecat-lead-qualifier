@@ -41,16 +41,13 @@ def get_additional_context(extra: List[str] = []) -> str:
 </additional_context>"""
 
 
-def get_recording_consent_role() -> NodeContent:
-    """Return a dictionary with a list of role messages."""
-    return get_system_prompt(f"""{get_role()}""")
-
-
 def get_recording_consent_task(extra: List[str] = []) -> NodeMessage:
     """Return a dictionary with the recording consent task."""
     return get_task_prompt(
-        f"""<task>
-Your primary task is to explicitly obtain the caller's unambiguous and unconditional consent to be recorded. You must ensure the caller understands they are consenting to the recording of the call. Follow the conversation flow provided below to establish understanding and collect unambiguous and unconditional consent. As soon as you have established whether or not the users consents to recording, use the collect_recording_consent function to record the outcome.
+        f"""{get_role()}
+        
+<task>
+Your primary task is to explicitly obtain the caller's unambiguous and unconditional consent to be recorded. You must ensure the caller understands they are consenting to the recording of the call. Follow the conversation flow provided below to establish understanding and collect unambiguous and unconditional consent. As soon as you have established whether or not the users consents to being recorded, use the collect_recording_consent function to record the outcome.
 </task>
 
 {get_additional_context(extra)}
@@ -109,23 +106,16 @@ Your primary task is to explicitly obtain the caller's unambiguous and unconditi
     )
 
 
-def get_name_and_interest_role() -> NodeContent:
-    """Return a dictionary with a list of role messages."""
-    return get_system_prompt(
-        f"""{get_role()}
-
-<task>
-Your primary task is to first attempt to establish the caller's full name for our records. Then, determine the caller's primary interest: are they interested in technical consultancy or voice agent development services? Once you have the name and interest, use the functions available to you to record the details.
-</task>
-
-{get_meta_instructions()}"""
-    )
-
-
 def get_name_and_interest_task(extra: List[str] = []) -> NodeMessage:
     """Return a dictionary with the name and interest task."""
     return get_task_prompt(
-        f"""{get_additional_context(extra)}
+        f"""{get_role()}
+
+<task>
+Your primary task is to first attempt to establish the caller's full name for our records. Then, determine the caller's primary interest: are they interested in technical consultancy or voice agent development services? As soon as you have collected the user's name and interest, use the collect_name_and_interest function to record the details.
+</task>
+
+{get_additional_context(extra)}
 
 {get_meta_instructions()}
 
@@ -179,21 +169,15 @@ def get_name_and_interest_task(extra: List[str] = []) -> NodeMessage:
     )
 
 
-def get_development_role() -> NodeContent:
-    """Return a dictionary with a list of role messages."""
-    return get_system_prompt(
-        f"""{get_role()}
-<task>
-Your primary task is to qualify leads by asking a series of questions to determine their needs and fit for John George Voice AI Solutions' offerings. Specifically, you must establish the caller's use case for the voice agent, the desired timescale for project completion, their budget, and their assessment of the quality of the interaction. Follow the conversation flow provided below to collect this information. If the caller is unwilling or unable to provide any of this information, you may use `None` or `0` for budget as a placeholder.
-</task>
-{get_meta_instructions()}"""
-    )
-
-
 def get_development_task(extra: List[str] = []) -> NodeMessage:
     """Return a dictionary with the development task."""
     return get_task_prompt(
-        f"""{get_additional_context(extra)}
+        f"""{get_role()}
+<task>
+Your primary task is to qualify leads by asking a series of questions to determine their needs and fit for John George Voice AI Solutions' offerings. Specifically, you must establish the caller's use case for the voice agent, the desired timescale for project completion, their budget, and their assessment of the quality of the interaction. Follow the conversation flow provided below to collect this information. After reasonable attempts to collect the information, if the caller is unwilling or unable to provide any of this information, you may use `None` or `0` for budget as a placeholder. As soon as you have collected the information, use the collect_qualification_data function to record the details.
+</task>
+
+{get_additional_context(extra)}
 
 {get_meta_instructions()}
 
@@ -312,23 +296,16 @@ For the purpose of these examples, assume the additional_context indicates the u
     )
 
 
-def get_close_call_role() -> NodeContent:
-    """Return a dictionary with a list of role messages."""
-    return get_system_prompt(
+def get_close_call_task(extra: List[str] = []) -> NodeMessage:
+    """Return a dictionary with the close call task."""
+    return get_task_prompt(
         f"""{get_role()}
 
 <task>
 Your only task is to thank the user for their time.
 </task>
 
-{get_meta_instructions()}"""
-    )
-
-
-def get_close_call_task(extra: List[str] = []) -> NodeMessage:
-    """Return a dictionary with the close call task."""
-    return get_task_prompt(
-        f"""{get_additional_context(extra)}
+{get_additional_context(extra)}
 
 {get_meta_instructions()}
 
