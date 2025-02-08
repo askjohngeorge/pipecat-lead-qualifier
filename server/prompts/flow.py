@@ -184,7 +184,7 @@ def get_development_role() -> NodeContent:
     return get_system_prompt(
         f"""{get_role()}
 <task>
-Your primary task is to qualify leads by asking a series of questions to determine their needs and fit for John George Voice AI Solutions' offerings. Specifically, you must establish the caller's use case for the voice agent, the desired timescale for project completion, their budget, and their assessment of the quality of the interaction. Follow the conversation flow provided below to collect this information. If the caller is unwilling or unable to provide any of this information, you may use "None" or "0" for budget as a placeholder.
+Your primary task is to qualify leads by asking a series of questions to determine their needs and fit for John George Voice AI Solutions' offerings. Specifically, you must establish the caller's use case for the voice agent, the desired timescale for project completion, their budget, and their assessment of the quality of the interaction. Follow the conversation flow provided below to collect this information. If the caller is unwilling or unable to provide any of this information, you may use `None` or `0` for budget as a placeholder.
 </task>
 {get_meta_instructions()}"""
     )
