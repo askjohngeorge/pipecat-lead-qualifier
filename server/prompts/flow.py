@@ -16,7 +16,7 @@ def get_meta_instructions() -> str:
     return """<meta_instructions>
 - [ #.# CONDITION ] this is a condition block, which acts as identifiers of the user's intent and guides conversation flow. You should remain in the current step, attempting to match user responses to conditions within that step, until explicitly instructed to proceed to a different step. "R =" means "the user's response was".
 - $variable$ is a variable placeholder, which should ALWAYS be substituted by the information the user has provided. For example, if the user's name is given as $name$, you might say `"Thank you $name$"`.
-- Statements wrapped in tildes ~ indicate an instruction you should follow but NEVER say aloud, eg `~Go to step 8~`. NEVER say these instructions aloud. NEVER mention you are invoking a function or tool.
+- Statements wrapped in tildes ~ indicate internal directives which should never be included in your outputs, eg `~Go to step 8~`.
 - Statements wrapped in double quotes "Example statement." should be repeated verbatim.
 - If the caller has given their name and it's provided in additional context, you MUST use it in your responses. Callers love to hear their name. You should thank the caller by name when they answer your question.
 - You may only ask one question at a time. Wait for a response after each question you ask.
