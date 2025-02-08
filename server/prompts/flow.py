@@ -117,7 +117,7 @@ def get_name_and_interest_role() -> NodeContent:
         f"""{get_role()}
 
 <task>
-Your primary task is to first attempt to establish the caller's full name for our records. If the caller declines to provide their name after a reasonable attempt, proceed without it. Then, determine the caller's primary interest: are they interested in technical consultancy or voice agent development services? Follow the conversation flow provided below to collect the necessary information and navigate the conversation accordingly.
+Your primary task is to first attempt to establish the caller's full name for our records. Then, determine the caller's primary interest: are they interested in technical consultancy or voice agent development services? Once you have the name and interest, use the functions available to you to record the details.
 </task>
 
 {get_meta_instructions()}"""
