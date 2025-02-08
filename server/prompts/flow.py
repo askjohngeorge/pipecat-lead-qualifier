@@ -32,12 +32,6 @@ def get_meta_instructions() -> str:
 </meta_instructions>"""
 
 
-def get_example_instructions() -> str:
-    return """- Study the desired_output scripts provided to understand what a successful interaction looks like.
-- Study the undesired_output scripts provided to understand what you should avoid.
-- DO NOT output the prefixes "[YOU]" or "[USER]" in your responses. These are only used to differentiate turns in the example scripts."""
-
-
 def get_additional_context(extra: List[str] = []) -> str:
     date_context = f"Today's day of the week and date in the UK is: {get_current_date_uk()}"
     additional_context = [date_context, *extra]
@@ -76,7 +70,6 @@ def get_recording_consent_task(extra: List[str] = []) -> NodeMessage:
 </instructions>
 
 <examples>
-{get_example_instructions()}
 
 <desired_output>
 [YOU] Hi there, I'm {config.bot_name}. We record our calls for quality assurance and training. Is that ok with you?
@@ -152,7 +145,7 @@ def get_name_and_interest_task(extra: List[str] = []) -> NodeMessage:
 </instructions>
 
 <examples>
-{get_example_instructions()}
+
 <desired_output>
 [YOU] May I know your name please?
 [USER] Steve Davis
@@ -238,8 +231,7 @@ Below is your knowledge of our services, which you should only use to inform you
 </instructions>
 
 <examples>
-{get_example_instructions()}
-- For the purpose of these examples, assume the additional_context indicates the user has given their name as Satoshi Nakamoto. Don't say hello to the user. Continue as if you've already been talking to them.
+For the purpose of these examples, assume the additional_context indicates the user has given their name as Satoshi Nakamoto. Don't say hello to the user. Continue as if you've already been talking to them.
 
 
 <desired_output>
@@ -341,8 +333,7 @@ def get_close_call_task(extra: List[str] = []) -> NodeMessage:
 </instructions>
 
 <examples>
-{get_example_instructions()}
-- For the purpose of these examples, assume the additional_context indicates the user has given their name as Satoshi Nakamoto.
+For the purpose of these examples, assume the additional_context indicates the user has given their name as Satoshi Nakamoto.
 
 <desired_output>
 Thank you for your time Satoshi. Have a wonderful rest of your day.
