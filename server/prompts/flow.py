@@ -48,9 +48,7 @@ def get_recording_consent_role() -> NodeContent:
 
 <task>
 Your primary task is to explicitly obtain the caller's unambiguous and unconditional consent to be recorded. You must ensure the caller understands they are consenting to the recording of the call. Follow the conversation flow provided below to establish understanding and collect unambiguous and unconditional consent.
-</task>
-
-{get_meta_instructions()}"""
+</task>"""
     )
 
 
@@ -59,6 +57,8 @@ def get_recording_consent_task(extra: List[str] = []) -> NodeMessage:
     return get_task_prompt(
         f"""{get_additional_context(extra)}
 
+{get_meta_instructions()}
+        
 <instructions>
 1. Request Recording Consent
 "Hi there, I'm {config.bot_name}. We record our calls for quality assurance and training. Is that ok with you?"
@@ -129,6 +129,8 @@ def get_name_and_interest_task(extra: List[str] = []) -> NodeMessage:
     return get_task_prompt(
         f"""{get_additional_context(extra)}
 
+{get_meta_instructions()}
+
 <instructions>
 1. Name Collection
 "May I know your name please?"
@@ -194,6 +196,8 @@ def get_development_task(extra: List[str] = []) -> NodeMessage:
     """Return a dictionary with the development task."""
     return get_task_prompt(
         f"""{get_additional_context(extra)}
+
+{get_meta_instructions()}
 
 <instructions>
 Below is the preferred call flow, but some steps may have to be skipped or rearranged depending on the user's responses. In all cases you should ensure you have collected the information required to call the functions available to you.
@@ -327,6 +331,8 @@ def get_close_call_task(extra: List[str] = []) -> NodeMessage:
     """Return a dictionary with the close call task."""
     return get_task_prompt(
         f"""{get_additional_context(extra)}
+
+{get_meta_instructions()}
 
 <instructions>
 1. Close the Call by thanking the user for their time and wishing them a wonderful rest of their day.
