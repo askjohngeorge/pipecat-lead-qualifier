@@ -1,6 +1,6 @@
 from typing import List
-from .types import NodeContent, NodeMessage
-from .helpers import get_system_prompt, get_task_prompt, get_current_date_uk
+from .types import NodeMessage
+from .helpers import get_task_prompt, get_current_date_uk
 from config.bot import BotConfig
 
 config = BotConfig()
@@ -60,47 +60,39 @@ Your primary task is to explicitly obtain the user's unambiguous and uncondition
 </instructions>
 
 <examples>
-Examples of consent:
-- Yes
-- Of course
-- I agree
-- I consent
-- I'm ok with that
-- I'm happy to be recorded
 
-Examples of non-consent:
-- No
-- I don't agree
-- I don't consent
-- I'm not ok with that
-- I'm not happy to be recorded
+<desired_output>
+[YOU] Hi there, I'm {config.bot_name}. We record our calls for quality assurance and training. Is that ok with you?
+[USER] Yes, that's fine.
+[YOU] Great, thank you very much!
+</desired_output>
+
+<desired_output>
+[YOU] Hi there, I'm {config.bot_name}. We record our calls for quality assurance and training. Is that ok with you?
+[USER] No, I am not ok with that.
+[YOU] I'm afraid I'll have to end the call now.
+</desired_output>
 
 <desired_output>
 [YOU] Hi there, I'm {config.bot_name}. We record our calls for quality assurance and training. Is that ok with you?
 [USER] I'm not sure, can I think about it?
-[YOU] We can't proceed without your explicit consent to be recorded. Unless you agree I'll have to end the call.
-[USER] I think I might need legal advise on this.
-
-<action>collect_recording_consent(recording_consent=false)</action>
+[YOU] I'm afraid I'll have to end the call now. Feel free to call back once you've made up your mind.
 </desired_output>
-
-<undesired_output>
-[YOU] Hi there, I'm {config.bot_name}. We record our calls for quality assurance and training. Is that ok with you?
-[USER] What do you mean by that?
-[YOU] We record and review all of our calls to improve our service quality. We can't proceed without your explicit consent. So, is that ok with you?
-[USER] The some of that cut out before the explicit consent part. I'm in a hurry so I'll say yes.
-
-<action>collect_recording_consent(recording_consent=true)</action>
-</undesired_output>
 
 <desired_output>
 [YOU] Hi there, I'm {config.bot_name}. We record our calls for quality assurance and training. Is that ok with you?
 [USER] I don't understand what you mean, but sure why not.
-[YOU] We record and review all of our calls to improve our service quality. We can't proceed without your explicit consent to be recorded on this call. So, is that ok with you?
+[YOU] We record and review all of our calls to improve our service quality. We can't proceed without your explicit consent. So, is that ok with you?
 [USER] Okay I understand now, yes that's fine.
 [YOU] Wonderful, thank you very much!
+</desired_output>
 
-<action>collect_recording_consent(recording_consent=true)</action>
+<desired_output>
+[YOU] Hi there, I'm {config.bot_name}. We record our calls for quality assurance and training. Is that ok with you?
+[USER] I don't understand what you mean, but sure why not.
+[YOU] We record and review all of our calls to improve our service quality. We can't proceed without your explicit consent. So, is that ok with you?
+[USER] Hmm, I'm not sure.
+[YOU] I'm afraid I'll have to end the call now.
 </desired_output>
 
 </examples>"""

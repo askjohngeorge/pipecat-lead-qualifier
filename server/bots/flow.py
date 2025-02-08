@@ -48,13 +48,13 @@ def create_recording_consent_node() -> Dict:
                 "function_declarations": [
                     {
                         "name": "collect_recording_consent",
-                        "description": "Record whether the user consents to call recording",
+                        "description": "Record whether the user consents to the call being recorded",
                         "parameters": {
                             "type": "object",
                             "properties": {
                                 "recording_consent": {
                                     "type": "boolean",
-                                    "description": "Whether the user consents to call recording",
+                                    "description": "True if the user consents to being recorded, False otherwise",
                                 }
                             },
                             "required": ["recording_consent"],
