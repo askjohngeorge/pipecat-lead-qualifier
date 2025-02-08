@@ -43,19 +43,17 @@ def get_additional_context(extra: List[str] = []) -> str:
 
 def get_recording_consent_role() -> NodeContent:
     """Return a dictionary with a list of role messages."""
-    return get_system_prompt(
-        f"""{get_role()}
-
-<task>
-Your primary task is to explicitly obtain the caller's unambiguous and unconditional consent to be recorded. You must ensure the caller understands they are consenting to the recording of the call. Follow the conversation flow provided below to establish understanding and collect unambiguous and unconditional consent.
-</task>"""
-    )
+    return get_system_prompt(f"""{get_role()}""")
 
 
 def get_recording_consent_task(extra: List[str] = []) -> NodeMessage:
     """Return a dictionary with the recording consent task."""
     return get_task_prompt(
-        f"""{get_additional_context(extra)}
+        f"""<task>
+Your primary task is to explicitly obtain the caller's unambiguous and unconditional consent to be recorded. You must ensure the caller understands they are consenting to the recording of the call. Follow the conversation flow provided below to establish understanding and collect unambiguous and unconditional consent. As soon as you have established whether or not the users consents to recording, use the collect_recording_consent function to record the outcome.
+</task>
+
+{get_additional_context(extra)}
 
 {get_meta_instructions()}
         
