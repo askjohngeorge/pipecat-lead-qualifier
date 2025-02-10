@@ -28,7 +28,8 @@ from pipecat.processors.aggregators.openai_llm_context import (
 )
 
 from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
-from pipecat.services.google import GoogleLLMContext  # , GoogleLLMService
+from pipecat.services.google import GoogleLLMContext
+from pipecat.sync.base_notifier import BaseNotifier
 
 TRANSCRIBER_SYSTEM_INSTRUCTION = """You are an audio transcriber. You are receiving audio from a user. Your job is to
 transcribe the input audio to text exactly as it was said by the user.
@@ -331,7 +332,7 @@ class AudioAccumulator(FrameProcessor):
         await super().process_frame(frame, direction)
 
         # ignore context frame
-        if isinstance(frame, OpenAILLMContext):
+        if isinstance(frame, OpenAILLMContextFrame):
             return
 
         if isinstance(frame, TranscriptionFrame):
@@ -381,7 +382,7 @@ class CompletenessCheck(FrameProcessor):
 
     wait_time = 5.0
 
-    def __init__(self, notifier, audio_accumulator: AudioAccumulator, **kwargs):
+    def __init__(self, notifier: BaseNotifier, audio_accumulator: AudioAccumulator, **kwargs):
         super().__init__()
         self._notifier = notifier
         self._audio_accumulator = audio_accumulator
@@ -497,7 +498,7 @@ class OutputGate(FrameProcessor):
 
     def __init__(
         self,
-        notifier,
+        notifier: BaseNotifier,
         context: OpenAILLMContext,
         user_transcription_buffer: "UserAggregatorBuffer",
         **kwargs,
