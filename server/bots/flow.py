@@ -103,7 +103,7 @@ def create_name_and_interest_node() -> Dict:
     }
 
 
-def create_development_node(user_name: str) -> Dict:
+def create_development_node(user_name: str = None) -> Dict:
     """# Node 3: Development Node
     Create node for handling voice agent development path."""
     return {
@@ -134,7 +134,7 @@ def create_development_node(user_name: str) -> Dict:
     }
 
 
-def create_close_call_node(user_name: str) -> Dict:
+def create_close_call_node(user_name: str = None) -> Dict:
     """# Node 4: Final Close Node
     Create node to conclude the conversation."""
     return {
