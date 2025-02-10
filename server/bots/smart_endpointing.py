@@ -19,6 +19,7 @@ from pipecat.frames.frames import (
     TranscriptionFrame,
     UserStartedSpeakingFrame,
     UserStoppedSpeakingFrame,
+    LLMMessagesFrame,
 )
 
 from pipecat.processors.aggregators.llm_response import LLMResponseAggregator
@@ -373,11 +374,73 @@ class AudioAccumulator(FrameProcessor):
         await self.push_frame(frame, direction)
 
 
-class CompletenessCheck(FrameProcessor):
-    """Checks the result of the classifier LLM to determine if the user has finished speaking.
+class StatementJudgeContextFilter(FrameProcessor):
+    """Extracts recent user messages and constructs an LLMMessagesFrame for the classifier LLM.
 
-    Triggers the notifier if the user has finished speaking. Also triggers the notifier if an
-    idle timeout is reached.
+    This processor takes the OpenAILLMContextFrame from the main conversation context,
+    extracts the most recent user messages, and creates a simplified LLMMessagesFrame
+    for the statement classifier LLM to determine if the user has finished speaking.
+    """
+
+    def __init__(self, notifier: BaseNotifier, **kwargs):
+        super().__init__(**kwargs)
+        self._notifier = notifier
+
+    async def process_frame(self, frame: Frame, direction: FrameDirection):
+        await super().process_frame(frame, direction)
+
+        # We must not block system frames
+        if isinstance(frame, SystemFrame):
+            await self.push_frame(frame, direction)
+            return
+
+        # Just treat an LLMMessagesFrame as complete, no matter what
+        if isinstance(frame, LLMMessagesFrame):
+            await self._notifier.notify()
+            return
+
+        # Otherwise, we only want to handle OpenAILLMContextFrames, and only want to push a simple
+        # messages frame that contains a system prompt and the most recent user messages,
+        # concatenated.
+        if isinstance(frame, OpenAILLMContextFrame):
+            # Take text content from the most recent user messages
+            messages = frame.context.messages
+            user_text_messages = []
+            last_assistant_message = None
+            for message in reversed(messages):
+                if message["role"] != "user":
+                    if message["role"] == "assistant":
+                        last_assistant_message = message
+                    break
+                if isinstance(message["content"], str):
+                    user_text_messages.append(message["content"])
+                elif isinstance(message["content"], list):
+                    for content in message["content"]:
+                        if content["type"] == "text":
+                            user_text_messages.insert(0, content["text"])
+
+            # If we have any user text content, push an LLMMessagesFrame
+            if user_text_messages:
+                user_message = " ".join(reversed(user_text_messages))
+                logger.debug(f"Statement judge processing: {user_message}")
+                messages = [
+                    {
+                        "role": "system",
+                        "content": CLASSIFIER_SYSTEM_INSTRUCTION,
+                    }
+                ]
+                if last_assistant_message:
+                    messages.append(last_assistant_message)
+                messages.append({"role": "user", "content": user_message})
+                await self.push_frame(LLMMessagesFrame(messages))
+
+
+class CompletenessCheck(FrameProcessor):
+    """Checks if the user has finished speaking based on the statement classifier's output.
+
+    This processor looks for an exact "YES" response from the classifier LLM. When found,
+    it sends a UserStoppedSpeakingFrame and triggers the notifier. It also handles an
+    idle timeout to prevent hanging if the classifier fails to respond.
     """
 
     wait_time = 5.0
@@ -395,7 +458,7 @@ class CompletenessCheck(FrameProcessor):
         if isinstance(frame, UserStartedSpeakingFrame):
             if self._idle_task:
                 await self.cancel_task(self._idle_task)
-        elif isinstance(frame, TextFrame) and frame.text.startswith("YES"):
+        elif isinstance(frame, TextFrame) and frame.text == "YES":  # Changed to exact match
             logger.debug("Completeness check YES")
             if self._idle_task:
                 await self.cancel_task(self._idle_task)

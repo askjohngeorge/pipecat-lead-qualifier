@@ -14,7 +14,10 @@ from pipecat.services.cartesia import CartesiaTTSService
 from pipecat.services.elevenlabs import ElevenLabsTTSService
 from pipecat.services.google import GoogleLLMService
 from pipecat.services.openai import OpenAILLMService
-from pipecat.processors.aggregators.openai_llm_context import OpenAILLMContext
+from pipecat.processors.aggregators.openai_llm_context import (
+    OpenAILLMContext,
+    OpenAILLMContextFrame,
+)
 from pipecat.processors.filters.stt_mute_filter import (
     STTMuteFilter,
     STTMuteConfig,
@@ -28,6 +31,11 @@ from pipecat.frames.frames import (
     UserStartedSpeakingFrame,
     UserStoppedSpeakingFrame,
     TranscriptionFrame,
+    LLMMessagesFrame,
+    StartInterruptionFrame,
+    StopInterruptionFrame,
+    FunctionCallInProgressFrame,
+    FunctionCallResultFrame,
 )
 
 from loguru import logger
@@ -41,6 +49,7 @@ from .smart_endpointing import (
     OutputGate,
     TRANSCRIBER_SYSTEM_INSTRUCTION,
     CLASSIFIER_SYSTEM_INSTRUCTION,
+    StatementJudgeContextFilter,
 )
 
 
@@ -122,9 +131,9 @@ class BaseBot(ABC):
                     system_instruction=TRANSCRIBER_SYSTEM_INSTRUCTION,
                 )
 
-                # Classifier LLM
-                self.classifier_llm = GoogleLLMService(
-                    name="Classifier",
+                # Statement classifier LLM (renamed from classifier_llm)
+                self.statement_llm = GoogleLLMService(
+                    name="StatementJudger",
                     api_key=config.google_api_key,
                     model=config.classifier_model,
                     temperature=0.0,
@@ -239,6 +248,16 @@ class BaseBot(ABC):
         async def block_user_stopped_speaking(frame):
             return not isinstance(frame, UserStoppedSpeakingFrame)
 
+        async def pass_only_llm_trigger_frames(frame):
+            return (
+                isinstance(frame, OpenAILLMContextFrame)
+                or isinstance(frame, LLMMessagesFrame)
+                or isinstance(frame, StartInterruptionFrame)
+                or isinstance(frame, StopInterruptionFrame)
+                or isinstance(frame, FunctionCallInProgressFrame)
+                or isinstance(frame, FunctionCallResultFrame)
+            )
+
         # Build the pipeline using parallel processing for smart endpointing
         pipeline = Pipeline(
             [
@@ -254,11 +273,14 @@ class BaseBot(ABC):
                         FunctionFilter(filter=block_user_stopped_speaking),
                     ],
                     [
-                        self.classifier_llm,
+                        # Statement completeness sub-pipeline
+                        StatementJudgeContextFilter(notifier=self.notifier),
+                        self.statement_llm,  # renamed from classifier_llm
                         self.completeness_check,
                     ],
                     [
-                        self.context_assembler,
+                        # Conversation sub-pipeline with new filter
+                        FunctionFilter(filter=pass_only_llm_trigger_frames),
                         self.conversation_llm,
                         self.output_gate,
                     ],
