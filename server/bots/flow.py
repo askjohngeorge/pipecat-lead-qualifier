@@ -92,7 +92,7 @@ def create_name_and_interest_node() -> Dict:
                                     ],
                                 },
                             },
-                            "required": ["interest_type"],
+                            "required": ["name", "interest_type"],
                         },
                         "handler": collect_name_and_interest,
                         "transition_callback": handle_name_and_interest,
