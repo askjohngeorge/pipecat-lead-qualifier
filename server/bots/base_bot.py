@@ -5,8 +5,10 @@ from typing import Optional, List, Dict
 
 from pipecat.pipeline.task import PipelineParams, PipelineTask
 from pipecat.pipeline.pipeline import Pipeline
+from pipecat.pipeline.parallel_pipeline import ParallelPipeline
 from pipecat.pipeline.runner import PipelineRunner
 from pipecat.processors.frameworks.rtvi import RTVIConfig, RTVIProcessor
+from pipecat.processors.filters.function_filter import FunctionFilter
 from pipecat.services.deepgram import DeepgramSTTService, DeepgramTTSService
 from pipecat.services.cartesia import CartesiaTTSService
 from pipecat.services.elevenlabs import ElevenLabsTTSService
@@ -21,8 +23,25 @@ from pipecat.processors.filters.stt_mute_filter import (
 from pipecat.services.rime import RimeHttpTTSService
 from pipecat.transports.services.daily import DailyTransport, DailyParams
 from pipecat.audio.vad.silero import SileroVADAnalyzer
+from pipecat.sync.event_notifier import EventNotifier
+from pipecat.frames.frames import (
+    UserStartedSpeakingFrame,
+    UserStoppedSpeakingFrame,
+    TranscriptionFrame,
+)
 
 from loguru import logger
+import time
+
+from .smart_endpointing import (
+    AudioAccumulator,
+    CompletenessCheck,
+    UserAggregatorBuffer,
+    ConversationAudioContextAssembler,
+    OutputGate,
+    TRANSCRIBER_SYSTEM_INSTRUCTION,
+    CLASSIFIER_SYSTEM_INSTRUCTION,
+)
 
 
 class BaseBot(ABC):
@@ -79,32 +98,59 @@ class BaseBot(ABC):
             case _:
                 raise ValueError(f"Invalid TTS provider: {config.tts_provider}")
 
-        # Initialize LLM service
+        # Initialize LLM services
         match config.llm_provider:
             case "google":
                 if not config.google_api_key:
                     raise ValueError("Google API key is required for Google LLM")
 
-                self.llm = GoogleLLMService(
+                # Main conversation LLM
+                self.conversation_llm = GoogleLLMService(
                     api_key=config.google_api_key,
                     model=config.google_model,
                     params=config.google_params,
                 )
+                self.llm = self.conversation_llm
+
+                # Transcriber LLM
+                self.transcriber_llm = GoogleLLMService(
+                    name="Transcriber",
+                    api_key=config.google_api_key,
+                    model=config.transcriber_model,
+                    temperature=0.0,
+                    system_instruction=TRANSCRIBER_SYSTEM_INSTRUCTION,
+                )
+
+                # Classifier LLM
+                self.classifier_llm = GoogleLLMService(
+                    name="Classifier",
+                    api_key=config.google_api_key,
+                    model=config.classifier_model,
+                    temperature=0.0,
+                    system_instruction=CLASSIFIER_SYSTEM_INSTRUCTION,
+                )
+
             case "openai":
                 if not config.openai_api_key:
                     raise ValueError("OpenAI API key is required for OpenAI LLM")
 
-                self.llm = OpenAILLMService(
+                self.conversation_llm = OpenAILLMService(
                     api_key=config.openai_api_key,
                     model=config.openai_model,
                     params=config.openai_params,
                 )
+
+                # Note: Smart endpointing currently only supports Google LLM
+                raise NotImplementedError(
+                    "Smart endpointing is currently only supported with Google LLM"
+                )
+
             case _:
                 raise ValueError(f"Invalid LLM provider: {config.llm_provider}")
 
         # Initialize context
         self.context = OpenAILLMContext(system_messages)
-        self.context_aggregator = self.llm.create_context_aggregator(self.context)
+        self.context_aggregator = self.conversation_llm.create_context_aggregator(self.context)
 
         # Initialize mute filter
         self.stt_mute_filter = (
@@ -134,6 +180,21 @@ class BaseBot(ABC):
         # Initialize RTVI with default config
         self.rtvi = RTVIProcessor(config=RTVIConfig(config=[]))
 
+        # Initialize smart endpointing components
+        self.notifier = EventNotifier()
+        self.audio_accumulator = AudioAccumulator()
+        self.completeness_check = CompletenessCheck(
+            notifier=self.notifier,
+            audio_accumulator=self.audio_accumulator,
+        )
+        self.user_aggregator = UserAggregatorBuffer()
+        self.context_assembler = ConversationAudioContextAssembler(context=self.context)
+        self.output_gate = OutputGate(
+            notifier=self.notifier,
+            context=self.context,
+            user_transcription_buffer=self.user_aggregator,
+        )
+
         # These will be set up when needed
         self.transport: Optional[DailyTransport] = None
         self.task: Optional[PipelineTask] = None
@@ -154,27 +215,69 @@ class BaseBot(ABC):
             await transport.capture_participant_transcription(participant["id"])
             await self._handle_first_participant()
 
+        @self.transport.event_handler("on_app_message")
+        async def on_app_message(transport, message, sender):
+            if "message" not in message:
+                return
+
+            await self.task.queue_frames(
+                [
+                    UserStartedSpeakingFrame(),
+                    TranscriptionFrame(
+                        user_id=sender, timestamp=time.time(), text=message["message"]
+                    ),
+                    UserStoppedSpeakingFrame(),
+                ]
+            )
+
     def create_pipeline(self):
         """Create the processing pipeline."""
         if not self.transport:
             raise RuntimeError("Transport must be set up before creating pipeline")
 
-        # Build the pipeline using a simple, flat processor list
+        async def block_user_stopped_speaking(frame):
+            return not isinstance(frame, UserStoppedSpeakingFrame)
+
+        # Build the pipeline using parallel processing for smart endpointing
         pipeline = Pipeline(
             [
-                processor
-                for processor in [
-                    self.rtvi,  # RTVI processor
-                    self.transport.input(),  # Transport for user input
-                    self.stt_mute_filter,  # STT mute filter
-                    self.stt,  # STT service
-                    self.context_aggregator.user(),  # User side context aggregation
-                    self.llm,  # LLM processor
-                    self.tts,  # TTS service
-                    self.transport.output(),  # Transport for delivering output
-                    self.context_aggregator.assistant(),  # Assistant side context aggregation
-                ]
-                if processor is not None  # Remove processors disabled via config
+                self.rtvi,
+                self.transport.input(),
+                self.audio_accumulator,
+                ParallelPipeline(
+                    [
+                        # Pass everything except UserStoppedSpeaking to the elements after
+                        # this ParallelPipeline
+                        FunctionFilter(filter=block_user_stopped_speaking),
+                    ],
+                    [
+                        # Classification branch
+                        ParallelPipeline(
+                            [
+                                self.classifier_llm,
+                                self.completeness_check,
+                            ]
+                        ),
+                        # Transcription branch
+                        ParallelPipeline(
+                            [
+                                self.transcriber_llm,
+                                self.user_aggregator,
+                            ]
+                        ),
+                        # Main conversation branch
+                        ParallelPipeline(
+                            [
+                                self.context_assembler,
+                                self.conversation_llm,
+                                self.output_gate,
+                            ]
+                        ),
+                    ],
+                ),
+                self.tts,
+                self.transport.output(),
+                self.context_aggregator.assistant(),
             ]
         )
 

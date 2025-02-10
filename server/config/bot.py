@@ -42,7 +42,7 @@ class BotConfig:
             self._bot_type = "flow"  # Default to flow bot if invalid value
 
     def __repr__(self) -> str:
-        return f"BotConfig(bot_type={self.bot_type}, bot_name={self.bot_name}, llm_provider={self.llm_provider}, google_model={self.google_model}, google_params={self.google_params}, openai_model={self.openai_model}, openai_params={self.openai_params}, tts_provider={self.tts_provider}, deepgram_voice={self.deepgram_voice}, cartesia_voice={self.cartesia_voice}, elevenlabs_voice_id={self.elevenlabs_voice_id}, rime_voice_id={self.rime_voice_id}, rime_reduce_latency={self.rime_reduce_latency}, rime_speed_alpha={self.rime_speed_alpha}, enable_stt_mute_filter={self.enable_stt_mute_filter})"
+        return f"BotConfig(bot_type={self.bot_type}, bot_name={self.bot_name}, llm_provider={self.llm_provider}, google_model={self.google_model}, google_params={self.google_params}, openai_model={self.openai_model}, openai_params={self.openai_params}, tts_provider={self.tts_provider}, deepgram_voice={self.deepgram_voice}, cartesia_voice={self.cartesia_voice}, elevenlabs_voice_id={self.elevenlabs_voice_id}, rime_voice_id={self.rime_voice_id}, rime_reduce_latency={self.rime_reduce_latency}, rime_speed_alpha={self.rime_speed_alpha}, enable_stt_mute_filter={self.enable_stt_mute_filter}, transcriber_model={self.transcriber_model}, classifier_model={self.classifier_model})"
 
     def _is_truthy(self, value: str) -> bool:
         return value.lower() in (
@@ -119,7 +119,7 @@ class BotConfig:
 
     @property
     def google_model(self) -> str:
-        return os.getenv("GOOGLE_MODEL", "gemini-2.0-flash")
+        return os.getenv("GOOGLE_MODEL", "gemini-2.0-flash-001")
 
     @google_model.setter
     def google_model(self, value: str):
@@ -218,3 +218,25 @@ class BotConfig:
     @enable_stt_mute_filter.setter
     def enable_stt_mute_filter(self, value: bool):
         os.environ["ENABLE_STT_MUTE_FILTER"] = str(value)
+
+    ###########################################################################
+    # Smart Endpointing Configuration
+    ###########################################################################
+
+    @property
+    def transcriber_model(self) -> str:
+        """Model used for transcribing user speech."""
+        return os.getenv("TRANSCRIBER_MODEL", "gemini-2.0-flash-001")
+
+    @transcriber_model.setter
+    def transcriber_model(self, value: str):
+        os.environ["TRANSCRIBER_MODEL"] = value
+
+    @property
+    def classifier_model(self) -> str:
+        """Model used for classifying speech completeness."""
+        return os.getenv("CLASSIFIER_MODEL", "gemini-2.0-flash-001")
+
+    @classifier_model.setter
+    def classifier_model(self, value: str):
+        os.environ["CLASSIFIER_MODEL"] = value
