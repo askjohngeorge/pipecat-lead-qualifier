@@ -103,12 +103,12 @@ def create_name_and_interest_node() -> Dict:
     }
 
 
-def create_development_node(name: str = "$none_given$") -> Dict:
+def create_development_node(user_name: str) -> Dict:
     """# Node 3: Development Node
     Create node for handling voice agent development path."""
     return {
         **get_system_prompt(),
-        **get_development_task(extra=[f"Caller has given their name as: {name}"]),
+        **get_development_task(user_name),
         "functions": [
             {
                 "function_declarations": [
@@ -134,12 +134,12 @@ def create_development_node(name: str = "$none_given$") -> Dict:
     }
 
 
-def create_close_call_node(name: str = "$none_given$") -> Dict:
+def create_close_call_node(user_name: str) -> Dict:
     """# Node 4: Final Close Node
     Create node to conclude the conversation."""
     return {
         **get_system_prompt(),
-        **get_close_call_task(extra=[f"Caller has given their name as: {name}"]),
+        **get_close_call_task(user_name),
         "functions": [],
         "post_actions": [{"type": "end_conversation"}],
     }
