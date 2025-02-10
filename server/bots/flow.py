@@ -336,6 +336,7 @@ class FlowBot(BaseBot):
         self.flow_manager = FlowManager(
             task=self.task,
             llm=self.llm,
+            tts=self.tts,
             context_aggregator=self.context_aggregator,
             context_strategy=ContextStrategyConfig(strategy=ContextStrategy.RESET),
         )
