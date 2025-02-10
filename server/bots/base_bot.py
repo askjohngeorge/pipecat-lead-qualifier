@@ -57,7 +57,7 @@ class BaseBot(ABC):
         self.config = config
 
         # Initialize STT service
-        self.stt = DeepgramSTTService(api_key=config.deepgram_api_key)
+        # self.stt = DeepgramSTTService(api_key=config.deepgram_api_key)
 
         # Initialize TTS service
         match config.tts_provider:
@@ -109,6 +109,7 @@ class BaseBot(ABC):
                     api_key=config.google_api_key,
                     model=config.google_model,
                     params=config.google_params,
+                    system_instruction=system_messages,
                 )
                 self.llm = self.conversation_llm
 
@@ -149,23 +150,23 @@ class BaseBot(ABC):
                 raise ValueError(f"Invalid LLM provider: {config.llm_provider}")
 
         # Initialize context
-        self.context = OpenAILLMContext(system_messages)
+        self.context = OpenAILLMContext()
         self.context_aggregator = self.conversation_llm.create_context_aggregator(self.context)
 
         # Initialize mute filter
-        self.stt_mute_filter = (
-            STTMuteFilter(
-                stt_service=self.stt,
-                config=STTMuteConfig(
-                    strategies={
-                        STTMuteStrategy.FIRST_SPEECH,
-                        STTMuteStrategy.FUNCTION_CALL,
-                    }
-                ),
-            )
-            if config.enable_stt_mute_filter
-            else None
-        )
+        # self.stt_mute_filter = (
+        #     STTMuteFilter(
+        #         stt_service=self.stt,
+        #         config=STTMuteConfig(
+        #             strategies={
+        #                 STTMuteStrategy.FIRST_SPEECH,
+        #                 STTMuteStrategy.FUNCTION_CALL,
+        #             }
+        #         ),
+        #     )
+        #     if config.enable_stt_mute_filter
+        #     else None
+        # )
 
         logger.debug(f"Initialised bot with config: {config}")
 
@@ -251,28 +252,21 @@ class BaseBot(ABC):
                         FunctionFilter(filter=block_user_stopped_speaking),
                     ],
                     [
-                        # Classification branch
                         ParallelPipeline(
                             [
                                 self.classifier_llm,
                                 self.completeness_check,
-                            ]
-                        ),
-                        # Transcription branch
-                        ParallelPipeline(
+                            ],
                             [
                                 self.transcriber_llm,
                                 self.user_aggregator,
-                            ]
-                        ),
-                        # Main conversation branch
-                        ParallelPipeline(
-                            [
-                                self.context_assembler,
-                                self.conversation_llm,
-                                self.output_gate,
-                            ]
-                        ),
+                            ],
+                        )
+                    ],
+                    [
+                        self.context_assembler,
+                        self.conversation_llm,
+                        self.output_gate,
                     ],
                 ),
                 self.tts,

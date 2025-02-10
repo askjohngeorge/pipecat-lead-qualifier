@@ -10,7 +10,7 @@ class SimpleBot(BaseBot):
 
     def __init__(self, config: BotConfig):
         # Define the initial system message with conversation instructions
-        system_messages = get_simple_prompt()["task_messages"]
+        system_messages = get_simple_prompt()["task_messages"][0]["content"]
         super().__init__(config, system_messages)
 
     async def _handle_first_participant(self):
