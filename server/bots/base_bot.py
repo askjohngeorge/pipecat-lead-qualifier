@@ -57,7 +57,7 @@ class BaseBot(ABC):
         self.config = config
 
         # Initialize STT service
-        # self.stt = DeepgramSTTService(api_key=config.deepgram_api_key)
+        self.stt = DeepgramSTTService(api_key=config.deepgram_api_key)
 
         # Initialize TTS service
         match config.tts_provider:
@@ -154,19 +154,19 @@ class BaseBot(ABC):
         self.context_aggregator = self.conversation_llm.create_context_aggregator(self.context)
 
         # Initialize mute filter
-        # self.stt_mute_filter = (
-        #     STTMuteFilter(
-        #         stt_service=self.stt,
-        #         config=STTMuteConfig(
-        #             strategies={
-        #                 STTMuteStrategy.FIRST_SPEECH,
-        #                 STTMuteStrategy.FUNCTION_CALL,
-        #             }
-        #         ),
-        #     )
-        #     if config.enable_stt_mute_filter
-        #     else None
-        # )
+        self.stt_mute_filter = (
+            STTMuteFilter(
+                stt_service=self.stt,
+                config=STTMuteConfig(
+                    strategies={
+                        STTMuteStrategy.FIRST_SPEECH,
+                        STTMuteStrategy.FUNCTION_CALL,
+                    }
+                ),
+            )
+            if config.enable_stt_mute_filter
+            else None
+        )
 
         logger.debug(f"Initialised bot with config: {config}")
 
@@ -244,7 +244,9 @@ class BaseBot(ABC):
             [
                 self.rtvi,
                 self.transport.input(),
-                self.audio_accumulator,
+                self.stt_mute_filter,
+                self.stt,
+                self.context_aggregator.user(),
                 ParallelPipeline(
                     [
                         # Pass everything except UserStoppedSpeaking to the elements after
@@ -252,16 +254,8 @@ class BaseBot(ABC):
                         FunctionFilter(filter=block_user_stopped_speaking),
                     ],
                     [
-                        ParallelPipeline(
-                            [
-                                self.classifier_llm,
-                                self.completeness_check,
-                            ],
-                            [
-                                self.transcriber_llm,
-                                self.user_aggregator,
-                            ],
-                        )
+                        self.classifier_llm,
+                        self.completeness_check,
                     ],
                     [
                         self.context_assembler,
