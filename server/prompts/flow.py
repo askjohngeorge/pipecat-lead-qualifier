@@ -25,7 +25,9 @@ def get_meta_instructions(user_name: str = None) -> str:
 
 
 def get_additional_context(user_name: str = None) -> str:
-    name_context = f"User has given their name as: {user_name}" if user_name is not None else ""
+    name_context = (
+        f"User has given their name as: {user_name}" if user_name not in ["User", None] else ""
+    )
     return f"""<additional_context>
 Today's day of the week and date in the UK is: {get_current_date_uk()}
 {name_context}
