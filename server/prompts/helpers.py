@@ -3,21 +3,22 @@ import pytz
 from .types import NodeMessage
 
 
-def get_system_prompt(content: str = "", message_type: str = "role_messages") -> NodeMessage:
+def get_system_prompt(content: str) -> NodeMessage:
     """Return a dictionary with a system prompt."""
     return {
-        message_type: [
+        "role_messages": [
+            {
+                "role": "system",
+                "content": "",
+            }
+        ],
+        "task_messages": [
             {
                 "role": "system",
                 "content": content,
             }
-        ]
+        ],
     }
-
-
-def get_task_prompt(content: str) -> NodeMessage:
-    """Return a dictionary with a list of task messages."""
-    return get_system_prompt(content, "task_messages")
 
 
 def get_current_date_uk() -> str:

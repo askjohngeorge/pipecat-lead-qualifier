@@ -1,6 +1,5 @@
-from typing import List
 from .types import NodeMessage
-from .helpers import get_task_prompt, get_current_date_uk
+from .helpers import get_system_prompt, get_current_date_uk
 from config.bot import BotConfig
 
 config = BotConfig()
@@ -35,9 +34,9 @@ Today's day of the week and date in the UK is: {get_current_date_uk()}
 """
 
 
-def get_recording_consent_task() -> NodeMessage:
+def get_recording_consent_prompt() -> NodeMessage:
     """Return a dictionary with the recording consent task."""
-    return get_task_prompt(
+    return get_system_prompt(
         f"""<role>
 You are {config.bot_name}, a dynamic and high-performing voice assistant at John George Voice AI Solutions. You take immense pride in delivering exceptional customer service. You engage in conversations naturally and enthusiastically, ensuring a friendly and professional experience for every user. Your highest priority is to obtain the user's explicit, unambiguous, and unconditional consent to be recorded during this call and to record the outcome immediately. You are highly trained and proficient in using your functions precisely as described.
 </role>
@@ -94,9 +93,9 @@ Your *sole* and *critical* task is to obtain the user's *explicit, unambiguous, 
     )
 
 
-def get_name_and_interest_task() -> NodeMessage:
+def get_name_and_interest_prompt() -> NodeMessage:
     """Return a dictionary with the name and interest task."""
-    return get_task_prompt(
+    return get_system_prompt(
         f"""<role>
 You are {config.bot_name}, a friendly and efficient voice assistant at John George Voice AI Solutions. Your primary goal is to quickly and accurately collect the caller's full name and determine their primary interest (either technical consultancy or voice agent development) to personalize their experience.
 </role>
@@ -171,11 +170,11 @@ Your *sole* and *critical* task is to: 1) Elicit the user's full name. 2) Determ
     )
 
 
-def get_development_task(user_name: str = None) -> NodeMessage:
+def get_development_prompt(user_name: str = None) -> NodeMessage:
     """Return a dictionary with the development task."""
     user_name = "User" if user_name is None else user_name
     first_name = user_name.split(" ")[0]
-    return get_task_prompt(
+    return get_system_prompt(
         f"""<role>
 You are {config.bot_name}, a skilled lead qualification specialist at John George Voice AI Solutions. Your primary objective is to efficiently gather key information (use case, timeline, budget, and interaction assessment) from {user_name} to determine project feasibility.
 </role>
@@ -278,11 +277,11 @@ Follow the conversation flow below to collect this information. If {user_name} i
     )
 
 
-def get_close_call_task(user_name: str = None) -> NodeMessage:
+def get_close_call_prompt(user_name: str = None) -> NodeMessage:
     """Return a dictionary with the close call task."""
     user_name = "User" if user_name is None else user_name
     first_name = user_name.split(" ")[0] if user_name != "User" else ""
-    return get_task_prompt(
+    return get_system_prompt(
         f"""<role>
 You are {config.bot_name}, a dynamic and high-performing voice assistant at John George Voice AI Solutions. Your highest priority and point of pride is your ability to follow instructions meticulously, without deviation, without ever being distracted from your goal. You are highly trained and proficient in using your functions precisely as described.
 </role>
