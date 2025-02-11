@@ -27,6 +27,7 @@ from pipecat.services.rime import RimeHttpTTSService
 from pipecat.transports.services.daily import DailyTransport, DailyParams
 from pipecat.audio.vad.silero import SileroVADAnalyzer
 from pipecat.sync.event_notifier import EventNotifier
+from pipecat.processors.user_idle_processor import UserIdleProcessor
 from pipecat.frames.frames import (
     UserStartedSpeakingFrame,
     UserStoppedSpeakingFrame,
@@ -42,10 +43,7 @@ from loguru import logger
 import time
 
 from .smart_endpointing import (
-    AudioAccumulator,
     CompletenessCheck,
-    UserAggregatorBuffer,
-    ConversationAudioContextAssembler,
     OutputGate,
     CLASSIFIER_SYSTEM_INSTRUCTION,
     StatementJudgeContextFilter,
@@ -183,18 +181,14 @@ class BaseBot(ABC):
 
         # Initialize smart endpointing components
         self.notifier = EventNotifier()
-        self.audio_accumulator = AudioAccumulator()
-        self.completeness_check = CompletenessCheck(
-            notifier=self.notifier,
-            audio_accumulator=self.audio_accumulator,
-        )
-        self.user_aggregator = UserAggregatorBuffer()
-        self.context_assembler = ConversationAudioContextAssembler(context=self.context)
-        self.output_gate = OutputGate(
-            notifier=self.notifier,
-            context=self.context,
-            user_transcription_buffer=self.user_aggregator,
-        )
+        self.statement_judge_context_filter = StatementJudgeContextFilter(notifier=self.notifier)
+        self.completeness_check = CompletenessCheck(notifier=self.notifier)
+        self.output_gate = OutputGate(notifier=self.notifier, start_open=True)
+
+        async def user_idle_notifier(frame):
+            await self.notifier.notify()
+
+        self.user_idle = UserIdleProcessor(callback=user_idle_notifier, timeout=5.0)
 
         # These will be set up when needed
         self.transport: Optional[DailyTransport] = None
@@ -262,7 +256,7 @@ class BaseBot(ABC):
                     ],
                     [
                         # Endpoint detection branch using Gemini for completeness
-                        StatementJudgeContextFilter(notifier=self.notifier),
+                        self.statement_judge_context_filter,
                         self.statement_llm,
                         self.completeness_check,
                     ],
@@ -274,6 +268,7 @@ class BaseBot(ABC):
                     ],
                 ),
                 self.tts,
+                self.user_idle,
                 self.transport.output(),
                 self.context_aggregator.assistant(),
             ]

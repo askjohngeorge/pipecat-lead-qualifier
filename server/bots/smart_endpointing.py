@@ -1,8 +1,5 @@
 import asyncio
-import time
-import google.ai.generativelanguage as glm
 from loguru import logger
-from typing import List
 
 from pipecat.frames.frames import (
     CancelFrame,
@@ -10,14 +7,12 @@ from pipecat.frames.frames import (
     Frame,
     FunctionCallInProgressFrame,
     FunctionCallResultFrame,
-    InputAudioRawFrame,
     LLMFullResponseEndFrame,
     LLMFullResponseStartFrame,
     StartFrame,
     StartInterruptionFrame,
     SystemFrame,
     TextFrame,
-    TranscriptionFrame,
     UserStartedSpeakingFrame,
     UserStoppedSpeakingFrame,
     LLMMessagesFrame,
@@ -25,12 +20,10 @@ from pipecat.frames.frames import (
 
 from pipecat.processors.aggregators.llm_response import LLMResponseAggregator
 from pipecat.processors.aggregators.openai_llm_context import (
-    OpenAILLMContext,
     OpenAILLMContextFrame,
 )
 
 from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
-from pipecat.services.google import GoogleLLMContext
 from pipecat.sync.base_notifier import BaseNotifier
 
 CLASSIFIER_SYSTEM_INSTRUCTION = """CRITICAL INSTRUCTION:
@@ -296,63 +289,6 @@ Output: NO
 """
 
 
-class AudioAccumulator(FrameProcessor):
-    """Buffers user audio until the user stops speaking.
-
-    Always pushes a fresh context with a single audio message.
-    """
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self._audio_frames = []
-        self._start_secs = 0.2  # this should match VAD start_secs
-        self._max_buffer_size_secs = 30
-        self._user_speaking_vad_state = False
-        self._user_speaking_utterance_state = False
-
-    async def reset(self):
-        self._audio_frames = []
-        self._user_speaking_vad_state = False
-        self._user_speaking_utterance_state = False
-
-    async def process_frame(self, frame: Frame, direction: FrameDirection):
-        await super().process_frame(frame, direction)
-
-        # Handle transcription frames from Deepgram
-        if isinstance(frame, TranscriptionFrame):
-            await self.push_frame(frame, direction)
-            return
-
-        if isinstance(frame, UserStartedSpeakingFrame):
-            self._user_speaking_vad_state = True
-            self._user_speaking_utterance_state = True
-
-        elif isinstance(frame, UserStoppedSpeakingFrame):
-            data = b"".join(frame.audio for frame in self._audio_frames)
-            logger.debug(
-                f"Processing audio buffer seconds: ({len(self._audio_frames)}) ({len(data)}) {len(data) / 2 / 16000}"
-            )
-            self._user_speaking = False
-            context = GoogleLLMContext()
-            context.add_text_message(text=frame.text)  # Use transcribed text from Deepgram
-            await self.push_frame(OpenAILLMContextFrame(context=context))
-        elif isinstance(frame, InputAudioRawFrame):
-            # Append the audio frame to our buffer
-            self._audio_frames.append(frame)
-            frame_duration = len(frame.audio) / 2 * frame.num_channels / frame.sample_rate
-            buffer_duration = frame_duration * len(self._audio_frames)
-            if self._user_speaking_utterance_state:
-                while buffer_duration > self._max_buffer_size_secs:
-                    self._audio_frames.pop(0)
-                    buffer_duration -= frame_duration
-            else:
-                while buffer_duration > self._start_secs:
-                    self._audio_frames.pop(0)
-                    buffer_duration -= frame_duration
-
-        await self.push_frame(frame, direction)
-
-
 def get_message_field(message: object, field: str) -> any:
     """
     Retrieve a field from a message.
@@ -372,147 +308,73 @@ def get_message_field(message: object, field: str) -> any:
 
 
 class StatementJudgeContextFilter(FrameProcessor):
-    """Extracts recent user messages and constructs an LLMMessagesFrame for the classifier LLM.
-
-    This processor takes the OpenAILLMContextFrame from the main conversation context,
-    extracts the most recent user messages, and creates a simplified LLMMessagesFrame
-    for the statement classifier LLM to determine if the user has finished speaking.
-
-    The processor handles both dictionary-based messages (like in OpenAI format) and
-    object-based messages (like in Google's format) through the get_message_field helper.
-    """
-
     def __init__(self, notifier: BaseNotifier, **kwargs):
         super().__init__(**kwargs)
         self._notifier = notifier
 
     async def process_frame(self, frame: Frame, direction: FrameDirection):
         await super().process_frame(frame, direction)
-
-        # We must not block system frames
+        # We must not block system frames.
         if isinstance(frame, SystemFrame):
             await self.push_frame(frame, direction)
             return
 
-        # Just treat an LLMMessagesFrame as complete, no matter what
+        # Just treat an LLMMessagesFrame as complete, no matter what.
         if isinstance(frame, LLMMessagesFrame):
             await self._notifier.notify()
             return
 
-        # Process OpenAILLMContextFrames and push a condensed LLMMessagesFrame
+        # Otherwise, we only want to handle OpenAILLMContextFrames, and only want to push a simple
+        # messages frame that contains a system prompt and the most recent user messages,
+        # concatenated.
         if isinstance(frame, OpenAILLMContextFrame):
+            # Take text content from the most recent user messages.
             messages = frame.context.messages
-            user_text_messages: List[str] = []
+            user_text_messages = []
             last_assistant_message = None
             for message in reversed(messages):
-                role = get_message_field(message, "role")
-                if role != "user":
-                    if role == "assistant":
+                if message["role"] != "user":
+                    if message["role"] == "assistant":
                         last_assistant_message = message
                     break
-                content = get_message_field(message, "content")
-                if isinstance(content, str):
-                    user_text_messages.append(content)
-                elif isinstance(content, list):
-                    # Assume content is a list of parts
-                    for part in content:
-                        # Handle both dict and object for parts
-                        if isinstance(part, dict):
-                            part_text = part.get("text", "")
-                            part_type = part.get("type", "")
-                        else:
-                            part_text = getattr(part, "text", "")
-                            part_type = getattr(part, "type", "")
-                        if part_type == "text" and part_text:
-                            user_text_messages.insert(0, part_text)
-
+                if isinstance(message["content"], str):
+                    user_text_messages.append(message["content"])
+                elif isinstance(message["content"], list):
+                    for content in message["content"]:
+                        if content["type"] == "text":
+                            user_text_messages.insert(0, content["text"])
+            # If we have any user text content, push an LLMMessagesFrame
             if user_text_messages:
                 user_message = " ".join(reversed(user_text_messages))
-                logger.debug(f"Statement judge processing: {user_message}")
-                new_messages = [
-                    {"role": "system", "content": CLASSIFIER_SYSTEM_INSTRUCTION},
+                logger.debug(f"!!! {user_message}")
+                messages = [
+                    {
+                        "role": "system",
+                        "content": CLASSIFIER_SYSTEM_INSTRUCTION,
+                    }
                 ]
                 if last_assistant_message:
-                    # Convert assistant message to dict format for consistency
-                    if isinstance(last_assistant_message, dict):
-                        new_messages.append(last_assistant_message)
-                    else:
-                        content = get_message_field(last_assistant_message, "content")
-                        if isinstance(content, list):
-                            # Combine all text parts
-                            text_parts = []
-                            for part in content:
-                                if isinstance(part, dict):
-                                    if part.get("type") == "text":
-                                        text_parts.append(part.get("text", ""))
-                                else:
-                                    if getattr(part, "type", "") == "text":
-                                        text_parts.append(getattr(part, "text", ""))
-                            new_messages.append(
-                                {"role": "assistant", "content": " ".join(text_parts)}
-                            )
-                        else:
-                            new_messages.append({"role": "assistant", "content": str(content)})
-                new_messages.append({"role": "user", "content": user_message})
-                await self.push_frame(LLMMessagesFrame(new_messages))
+                    messages.append(last_assistant_message)
+                messages.append({"role": "user", "content": user_message})
+                await self.push_frame(LLMMessagesFrame(messages))
 
 
 class CompletenessCheck(FrameProcessor):
-    """Checks if the user has finished speaking based on the statement classifier's output.
-
-    This processor looks for an exact "YES" response from the classifier LLM. When found,
-    it sends a UserStoppedSpeakingFrame and triggers the notifier. It also handles an
-    idle timeout to prevent hanging if the classifier fails to respond.
-    """
-
-    wait_time = 5.0
-
-    def __init__(self, notifier: BaseNotifier, audio_accumulator: AudioAccumulator, **kwargs):
+    def __init__(self, notifier: BaseNotifier):
         super().__init__()
         self._notifier = notifier
-        self._audio_accumulator = audio_accumulator
-        self._idle_task = None
-        self._wakeup_time = 0
 
     async def process_frame(self, frame: Frame, direction: FrameDirection):
         await super().process_frame(frame, direction)
 
-        if isinstance(frame, UserStartedSpeakingFrame):
-            if self._idle_task:
-                await self.cancel_task(self._idle_task)
-        elif isinstance(frame, TextFrame) and frame.text == "YES":  # Changed to exact match
-            logger.debug("Completeness check YES")
-            if self._idle_task:
-                await self.cancel_task(self._idle_task)
+        if isinstance(frame, TextFrame) and frame.text == "YES":
+            logger.debug("!!! Completeness check YES")
             await self.push_frame(UserStoppedSpeakingFrame())
-            await self._audio_accumulator.reset()
             await self._notifier.notify()
-        elif isinstance(frame, TextFrame):
-            if frame.text.strip():
-                logger.debug(f"Completeness check NO - '{frame.text}'")
-                # start timer to wake up if necessary
-                if self._wakeup_time:
-                    self._wakeup_time = time.time() + self.wait_time
-                else:
-                    self._wakeup_time = time.time() + self.wait_time
-                    self._idle_task = self.create_task(self._idle_task_handler())
+        elif isinstance(frame, TextFrame) and frame.text == "NO":
+            logger.debug("!!! Completeness check NO")
         else:
             await self.push_frame(frame, direction)
-
-    async def _idle_task_handler(self):
-        try:
-            while time.time() < self._wakeup_time:
-                await asyncio.sleep(0.01)
-            await self._audio_accumulator.reset()
-            await self._notifier.notify()
-        except asyncio.CancelledError:
-            pass
-        except Exception as e:
-            logger.error(f"CompletenessCheck idle wait error: {e}")
-            raise e
-        finally:
-            self._wakeup_time = 0
-            self._idle_task = None
 
 
 class UserAggregatorBuffer(LLMResponseAggregator):
@@ -551,49 +413,12 @@ class UserAggregatorBuffer(LLMResponseAggregator):
         return tx
 
 
-class ConversationAudioContextAssembler(FrameProcessor):
-    """Takes the single-message context generated by the AudioAccumulator and adds it to the conversation LLM's context."""
-
-    def __init__(self, context: OpenAILLMContext, **kwargs):
-        super().__init__(**kwargs)
-        self._context = context
-
-    async def process_frame(self, frame: Frame, direction: FrameDirection):
-        await super().process_frame(frame, direction)
-
-        # We must not block system frames.
-        if isinstance(frame, SystemFrame):
-            await self.push_frame(frame, direction)
-            return
-
-        if isinstance(frame, OpenAILLMContextFrame):
-            GoogleLLMContext.upgrade_to_google(self._context)
-            last_message = frame.context.messages[-1]
-            self._context._messages.append(last_message)
-            await self.push_frame(OpenAILLMContextFrame(context=self._context))
-
-
 class OutputGate(FrameProcessor):
-    """Buffers output frames until the notifier is triggered.
-
-    When the notifier fires, waits until a transcription is ready, then:
-      1. Replaces the last user audio message with the transcription.
-      2. Flushes the frames buffer.
-    """
-
-    def __init__(
-        self,
-        notifier: BaseNotifier,
-        context: OpenAILLMContext,
-        user_transcription_buffer: "UserAggregatorBuffer",
-        **kwargs,
-    ):
+    def __init__(self, *, notifier: BaseNotifier, start_open: bool = False, **kwargs):
         super().__init__(**kwargs)
-        self._gate_open = False
+        self._gate_open = start_open
         self._frames_buffer = []
         self._notifier = notifier
-        self._context = context
-        self._transcription_buffer = user_transcription_buffer
 
     def close_gate(self):
         self._gate_open = False
@@ -626,13 +451,6 @@ class OutputGate(FrameProcessor):
             await self.push_frame(frame, direction)
             return
 
-        if isinstance(frame, LLMFullResponseStartFrame):
-            # Remove the audio message from the context. We will never need it again.
-            # If the completeness check fails, a new audio message will be appended to the context.
-            # If the completeness check succeeds, our notifier will fire and we will append the
-            # transcription to the context.
-            self._context._messages.pop()
-
         if self._gate_open:
             await self.push_frame(frame, direction)
             return
@@ -650,18 +468,9 @@ class OutputGate(FrameProcessor):
         while True:
             try:
                 await self._notifier.wait()
-
-                transcription = await self._transcription_buffer.wait_for_transcription() or "-"
-                self._context._messages.append(
-                    glm.Content(role="user", parts=[glm.Part(text=transcription)])
-                )
-
                 self.open_gate()
                 for frame, direction in self._frames_buffer:
                     await self.push_frame(frame, direction)
                 self._frames_buffer = []
             except asyncio.CancelledError:
                 break
-            except Exception as e:
-                logger.error(f"OutputGate error: {e}")
-                raise e
