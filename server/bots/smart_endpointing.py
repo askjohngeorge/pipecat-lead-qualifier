@@ -72,103 +72,48 @@ HIGH PRIORITY SIGNALS:
 - Questions with STT errors but clear meaning
 
 Examples:
-
 # Complete Wh-question
-model: I can help you learn.
-user: What's the fastest way to learn Spanish
+[{"role": "assistant", "content": "I can help you learn."},
+ {"role": "user", "content": "What's the fastest way to learn Spanish"}]
 Output: YES
 
 # Complete Yes/No question despite STT error
-model: I know about planets.
-user: Is is Jupiter the biggest planet
+[{"role": "assistant", "content": "I know about planets."},
+ {"role": "user", "content": "Is is Jupiter the biggest planet"}]
 Output: YES
 
 2. Complete Commands:
 - Direct instructions
 - Clear requests
 - Action demands
-- Start of task indication
 - Complete statements needing response
 
 Examples:
-
 # Direct instruction
-model: I can explain many topics.
-user: Tell me about black holes
-Output: YES
-
-# Start of task indication
-user: Let's begin.
-Output: YES
-
-# Start of task indication
-user: Let's get started.
+[{"role": "assistant", "content": "I can explain many topics."},
+ {"role": "user", "content": "Tell me about black holes"}]
 Output: YES
 
 # Action demand
-model: I can help with math.
-user: Solve this equation x plus 5 equals 12
+[{"role": "assistant", "content": "I can help with math."},
+ {"role": "user", "content": "Solve this equation x plus 5 equals 12"}]
 Output: YES
 
 3. Direct Responses:
 - Answers to specific questions
 - Option selections
 - Clear acknowledgments with completion
-- Providing information with a known format - mailing address
-- Providing information with a known format - phone number
-- Providing information with a known format - credit card number
 
 Examples:
-
 # Specific answer
-model: What's your favorite color?
-user: I really like blue
+[{"role": "assistant", "content": "What's your favorite color?"},
+ {"role": "user", "content": "I really like blue"}]
 Output: YES
 
 # Option selection
-model: Would you prefer morning or evening?
-user: Morning
+[{"role": "assistant", "content": "Would you prefer morning or evening?"},
+ {"role": "user", "content": "Morning"}]
 Output: YES
-
-# Providing information with a known format - mailing address
-model: What's your address?
-user: 1234 Main Street
-Output: NO
-
-# Providing information with a known format - mailing address
-model: What's your address?
-user: 1234 Main Street Irving Texas 75063
-Output: Yes
-
-# Providing information with a known format - phone number
-model: What's your phone number?
-user: 41086753
-Output: NO
-
-# Providing information with a known format - phone number
-model: What's your phone number?
-user: 4108675309
-Output: Yes
-
-# Providing information with a known format - phone number
-model: What's your phone number?
-user: 220
-Output: No
-
-# Providing information with a known format - credit card number
-model: What's your credit card number?
-user: 5556
-Output: NO
-
-# Providing information with a known format - phone number
-model: What's your credit card number?
-user: 5556710454680800
-Output: Yes
-
-model: What's your credit card number?
-user: 414067
-Output: NO
-
 
 MEDIUM PRIORITY SIGNALS:
 
@@ -179,20 +124,19 @@ MEDIUM PRIORITY SIGNALS:
 - Mid-sentence completions
 
 Examples:
-
 # Self-correction reaching completion
-model: What would you like to know?
-user: Tell me about... no wait, explain how rainbows form
+[{"role": "assistant", "content": "What would you like to know?"},
+ {"role": "user", "content": "Tell me about... no wait, explain how rainbows form"}]
 Output: YES
 
 # Topic change with complete thought
-model: The weather is nice today.
-user: Actually can you tell me who invented the telephone
+[{"role": "assistant", "content": "The weather is nice today."},
+ {"role": "user", "content": "Actually can you tell me who invented the telephone"}]
 Output: YES
 
 # Mid-sentence completion
-model: Hello I'm ready.
-user: What's the capital of? France
+[{"role": "assistant", "content": "Hello I'm ready."},
+ {"role": "user", "content": "What's the capital of? France"}]
 Output: YES
 
 2. Context-Dependent Brief Responses:
@@ -202,15 +146,14 @@ Output: YES
 - Confirmations (correct, exactly)
 
 Examples:
-
 # Acknowledgment
-model: Should we talk about history?
-user: Sure
+[{"role": "assistant", "content": "Should we talk about history?"},
+ {"role": "user", "content": "Sure"}]
 Output: YES
 
 # Disagreement with completion
-model: Is that what you meant?
-user: No not really
+[{"role": "assistant", "content": "Is that what you meant?"},
+ {"role": "user", "content": "No not really"}]
 Output: YES
 
 LOW PRIORITY SIGNALS:
@@ -222,15 +165,14 @@ LOW PRIORITY SIGNALS:
 - Word insertions/deletions
 
 Examples:
-
 # Word repetition but complete
-model: I can help with that.
-user: What what is the time right now
+[{"role": "assistant", "content": "I can help with that."},
+ {"role": "user", "content": "What what is the time right now"}]
 Output: YES
 
 # Missing punctuation but complete
-model: I can explain that.
-user: Please tell me how computers work
+[{"role": "assistant", "content": "I can explain that."},
+ {"role": "user", "content": "Please tell me how computers work"}]
 Output: YES
 
 2. Speech Features:
@@ -240,15 +182,14 @@ Output: YES
 - Brief hesitations
 
 Examples:
-
 # Filler words but complete
-model: What would you like to know?
-user: Um uh how do airplanes fly
+[{"role": "assistant", "content": "What would you like to know?"},
+ {"role": "user", "content": "Um uh how do airplanes fly"}]
 Output: YES
 
 # Thinking pause but incomplete
-model: I can explain anything.
-user: Well um I want to know about the
+[{"role": "assistant", "content": "I can explain anything."},
+ {"role": "user", "content": "Well um I want to know about the"}]
 Output: NO
 
 DECISION RULES:
@@ -271,20 +212,19 @@ DECISION RULES:
 - Never request clarification
 
 Examples:
-
 # Incomplete despite corrections
-model: What would you like to know about?
-user: Can you tell me about
+[{"role": "assistant", "content": "What would you like to know about?"},
+ {"role": "user", "content": "Can you tell me about"}]
 Output: NO
 
 # Complete despite multiple artifacts
-model: I can help you learn.
-user: How do you I mean what's the best way to learn programming
+[{"role": "assistant", "content": "I can help you learn."},
+ {"role": "user", "content": "How do you I mean what's the best way to learn programming"}]
 Output: YES
 
 # Trailing off incomplete
-model: I can explain anything.
-user: I was wondering if you could tell me why
+[{"role": "assistant", "content": "I can explain anything."},
+ {"role": "user", "content": "I was wondering if you could tell me why"}]
 Output: NO
 """
 
