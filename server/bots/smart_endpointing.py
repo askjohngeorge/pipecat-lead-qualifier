@@ -2,6 +2,7 @@ import asyncio
 import time
 import google.ai.generativelanguage as glm
 from loguru import logger
+from typing import List
 
 from pipecat.frames.frames import (
     CancelFrame,
@@ -352,12 +353,33 @@ class AudioAccumulator(FrameProcessor):
         await self.push_frame(frame, direction)
 
 
+def get_message_field(message: object, field: str) -> any:
+    """
+    Retrieve a field from a message.
+    If message is a dict, return message[field].
+    Otherwise, use getattr.
+
+    Args:
+        message: The message object or dict to extract the field from
+        field: The name of the field to extract
+
+    Returns:
+        The value of the field, or None if not found
+    """
+    if isinstance(message, dict):
+        return message.get(field)
+    return getattr(message, field, None)
+
+
 class StatementJudgeContextFilter(FrameProcessor):
     """Extracts recent user messages and constructs an LLMMessagesFrame for the classifier LLM.
 
     This processor takes the OpenAILLMContextFrame from the main conversation context,
     extracts the most recent user messages, and creates a simplified LLMMessagesFrame
     for the statement classifier LLM to determine if the user has finished speaking.
+
+    The processor handles both dictionary-based messages (like in OpenAI format) and
+    object-based messages (like in Google's format) through the get_message_field helper.
     """
 
     def __init__(self, notifier: BaseNotifier, **kwargs):
@@ -377,40 +399,62 @@ class StatementJudgeContextFilter(FrameProcessor):
             await self._notifier.notify()
             return
 
-        # Otherwise, we only want to handle OpenAILLMContextFrames, and only want to push a simple
-        # messages frame that contains a system prompt and the most recent user messages,
-        # concatenated.
+        # Process OpenAILLMContextFrames and push a condensed LLMMessagesFrame
         if isinstance(frame, OpenAILLMContextFrame):
-            # Take text content from the most recent user messages
             messages = frame.context.messages
-            user_text_messages = []
+            user_text_messages: List[str] = []
             last_assistant_message = None
             for message in reversed(messages):
-                if message["role"] != "user":
-                    if message["role"] == "assistant":
+                role = get_message_field(message, "role")
+                if role != "user":
+                    if role == "assistant":
                         last_assistant_message = message
                     break
-                if isinstance(message["content"], str):
-                    user_text_messages.append(message["content"])
-                elif isinstance(message["content"], list):
-                    for content in message["content"]:
-                        if content["type"] == "text":
-                            user_text_messages.insert(0, content["text"])
+                content = get_message_field(message, "content")
+                if isinstance(content, str):
+                    user_text_messages.append(content)
+                elif isinstance(content, list):
+                    # Assume content is a list of parts
+                    for part in content:
+                        # Handle both dict and object for parts
+                        if isinstance(part, dict):
+                            part_text = part.get("text", "")
+                            part_type = part.get("type", "")
+                        else:
+                            part_text = getattr(part, "text", "")
+                            part_type = getattr(part, "type", "")
+                        if part_type == "text" and part_text:
+                            user_text_messages.insert(0, part_text)
 
-            # If we have any user text content, push an LLMMessagesFrame
             if user_text_messages:
                 user_message = " ".join(reversed(user_text_messages))
                 logger.debug(f"Statement judge processing: {user_message}")
-                messages = [
-                    {
-                        "role": "system",
-                        "content": CLASSIFIER_SYSTEM_INSTRUCTION,
-                    }
+                new_messages = [
+                    {"role": "system", "content": CLASSIFIER_SYSTEM_INSTRUCTION},
                 ]
                 if last_assistant_message:
-                    messages.append(last_assistant_message)
-                messages.append({"role": "user", "content": user_message})
-                await self.push_frame(LLMMessagesFrame(messages))
+                    # Convert assistant message to dict format for consistency
+                    if isinstance(last_assistant_message, dict):
+                        new_messages.append(last_assistant_message)
+                    else:
+                        content = get_message_field(last_assistant_message, "content")
+                        if isinstance(content, list):
+                            # Combine all text parts
+                            text_parts = []
+                            for part in content:
+                                if isinstance(part, dict):
+                                    if part.get("type") == "text":
+                                        text_parts.append(part.get("text", ""))
+                                else:
+                                    if getattr(part, "type", "") == "text":
+                                        text_parts.append(getattr(part, "text", ""))
+                            new_messages.append(
+                                {"role": "assistant", "content": " ".join(text_parts)}
+                            )
+                        else:
+                            new_messages.append({"role": "assistant", "content": str(content)})
+                new_messages.append({"role": "user", "content": user_message})
+                await self.push_frame(LLMMessagesFrame(new_messages))
 
 
 class CompletenessCheck(FrameProcessor):
