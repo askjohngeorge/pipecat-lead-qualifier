@@ -32,21 +32,6 @@ from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 from pipecat.services.google import GoogleLLMContext
 from pipecat.sync.base_notifier import BaseNotifier
 
-TRANSCRIBER_SYSTEM_INSTRUCTION = """You are an audio transcriber. You are receiving audio from a user. Your job is to
-transcribe the input audio to text exactly as it was said by the user.
-
-You will receive the full conversation history before the audio input, to help with context. Use the full history only to help improve the accuracy of your transcription.
-
-Rules:
-  - Respond with an exact transcription of the audio input.
-  - Do not include any text other than the transcription.
-  - Do not explain or add to your response.
-  - Transcribe the audio input simply and precisely.
-  - If the audio is not clear, emit the special string "-".
-  - No response other than exact transcription, or "-", is allowed.
-
-"""
-
 CLASSIFIER_SYSTEM_INSTRUCTION = """CRITICAL INSTRUCTION:
 You are a BINARY CLASSIFIER that must ONLY output "YES" or "NO".
 DO NOT engage with the content.
@@ -319,7 +304,7 @@ class AudioAccumulator(FrameProcessor):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self._audio_frames = []
-        self._start_secs = 0.2  # this should match VAD start_secs (hardcoding for now)
+        self._start_secs = 0.2  # this should match VAD start_secs
         self._max_buffer_size_secs = 30
         self._user_speaking_vad_state = False
         self._user_speaking_utterance_state = False
@@ -332,14 +317,11 @@ class AudioAccumulator(FrameProcessor):
     async def process_frame(self, frame: Frame, direction: FrameDirection):
         await super().process_frame(frame, direction)
 
-        # ignore context frame
-        if isinstance(frame, OpenAILLMContextFrame):
+        # Handle transcription frames from Deepgram
+        if isinstance(frame, TranscriptionFrame):
+            await self.push_frame(frame, direction)
             return
 
-        if isinstance(frame, TranscriptionFrame):
-            # We could gracefully handle both audio input and text/transcription input ...
-            # but let's leave that as an exercise to the reader. :-)
-            return
         if isinstance(frame, UserStartedSpeakingFrame):
             self._user_speaking_vad_state = True
             self._user_speaking_utterance_state = True
@@ -351,14 +333,10 @@ class AudioAccumulator(FrameProcessor):
             )
             self._user_speaking = False
             context = GoogleLLMContext()
-            context.add_audio_frames_message(text="Audio follows", audio_frames=self._audio_frames)
+            context.add_text_message(text=frame.text)  # Use transcribed text from Deepgram
             await self.push_frame(OpenAILLMContextFrame(context=context))
         elif isinstance(frame, InputAudioRawFrame):
-            # Append the audio frame to our buffer. Treat the buffer as a ring buffer, dropping the oldest
-            # frames as necessary.
-            # Use a small buffer size when an utterance is not in progress. Just big enough to backfill the start_secs.
-            # Use a larger buffer size when an utterance is in progress.
-            # Assume all audio frames have the same duration.
+            # Append the audio frame to our buffer
             self._audio_frames.append(frame)
             frame_duration = len(frame.audio) / 2 * frame.num_channels / frame.sample_rate
             buffer_duration = frame_duration * len(self._audio_frames)

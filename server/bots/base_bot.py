@@ -47,7 +47,6 @@ from .smart_endpointing import (
     UserAggregatorBuffer,
     ConversationAudioContextAssembler,
     OutputGate,
-    TRANSCRIBER_SYSTEM_INSTRUCTION,
     CLASSIFIER_SYSTEM_INSTRUCTION,
     StatementJudgeContextFilter,
 )
@@ -122,16 +121,7 @@ class BaseBot(ABC):
                 )
                 self.llm = self.conversation_llm
 
-                # Transcriber LLM
-                self.transcriber_llm = GoogleLLMService(
-                    name="Transcriber",
-                    api_key=config.google_api_key,
-                    model=config.transcriber_model,
-                    temperature=0.0,
-                    system_instruction=TRANSCRIBER_SYSTEM_INSTRUCTION,
-                )
-
-                # Statement classifier LLM (renamed from classifier_llm)
+                # Statement classifier LLM for endpoint detection
                 self.statement_llm = GoogleLLMService(
                     name="StatementJudger",
                     api_key=config.google_api_key,
@@ -258,28 +248,25 @@ class BaseBot(ABC):
                 or isinstance(frame, FunctionCallResultFrame)
             )
 
-        # Build the pipeline using parallel processing for smart endpointing
+        # Build pipeline with Deepgram STT at the beginning
         pipeline = Pipeline(
             [
-                self.rtvi,
                 self.transport.input(),
-                self.stt_mute_filter,
-                self.stt,
+                self.stt,  # Deepgram transcribes incoming audio
                 self.context_aggregator.user(),
                 ParallelPipeline(
                     [
-                        # Pass everything except UserStoppedSpeaking to the elements after
-                        # this ParallelPipeline
+                        # Pass everything except UserStoppedSpeaking to the following branch
                         FunctionFilter(filter=block_user_stopped_speaking),
                     ],
                     [
-                        # Statement completeness sub-pipeline
+                        # Endpoint detection branch using Gemini for completeness
                         StatementJudgeContextFilter(notifier=self.notifier),
-                        self.statement_llm,  # renamed from classifier_llm
+                        self.statement_llm,
                         self.completeness_check,
                     ],
                     [
-                        # Conversation sub-pipeline with new filter
+                        # Conversation branch using Gemini for dialogue
                         FunctionFilter(filter=pass_only_llm_trigger_frames),
                         self.conversation_llm,
                         self.output_gate,
