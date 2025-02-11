@@ -43,9 +43,9 @@ from loguru import logger
 import time
 
 from .smart_endpointing import (
+    CLASSIFIER_SYSTEM_INSTRUCTION,
     CompletenessCheck,
     OutputGate,
-    CLASSIFIER_SYSTEM_INSTRUCTION,
     StatementJudgeContextFilter,
 )
 
