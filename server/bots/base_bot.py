@@ -113,11 +113,12 @@ class BaseBot(ABC):
                     raise ValueError("Google API key is required for Google LLM")
 
                 # Main conversation LLM
+                system_instruction = system_messages[0]["content"]
                 self.conversation_llm = GoogleLLMService(
                     api_key=config.google_api_key,
                     model=config.google_model,
                     params=config.google_params,
-                    system_instruction=system_messages,
+                    system_instruction=system_instruction,
                 )
                 self.llm = self.conversation_llm
 
@@ -149,7 +150,7 @@ class BaseBot(ABC):
                 raise ValueError(f"Invalid LLM provider: {config.llm_provider}")
 
         # Initialize context
-        self.context = OpenAILLMContext()
+        self.context = OpenAILLMContext(messages=system_messages)
         self.context_aggregator = self.conversation_llm.create_context_aggregator(self.context)
 
         # Initialize mute filter
