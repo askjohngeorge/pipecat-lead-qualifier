@@ -12,6 +12,8 @@ globs: server/**
 - Write early returns and guard clauses to handle edge cases in functions.
 - Name variables, functions, and parameters using lowercase_with_underscores.
 - Keep functions small and focused, using helper functions as necessary.
+- Don't delete comments and docstrings when you edit code. Modify them as necessary but code that has been explained with comments needs to continue to be so explained post-modification.
+- When asked for assistance in debugging, if you require additional context to make firm deductions, please make specific requests for this context in your response rather than making guesses.
 - _Do not run the bot server; I'll handle that._
 
 ## FastAPI Specifics
