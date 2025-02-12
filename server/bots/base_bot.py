@@ -111,7 +111,11 @@ class BaseBot(ABC):
                     raise ValueError("Google API key is required for Google LLM")
 
                 # Main conversation LLM
-                system_instruction = system_messages[0]["content"]
+                system_instruction = (
+                    system_messages[0]["content"]
+                    if system_messages
+                    else "You are a voice assistant"
+                )
                 self.conversation_llm = GoogleLLMService(
                     api_key=config.google_api_key,
                     model=config.google_model,
