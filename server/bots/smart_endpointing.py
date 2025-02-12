@@ -244,12 +244,6 @@ Assistant: Could you tell me if you're interested in technical consultancy or vo
 User: I'm interested in voice agent development
 Output: YES
 
-### User begins to express interest in voice agent development, but trails off
-
-Assistant: Could you tell me if you're interested in technical consultancy or voice agent development?
-User: I'm interested in voice agent
-Output: NO
-
 ### Response is unclear, and trails off
 
 Assistant: Could you tell me if you're interested in technical consultancy or voice agent development?
