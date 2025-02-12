@@ -96,13 +96,17 @@ LOW PRIORITY SIGNALS:
    - Filler words (um, uh, like), thinking pauses, word repetitions, brief hesitations
 
 SPECIAL RULES FOR AMBIGUOUS OR FRAGMENTED UTTERANCES:
-1. Ambiguous Keywords:
-   - If the input consists solely of ambiguous keywords (e.g., "technical" or "voice agent") without additional qualifiers or context, treat the utterance as incomplete and output NO.
+1. Ambiguous Keywords in Isolation:
+   - If the input consists solely of an ambiguous keyword (e.g., "technical" or "voice agent") without additional context, treat the utterance as incomplete and output NO.
    - Do not infer intent (e.g., consultancy vs. development) from a single ambiguous word.
 
 2. Partial Name or Interest Utterances:
    - In contexts where a full name is expected, if the user only says fragments such as "My name is" or "the real" without a complete name following, output NO.
    - Only output YES when the utterance includes a clear, complete name (e.g., "My name is John Smith").
+
+3. Primary Interest Specific Rule:
+   - When responding to the primary interest prompt, if the user's utterance ends with or contains an ambiguous keyword like "technical" or "voice agent" without a disambiguating term (e.g., "consultancy" or "development"), and the overall response appears incomplete, output NO.
+   - For example, "I think I'm interested in technical" should be considered incomplete (NO) because it lacks the full term "technical consultancy."
 
 DECISION RULES:
 1. Return YES if:
@@ -116,6 +120,7 @@ DECISION RULES:
    - The utterance trails off or contains multiple incomplete indicators.
    - The user appears to be mid-formulation or provides only a fragment.
    - The response consists solely of ambiguous keywords (per the Special Rules above) or partial phrases where a complete response is expected.
+   - In responses to the primary interest prompt, if the response ends with an ambiguous term (e.g., "technical" or "voice agent") without the necessary qualifier, output NO.
 
 3. When Uncertain:
    - If you can understand the intent and it appears complete, return YES.
@@ -148,6 +153,8 @@ Assistant: Could you tell me if you're interested in technical consultancy or vo
 - User: I'm interested in voice agent development → Output: YES
 - User: technical → Output: NO  *(Ambiguous keyword without context)*
 - User: voice agent → Output: NO  *(Ambiguous keyword without context)*
+- User: I think I'm interested in technical → Output: NO  *(Incomplete response lacking the full qualifier)*
+- User: I think I'm interested in voice agent → Output: NO  *(Incomplete response lacking the full qualifier)*
 - User: Well maybe I → Output: NO
 - User: uhm sorry hold on → Output: YES
 - User: What's the difference? → Output: YES
