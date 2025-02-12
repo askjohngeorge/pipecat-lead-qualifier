@@ -85,13 +85,14 @@ HIGH PRIORITY SIGNALS:
 - Complete statements needing response
 
 3. Direct Responses/Statements:
-- Answers to specific questions
+- Answers to specific questions (even if the answer is negative or avoids the core question)
 - Option selections
 - Clear acknowledgments with completion
 - Providing information with a known format - mailing address
 - Providing information with a known format - phone number
 - Providing information with a known format - credit card number
-- Clear Statements
+- Clear statements (including statements of uncertainty, hesitation, or topic change)
+- Complete statements indicating an unwillingness to provide further information on the current topic
 
 MEDIUM PRIORITY SIGNALS:
 
@@ -133,6 +134,7 @@ DECISION RULES:
 - Thought clearly trails off
 - Multiple incomplete indicators
 - User appears mid-formulation
+- The user's utterance doesn't answer the assistant's previous question AND it's reasonable to expect they might still answer it in a subsequent turn. This implies the user hasn't abandoned the previous question. (e.g., they're thinking out loud, haven't explicitly refused to answer, or have only provided a fragment related to the previous query)
 
 3. When uncertain:
 - If you can understand the intent → YES
@@ -262,6 +264,30 @@ Assistant: Could you tell me if you're interested in technical consultancy or vo
 User: What's the difference?
 Output: YES
 
+### User is unsure of their interest
+
+Assistant: Could you tell me if you're interested in technical consultancy or voice agent development?
+User: I'm really not sure at the moment.
+Output: YES # A complete statement expressing uncertainty.
+
+### User wants more information before choosing
+
+Assistant: Could you tell me if you're interested in technical consultancy or voice agent development?
+User: Tell me more about both options first.
+Output: YES # A complete statement requesting more information, effectively delaying the choice.
+
+### User refuses to answer
+
+Assistant: Could you tell me if you're interested in technical consultancy or voice agent development?
+User: I'd rather not say.
+Output: YES # A direct refusal to answer the question is a complete turn.
+
+### User deflects the question
+
+Assistant: Could you tell me if you're interested in technical consultancy or voice agent development?
+User: Actually, I have a different question for you.
+Output: YES # A change of subject, but a complete statement.
+
 ## Phase 3: Lead Qualification (Voice Agent Development Only)
 
 ### Specific use case provided
@@ -274,7 +300,7 @@ Output: YES
 
 Assistant: So John, what tasks or interactions are you hoping your voice AI agent will handle?
 User: Just some stuff
-Output: YES # Although vague, a complete statement
+Output: YES # Although vague AND unhelpful, this is a complete statement indicating the user has finished their turn.  They have avoided the question.
 
 ### User asks for examples
 
