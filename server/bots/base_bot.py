@@ -250,6 +250,7 @@ class BaseBot(ABC):
         # Build pipeline with Deepgram STT at the beginning
         pipeline = Pipeline(
             [
+                self.rtvi,
                 self.transport.input(),
                 self.stt,  # Deepgram transcribes incoming audio
                 self.context_aggregator.user(),
