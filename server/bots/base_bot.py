@@ -256,6 +256,7 @@ class BaseBot(ABC):
             [
                 self.rtvi,
                 self.transport.input(),
+                self.stt_mute_filter,
                 self.stt,  # Deepgram transcribes incoming audio
                 self.context_aggregator.user(),
                 ParallelPipeline(

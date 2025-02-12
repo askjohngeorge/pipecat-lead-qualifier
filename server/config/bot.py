@@ -214,7 +214,7 @@ class BotConfig:
 
     @property
     def enable_stt_mute_filter(self) -> bool:
-        return self._is_truthy(os.getenv("ENABLE_STT_MUTE_FILTER", "true"))
+        return self._is_truthy(os.getenv("ENABLE_STT_MUTE_FILTER", "false"))
 
     @enable_stt_mute_filter.setter
     def enable_stt_mute_filter(self, value: bool):
