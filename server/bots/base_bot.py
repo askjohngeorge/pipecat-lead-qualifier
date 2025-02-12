@@ -161,7 +161,7 @@ class BaseBot(ABC):
                 stt_service=self.stt,
                 config=STTMuteConfig(
                     strategies={
-                        STTMuteStrategy.FIRST_SPEECH,
+                        STTMuteStrategy.MUTE_UNTIL_FIRST_BOT_COMPLETE,
                         STTMuteStrategy.FUNCTION_CALL,
                     }
                 ),
