@@ -247,6 +247,10 @@ class BaseBot(ABC):
                 or isinstance(frame, FunctionCallResultFrame)
             )
 
+        # Define an async filter that always discards frames.
+        async def discard_all(frame):
+            return False
+
         # Build pipeline with Deepgram STT at the beginning
         pipeline = Pipeline(
             [
@@ -264,6 +268,8 @@ class BaseBot(ABC):
                         self.statement_judge_context_filter,
                         self.statement_llm,
                         self.completeness_check,
+                        # Use an async filter to discard branch 2's output.
+                        FunctionFilter(filter=discard_all),
                     ],
                     [
                         # Branch 3: Conversation branch using Gemini for dialogue
