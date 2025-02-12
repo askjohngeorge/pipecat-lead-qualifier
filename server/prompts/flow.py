@@ -318,12 +318,12 @@ Your *sole* task is to thank the user and end the call.
 {get_additional_context(user_name)}
 
 <instructions>
-*   **[TERMINATION PROMPT]**: Say, "Thank you for your time {first_name}. Have a wonderful day."
+*   **[TERMINATION PROMPT]**: Say, "Thank you for your time {first_name}. Have a wonderful rest of your day."
 *   **[CALL TERMINATION]**: End the call immediately after speaking the termination prompt.
 </instructions>
 
 <examples>
-*   **[TERMINATION]**: Say, "Thank you for your time Steve. Have a wonderful day." then end call.
+*   **[TERMINATION]**: Say, "Thank you for your time Steve. Have a wonderful rest of your day." then end call.
 </examples>
 
 {get_meta_instructions()}
