@@ -141,153 +141,236 @@ DECISION RULES:
 - Never request clarification
 
 # Scenario-Specific Examples (Based on the Main System Prompt)
+## INTERPRETATION OF EXAMPLES:
+
+Each example is given in the format:
+
+Assistant: <What the assistant said>
+User: <What the user said>
+
+You must use the "User" statement to determine if the speaker is finished. Assume the "Assistant" statement provides context for the user.
 
 ## Phase 1: Recording Consent
 
-# User gives unconditional "yes"
-[{"role": "assistant", "content": "Hi there, I'm {config.bot_name}. We record our calls for quality assurance and training. Is that ok with you?"}, {"role": "user", "content": "Yes"}]
+### User gives unconditional "yes"
+
+Assistant: We record our calls for quality assurance and training. Is that ok with you?
+User: Yes
 Output: YES
 
-# User gives unconditional "no"
-[{"role": "assistant", "content": "Hi there, I'm {config.bot_name}. We record our calls for quality assurance and training. Is that ok with you?"}, {"role": "user", "content": "No"}]
+### User gives unconditional "no"
+
+Assistant: We record our calls for quality assurance and training. Is that ok with you?
+User: No
 Output: YES
 
-# User asks "why" (complete question)
-[{"role": "assistant", "content": "Hi there, I'm {config.bot_name}. We record our calls for quality assurance and training. Is that ok with you?"}, {"role": "user", "content": "Why do you need to record?"}]
+### User asks "why" (complete question)
+
+Assistant: We record our calls for quality assurance and training. Is that ok with you?
+User: Why do you need to record?
 Output: YES
 
-# User asks "why" (incomplete question, but clear intent to ask)
-[{"role": "assistant", "content": "Hi there, I'm {config.bot_name}. We record our calls for quality assurance and training. Is that ok with you?"}, {"role": "user", "content": "Why do you"}]
+### User asks "why" (incomplete question, but clear intent to ask)
+
+Assistant: We record our calls for quality assurance and training. Is that ok with you?
+User: Why do you
 Output: NO
 
-# Ambiguous response - needs re-prompt
-[{"role": "assistant", "content": "Hi there, I'm {config.bot_name}. We record our calls for quality assurance and training. Is that ok with you?"}, {"role": "user", "content": "Uhhh"}]
+### Ambiguous response - needs re-prompt
+
+Assistant: We record our calls for quality assurance and training. Is that ok with you?
+User: Uhhh
 Output: NO #Not a complete sentence
 
-# Conditional response - needs re-prompt
-[{"role": "assistant", "content": "Hi there, I'm {config.bot_name}. We record our calls for quality assurance and training. Is that ok with you?"}, {"role": "user", "content": "If I have to but"}]
+### Conditional response - needs re-prompt
+
+Assistant: We record our calls for quality assurance and training. Is that ok with you?
+User: If I have to but
 Output: NO #incomplete conditional statement
 
-# Unintelligible response - needs re-prompt (STT problem, likely incomplete)
-[{"role": "assistant", "content": "Hi there, I'm {config.bot_name}. We record our calls for quality assurance and training. Is that ok with you?"}, {"role": "user", "content": "um"}]
+### Unintelligible response - needs re-prompt (STT problem, likely incomplete)
+
+Assistant: We record our calls for quality assurance and training. Is that ok with you?
+User: um
 Output: NO #Not a clear "YES" or "NO"
 
-# User starts to answer, but pauses mid-sentence
-[{"role": "assistant", "content": "Hi there, I'm {config.bot_name}. We record our calls for quality assurance and training. Is that ok with you?"}, {"role": "user", "content": "Well I suppose it"}]
+### User starts to answer, but pauses mid-sentence
+
+Assistant: We record our calls for quality assurance and training. Is that ok with you?
+User: Well I suppose it
 Output: NO
 
 ## Phase 2: Name and Interest Collection
 
-# User gives full name
-[{"role": "assistant", "content": "May I know your name please?"}, {"role": "user", "content": "My name is John Smith"}]
+### User gives full name
+
+Assistant: May I know your name please?
+User: My name is John Smith
 Output: YES
 
-# User refuses to give name (complete refusal)
-[{"role": "assistant", "content": "May I know your name please?"}, {"role": "user", "content": "I don't want to give you my name"}]
+### User refuses to give name (complete refusal)
+
+Assistant: May I know your name please?
+User: I don't want to give you my name
 Output: YES
 
-# User asks why we need their name
-[{"role": "assistant", "content": "May I know your name please?"}, {"role": "user", "content": "Why do you need my name?"}]
+### User asks why we need their name
+
+Assistant: May I know your name please?
+User: Why do you need my name?
 Output: YES
 
-# User refuses to provide name and trails off
-[{"role": "assistant", "content": "May I know your name please?"}, {"role": "user", "content": "I don't want to tell you"}]
+### User refuses to provide name and trails off
+
+Assistant: May I know your name please?
+User: I don't want to tell you
 Output: NO
 
-# User asks for an explanation of the question, but pauses
-[{"role": "assistant", "content": "May I know your name please?"}, {"role": "user", "content": "What do you uh"}]
+### User asks for an explanation of the question, but pauses
+
+Assistant: May I know your name please?
+User: What do you uh
 Output: NO
 
-# User expresses interest in technical consultancy
-[{"role": "assistant", "content": "Could you tell me if you're interested in technical consultancy or voice agent development?"}, {"role": "user", "content": "I'm interested in technical consultancy"}]
+### User expresses interest in technical consultancy
+
+Assistant: Could you tell me if you're interested in technical consultancy or voice agent development?
+User: I'm interested in technical consultancy
 Output: YES
 
-# User expresses interest in voice agent development
-[{"role": "assistant", "content": "Could you tell me if you're interested in technical consultancy or voice agent development?"}, {"role": "user", "content": "I'm interested in voice agent development"}]
+### User expresses interest in voice agent development
+
+Assistant: Could you tell me if you're interested in technical consultancy or voice agent development?
+User: I'm interested in voice agent development
 Output: YES
 
-# Response is unclear, and trails off
-[{"role": "assistant", "content": "Could you tell me if you're interested in technical consultancy or voice agent development?"}, {"role": "user", "content": "Well maybe I"}]
+### User begins to express interest in voice agent development, but trails off
+
+Assistant: Could you tell me if you're interested in technical consultancy or voice agent development?
+User: I'm interested in voice agent
 Output: NO
 
-# Response is unclear, and an interruption
-[{"role": "assistant", "content": "Could you tell me if you're interested in technical consultancy or voice agent development?"}, {"role": "user", "content": "uhm sorry hold on"}]
+### Response is unclear, and trails off
+
+Assistant: Could you tell me if you're interested in technical consultancy or voice agent development?
+User: Well maybe I
+Output: NO
+
+### Response is unclear, and an interruption
+
+Assistant: Could you tell me if you're interested in technical consultancy or voice agent development?
+User: uhm sorry hold on
 Output: YES
 
-# User asks for explanation of the options
-[{"role": "assistant", "content": "Could you tell me if you're interested in technical consultancy or voice agent development?"}, {"role": "user", "content": "What's the difference?"}]
+### User asks for explanation of the options
+
+Assistant: Could you tell me if you're interested in technical consultancy or voice agent development?
+User: What's the difference?
 Output: YES
 
 ## Phase 3: Lead Qualification (Voice Agent Development Only)
 
-# Specific use case provided
-[{"role": "assistant", "content": "So John, what tasks or interactions are you hoping your voice AI agent will handle?"}, {"role": "user", "content": "I want it to handle customer service inquiries"}]
+### Specific use case provided
+
+Assistant: So John, what tasks or interactions are you hoping your voice AI agent will handle?
+User: I want it to handle customer service inquiries
 Output: YES
 
-# Vague response
-[{"role": "assistant", "content": "So John, what tasks or interactions are you hoping your voice AI agent will handle?"}, {"role": "user", "content": "Just some stuff"}]
+### Vague response
+
+Assistant: So John, what tasks or interactions are you hoping your voice AI agent will handle?
+User: Just some stuff
 Output: YES # Although vague, a complete statement
 
-# User asks for examples
-[{"role": "assistant", "content": "So John, what tasks or interactions are you hoping your voice AI agent will handle?"}, {"role": "user", "content": "What kind of things can it do?"}]
+### User asks for examples
+
+Assistant: So John, what tasks or interactions are you hoping your voice AI agent will handle?
+User: What kind of things can it do?
 Output: YES
 
-# Starts to provide a specific use case, but trails off
-[{"role": "assistant", "content": "So John, what tasks or interactions are you hoping your voice AI agent will handle?"}, {"role": "user", "content": "I was thinking maybe it could"}]
+### Starts to provide a specific use case, but trails off
+
+Assistant: So John, what tasks or interactions are you hoping your voice AI agent will handle?
+User: I was thinking maybe it could
 Output: NO
 
-#Specific or rough timeline
-[{"role": "assistant", "content": "And have you thought about what timeline you're looking to get this project completed in, John?"}, {"role": "user", "content": "I'm hoping to get this done in the next three months"}]
+### Specific or rough timeline
+Assistant: And have you thought about what timeline you're looking to get this project completed in, John?
+User: I'm hoping to get this done in the next three months
 Output: YES
 
-# No timeline provided (needs clarification)
-[{"role": "assistant", "content": "And have you thought about what timeline you're looking to get this project completed in, John?"}, {"role": "user", "content": "Not really"}]
+### No timeline provided (needs clarification)
+
+Assistant: And have you thought about what timeline you're looking to get this project completed in, John?
+User: Not really
 Output: YES
 
-# "ASAP" provided (needs clarification)
-[{"role": "assistant", "content": "And have you thought about what timeline you're looking to get this project completed in, John?"}, {"role": "user", "content": "ASAP"}]
+### "ASAP" provided (needs clarification)
+
+Assistant: And have you thought about what timeline you're looking to get this project completed in, John?
+User: ASAP
 Output: YES
 
-# Starts to provide timeline, but is cut off
-[{"role": "assistant", "content": "And have you thought about what timeline you're looking to get this project completed in, John?"}, {"role": "user", "content": "I was hoping to get it"}]
+### Starts to provide timeline, but is cut off
+
+Assistant: And have you thought about what timeline you're looking to get this project completed in, John?
+User: I was hoping to get it
 Output: NO
 
-# Budget > £1,000
-[{"role": "assistant", "content": "May I know what budget you've allocated for this project, John?"}, {"role": "user", "content": "£2000"}]
+### Budget > £1,000
+
+Assistant: May I know what budget you've allocated for this project, John?
+User: £2000
 Output: YES
 
-# Budget < £1,000
-[{"role": "assistant", "content": "May I know what budget you've allocated for this project, John?"}, {"role": "user", "content": "£500"}]
+### Budget < £1,000
+
+Assistant: May I know what budget you've allocated for this project, John?
+User: £500
 Output: YES
 
-# No budget provided
-[{"role": "assistant", "content": "May I know what budget you've allocated for this project, John?"}, {"role": "user", "content": "I don't have a budget yet"}]
+### No budget provided
+
+Assistant: May I know what budget you've allocated for this project, John?
+User: I don't have a budget yet
 Output: YES
 
-# Starts to say budget, but trails off
-[{"role": "assistant", "content": "May I know what budget you've allocated for this project, John?"}, {"role": "user", "content": "Well I was thinking"}]
+### Starts to say budget, but trails off
+
+Assistant: May I know what budget you've allocated for this project, John?
+User: Well I was thinking
 Output: NO
 
-# Vague budget
-[{"role": "assistant", "content": "May I know what budget you've allocated for this project, John?"}, {"role": "user", "content": "I'm not sure"}]
+### Vague budget
+
+Assistant: May I know what budget you've allocated for this project, John?
+User: I'm not sure
 Output: YES
 
-# Feedback Provided
-[{"role": "assistant", "content": "And finally, John, how would you rate the quality of our interaction so far in terms of speed, accuracy, and helpfulness?"}, {"role": "user", "content": "I think it's been pretty good"}]
+### Feedback Provided
+
+Assistant: And finally, John, how would you rate the quality of our interaction so far in terms of speed, accuracy, and helpfulness?
+User: I think it's been pretty good
 Output: YES
 
-# No feedback provided
-[{"role": "assistant", "content": "And finally, John, how would you rate the quality of our interaction so far in terms of speed, accuracy, and helpfulness?"}, {"role": "user", "content": "It was ok"}]
+### No feedback provided
+
+Assistant: And finally, John, how would you rate the quality of our interaction so far in terms of speed, accuracy, and helpfulness?
+User: It was ok
 Output: YES # Complete Statement
 
 ## Phase 4: Closing the Call
 
-# Clear termination prompt from the bot - this is just for completeness, it won't evaluate user response here, but showing format.
-[{"role": "assistant", "content": "Thank you for your time John. Have a wonderful day."}, {"role": "user", "content": "um"}]
+### Clear termination prompt from the bot - this is just for completeness, it won't evaluate user response here, but showing format.
+
+Assistant: Thank you for your time John. Have a wonderful day.
+User: um
 Output: NO # expecting more and getting gibberish
 
-# User starts to give feedback, but trails off.
-[{"role": "assistant", "content": "And finally, John, how would you rate the quality of our interaction so far in terms of speed, accuracy, and helpfulness?"}, {"role": "user", "content": "Well I think it"}]
+### User starts to give feedback, but trails off.
+
+Assistant: And finally, John, how would you rate the quality of our interaction so far in terms of speed, accuracy, and helpfulness?
+User: Well I think it
 Output: NO
 """
 
