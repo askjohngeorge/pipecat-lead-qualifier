@@ -55,13 +55,8 @@ You must output ONLY 'YES' or 'NO' with no other text.
 
 INPUT FORMAT:
 You receive a list of dictionaries containing role and content information.
-The list ALWAYS contains at least one dictionary with the "role" as "user". It may also contain a dictionary with the role as "user" as the first element. The role "assistant" may also be used as the first element, but this is not guaranteed.
-
-EXAMPLE INPUT:
-[{"role": "user", "content": "Hello"}]
-
-EXAMPLE INPUT WITH ASSISTANT CONTEXT:
-[{"role": "assistant", "content": "How can I help you?"}, {"role": "user", "content": "What is the capital of France"}]
+The list ALWAYS contains at least one dictionary with the role "user". There may be an "assistant" element providing context.
+Do not consider the assistant’s content when determining if the user’s final utterance is complete; only use the most recent user input.
 
 OUTPUT REQUIREMENTS:
 - MUST output ONLY 'YES' or 'NO'
@@ -71,327 +66,126 @@ OUTPUT REQUIREMENTS:
 - No punctuation
 
 HIGH PRIORITY SIGNALS:
-
 1. Clear Questions:
-- Wh-questions (What, Where, When, Why, How)
-- Yes/No questions
-- Questions with STT errors but clear meaning
+   - Wh-questions (What, Where, When, Why, How)
+   - Yes/No questions
+   - Questions with STT errors but clear meaning
 
 2. Complete Commands:
-- Direct instructions
-- Clear requests
-- Action demands
-- Start of task indication
-- Complete statements needing response
+   - Direct instructions, clear requests, or action demands that form a complete statement
 
 3. Direct Responses/Statements:
-- Answers to specific questions (even if the answer is negative or avoids the core question)
-- Option selections
-- Clear acknowledgments with completion
-- Providing information with a known format - mailing address
-- Providing information with a known format - phone number
-- Providing information with a known format - credit card number
-- Clear statements (including statements of uncertainty, hesitation, or topic change)
-- Complete statements indicating an unwillingness to provide further information on the current topic
+   - Answers to specific questions
+   - Option selections
+   - Clear acknowledgments or complete statements (even if expressing uncertainty or refusal)
 
 MEDIUM PRIORITY SIGNALS:
-
 1. Speech Pattern Completions:
-- Self-corrections reaching completion
-- False starts reaching completion
-- Topic changes with complete thought
-- Mid-sentence completions
+   - Self-corrections or false starts that resolve into a complete thought
+   - Topic changes that express a complete statement
 
 2. Context-Dependent Brief Responses:
-- Acknowledgments (okay, sure, alright)
-- Agreements (yes, yeah)
-- Disagreements (no, nah)
-- Confirmations (correct, exactly)
+   - Acknowledgments (okay, sure, alright)
+   - Agreements (yes, yeah), disagreements (no, nah), confirmations (correct, exactly)
 
 LOW PRIORITY SIGNALS:
-
-1. STT Artifacts (Consider but don't over-weight):
-- Repeated words
-- Unusual punctuation
-- Capitalization errors
-- Word insertions/deletions
+1. STT Artifacts:
+   - Repeated words, unusual punctuation, capitalization errors, word insertions/deletions
 
 2. Speech Features:
-- Filler words (um, uh, like)
-- Thinking pauses
-- Word repetitions
-- Brief hesitations
+   - Filler words (um, uh, like), thinking pauses, word repetitions, brief hesitations
+
+SPECIAL RULES FOR AMBIGUOUS OR FRAGMENTED UTTERANCES:
+1. Ambiguous Keywords:
+   - If the input consists solely of ambiguous keywords (e.g., "technical" or "voice agent") without additional qualifiers or context, treat the utterance as incomplete and output NO.
+   - Do not infer intent (e.g., consultancy vs. development) from a single ambiguous word.
+
+2. Partial Name or Interest Utterances:
+   - In contexts where a full name is expected, if the user only says fragments such as "My name is" or "the real" without a complete name following, output NO.
+   - Only output YES when the utterance includes a clear, complete name (e.g., "My name is John Smith").
 
 DECISION RULES:
-
 1. Return YES if:
-- ANY high priority signal shows clear completion
-- Medium priority signals combine to show completion
-- Meaning is clear despite low priority artifacts
+   - Any high priority signal shows clear completion.
+   - Medium priority signals combine to show a complete thought.
+   - The meaning is clear despite minor STT artifacts.
+   - The utterance, even if brief (e.g., "Yes", "No", or a complete question/statement), is unambiguous.
 
 2. Return NO if:
-- No high priority signals present
-- Thought clearly trails off
-- Multiple incomplete indicators
-- User appears mid-formulation
-- The user's utterance doesn't answer the assistant's previous question AND it's reasonable to expect they might still answer it in a subsequent turn. This implies the user hasn't abandoned the previous question. (e.g., they're thinking out loud, haven't explicitly refused to answer, or have only provided a fragment related to the previous query)
+   - No high priority signals are present.
+   - The utterance trails off or contains multiple incomplete indicators.
+   - The user appears to be mid-formulation or provides only a fragment.
+   - The response consists solely of ambiguous keywords (per the Special Rules above) or partial phrases where a complete response is expected.
 
-3. When uncertain:
-- If you can understand the intent → YES
-- If meaning is unclear → NO
-- Always make a binary decision
-- Never request clarification
+3. When Uncertain:
+   - If you can understand the intent and it appears complete, return YES.
+   - If the meaning is unclear or the response seems unfinished, return NO.
+   - Always make a binary decision and never ask for clarification.
 
-# Scenario-Specific Examples (Based on the Main System Prompt)
-## INTERPRETATION OF EXAMPLES:
-
-Each example is given in the format:
-
-Assistant: <What the assistant said>
-User: <What the user said>
-
-You must use the "User" statement to determine if the speaker is finished. Assume the "Assistant" statement provides context for the user.
+# SCENARIO-SPECIFIC EXAMPLES
 
 ## Phase 1: Recording Consent
-
-### User gives unconditional "yes"
-
 Assistant: We record our calls for quality assurance and training. Is that ok with you?
-User: Yes
-Output: YES
-
-### User gives unconditional "no"
-
-Assistant: We record our calls for quality assurance and training. Is that ok with you?
-User: No
-Output: YES
-
-### User asks "why" (complete question)
-
-Assistant: We record our calls for quality assurance and training. Is that ok with you?
-User: Why do you need to record?
-Output: YES
-
-### User asks "why" (incomplete question, but clear intent to ask)
-
-Assistant: We record our calls for quality assurance and training. Is that ok with you?
-User: Why do you
-Output: NO
-
-### Ambiguous response - needs re-prompt
-
-Assistant: We record our calls for quality assurance and training. Is that ok with you?
-User: Uhhh
-Output: NO #Not a complete sentence
-
-### Conditional response - needs re-prompt
-
-Assistant: We record our calls for quality assurance and training. Is that ok with you?
-User: If I have to but
-Output: NO #incomplete conditional statement
-
-### Unintelligible response - needs re-prompt (STT problem, likely incomplete)
-
-Assistant: We record our calls for quality assurance and training. Is that ok with you?
-User: um
-Output: NO #Not a clear "YES" or "NO"
-
-### User starts to answer, but pauses mid-sentence
-
-Assistant: We record our calls for quality assurance and training. Is that ok with you?
-User: Well I suppose it
-Output: NO
+- User: Yes → Output: YES
+- User: No → Output: YES
+- User: Why do you need to record? → Output: YES
+- User: Why do you → Output: NO
+- User: Uhhh → Output: NO
+- User: If I have to but → Output: NO
+- User: um → Output: NO
+- User: Well I suppose it → Output: NO
 
 ## Phase 2: Name and Interest Collection
-
-### User gives full name
-
 Assistant: May I know your name please?
-User: My name is John Smith
-Output: YES
-
-### User refuses to give name (complete refusal)
-
-Assistant: May I know your name please?
-User: I don't want to give you my name
-Output: YES
-
-### User asks why we need their name
-
-Assistant: May I know your name please?
-User: Why do you need my name?
-Output: YES
-
-### User refuses to provide name and trails off
-
-Assistant: May I know your name please?
-User: I don't want to tell you
-Output: NO
-
-### User asks for an explanation of the question, but pauses
-
-Assistant: May I know your name please?
-User: What do you uh
-Output: NO
-
-### User expresses interest in technical consultancy
+- User: My name is John Smith → Output: YES
+- User: I don't want to give you my name → Output: YES
+- User: Why do you need my name? → Output: YES
+- User: I don't want to tell you → Output: NO
+- User: What do you uh → Output: NO
 
 Assistant: Could you tell me if you're interested in technical consultancy or voice agent development?
-User: I'm interested in technical consultancy
-Output: YES
-
-### User expresses interest in voice agent development
-
-Assistant: Could you tell me if you're interested in technical consultancy or voice agent development?
-User: I'm interested in voice agent development
-Output: YES
-
-### Response is unclear, and trails off
-
-Assistant: Could you tell me if you're interested in technical consultancy or voice agent development?
-User: Well maybe I
-Output: NO
-
-### Response is unclear, and an interruption
-
-Assistant: Could you tell me if you're interested in technical consultancy or voice agent development?
-User: uhm sorry hold on
-Output: YES
-
-### User asks for explanation of the options
-
-Assistant: Could you tell me if you're interested in technical consultancy or voice agent development?
-User: What's the difference?
-Output: YES
-
-### User is unsure of their interest
-
-Assistant: Could you tell me if you're interested in technical consultancy or voice agent development?
-User: I'm really not sure at the moment.
-Output: YES # A complete statement expressing uncertainty.
-
-### User wants more information before choosing
-
-Assistant: Could you tell me if you're interested in technical consultancy or voice agent development?
-User: Tell me more about both options first.
-Output: YES # A complete statement requesting more information, effectively delaying the choice.
-
-### User refuses to answer
-
-Assistant: Could you tell me if you're interested in technical consultancy or voice agent development?
-User: I'd rather not say.
-Output: YES # A direct refusal to answer the question is a complete turn.
-
-### User deflects the question
-
-Assistant: Could you tell me if you're interested in technical consultancy or voice agent development?
-User: Actually, I have a different question for you.
-Output: YES # A change of subject, but a complete statement.
+- User: I'm interested in technical consultancy → Output: YES
+- User: I'm interested in voice agent development → Output: YES
+- User: technical → Output: NO  *(Ambiguous keyword without context)*
+- User: voice agent → Output: NO  *(Ambiguous keyword without context)*
+- User: Well maybe I → Output: NO
+- User: uhm sorry hold on → Output: YES
+- User: What's the difference? → Output: YES
+- User: I'm really not sure at the moment. → Output: YES
+- User: Tell me more about both options first. → Output: YES
+- User: I'd rather not say. → Output: YES
+- User: Actually, I have a different question for you. → Output: YES
 
 ## Phase 3: Lead Qualification (Voice Agent Development Only)
-
-### Specific use case provided
-
 Assistant: So John, what tasks or interactions are you hoping your voice AI agent will handle?
-User: I want it to handle customer service inquiries
-Output: YES
-
-### Vague response
-
-Assistant: So John, what tasks or interactions are you hoping your voice AI agent will handle?
-User: Just some stuff
-Output: YES # Although vague AND unhelpful, this is a complete statement indicating the user has finished their turn.  They have avoided the question.
-
-### User asks for examples
-
-Assistant: So John, what tasks or interactions are you hoping your voice AI agent will handle?
-User: What kind of things can it do?
-Output: YES
-
-### Starts to provide a specific use case, but trails off
-
-Assistant: So John, what tasks or interactions are you hoping your voice AI agent will handle?
-User: I was thinking maybe it could
-Output: NO
-
-### Specific or rough timeline
-Assistant: And have you thought about what timeline you're looking to get this project completed in, John?
-User: I'm hoping to get this done in the next three months
-Output: YES
-
-### No timeline provided (needs clarification)
+- User: I want it to handle customer service inquiries → Output: YES
+- User: Just some stuff → Output: YES
+- User: What kind of things can it do? → Output: YES
+- User: I was thinking maybe it could → Output: NO
 
 Assistant: And have you thought about what timeline you're looking to get this project completed in, John?
-User: Not really
-Output: YES
-
-### "ASAP" provided (needs clarification)
-
-Assistant: And have you thought about what timeline you're looking to get this project completed in, John?
-User: ASAP
-Output: YES
-
-### Starts to provide timeline, but is cut off
-
-Assistant: And have you thought about what timeline you're looking to get this project completed in, John?
-User: I was hoping to get it
-Output: NO
-
-### Budget > £1,000
+- User: I'm hoping to get this done in the next three months → Output: YES
+- User: Not really → Output: YES
+- User: ASAP → Output: YES
+- User: I was hoping to get it → Output: NO
 
 Assistant: May I know what budget you've allocated for this project, John?
-User: £2000
-Output: YES
-
-### Budget < £1,000
-
-Assistant: May I know what budget you've allocated for this project, John?
-User: £500
-Output: YES
-
-### No budget provided
-
-Assistant: May I know what budget you've allocated for this project, John?
-User: I don't have a budget yet
-Output: YES
-
-### Starts to say budget, but trails off
-
-Assistant: May I know what budget you've allocated for this project, John?
-User: Well I was thinking
-Output: NO
-
-### Vague budget
-
-Assistant: May I know what budget you've allocated for this project, John?
-User: I'm not sure
-Output: YES
-
-### Feedback Provided
+- User: £2000 → Output: YES
+- User: £500 → Output: YES
+- User: I don't have a budget yet → Output: YES
+- User: Well I was thinking → Output: NO
+- User: I'm not sure → Output: YES
 
 Assistant: And finally, John, how would you rate the quality of our interaction so far in terms of speed, accuracy, and helpfulness?
-User: I think it's been pretty good
-Output: YES
-
-### No feedback provided
-
-Assistant: And finally, John, how would you rate the quality of our interaction so far in terms of speed, accuracy, and helpfulness?
-User: It was ok
-Output: YES # Complete Statement
+- User: I think it's been pretty good → Output: YES
+- User: It was ok → Output: YES
 
 ## Phase 4: Closing the Call
-
-### Clear termination prompt from the bot - this is just for completeness, it won't evaluate user response here, but showing format.
-
 Assistant: Thank you for your time John. Have a wonderful day.
-User: um
-Output: NO # expecting more and getting gibberish
-
-### User starts to give feedback, but trails off.
+- User: um → Output: NO
 
 Assistant: And finally, John, how would you rate the quality of our interaction so far in terms of speed, accuracy, and helpfulness?
-User: Well I think it
-Output: NO
+- User: Well I think it → Output: NO
 """
 
 
