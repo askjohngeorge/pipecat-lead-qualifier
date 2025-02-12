@@ -256,17 +256,17 @@ class BaseBot(ABC):
                 self.context_aggregator.user(),
                 ParallelPipeline(
                     [
-                        # Pass everything except UserStoppedSpeaking to the following branch
+                        # Branch 1: Pass everything except UserStoppedSpeakingFrame
                         FunctionFilter(filter=block_user_stopped_speaking),
                     ],
                     [
-                        # Endpoint detection branch using Gemini for completeness
+                        # Branch 2: Endpoint detection branch using Gemini for completeness
                         self.statement_judge_context_filter,
                         self.statement_llm,
                         self.completeness_check,
                     ],
                     [
-                        # Conversation branch using Gemini for dialogue
+                        # Branch 3: Conversation branch using Gemini for dialogue
                         FunctionFilter(filter=pass_only_llm_trigger_frames),
                         self.conversation_llm,
                         self.output_gate,
