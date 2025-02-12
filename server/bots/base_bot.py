@@ -254,35 +254,39 @@ class BaseBot(ABC):
         # Build pipeline with Deepgram STT at the beginning
         pipeline = Pipeline(
             [
-                self.rtvi,
-                self.transport.input(),
-                self.stt_mute_filter,
-                self.stt,  # Deepgram transcribes incoming audio
-                self.context_aggregator.user(),
-                ParallelPipeline(
-                    [
-                        # Branch 1: Pass everything except UserStoppedSpeakingFrame
-                        FunctionFilter(filter=block_user_stopped_speaking),
-                    ],
-                    [
-                        # Branch 2: Endpoint detection branch using Gemini for completeness
-                        self.statement_judge_context_filter,
-                        self.statement_llm,
-                        self.completeness_check,
-                        # Use an async filter to discard branch 2's output.
-                        FunctionFilter(filter=discard_all),
-                    ],
-                    [
-                        # Branch 3: Conversation branch using Gemini for dialogue
-                        FunctionFilter(filter=pass_only_llm_trigger_frames),
-                        self.conversation_llm,
-                        self.output_gate,
-                    ],
-                ),
-                self.tts,
-                self.user_idle,
-                self.transport.output(),
-                self.context_aggregator.assistant(),
+                processor
+                for processor in [
+                    self.rtvi,
+                    self.transport.input(),
+                    self.stt_mute_filter,
+                    self.stt,  # Deepgram transcribes incoming audio
+                    self.context_aggregator.user(),
+                    ParallelPipeline(
+                        [
+                            # Branch 1: Pass everything except UserStoppedSpeakingFrame
+                            FunctionFilter(filter=block_user_stopped_speaking),
+                        ],
+                        [
+                            # Branch 2: Endpoint detection branch using Gemini for completeness
+                            self.statement_judge_context_filter,
+                            self.statement_llm,
+                            self.completeness_check,
+                            # Use an async filter to discard branch 2's output.
+                            FunctionFilter(filter=discard_all),
+                        ],
+                        [
+                            # Branch 3: Conversation branch using Gemini for dialogue
+                            FunctionFilter(filter=pass_only_llm_trigger_frames),
+                            self.conversation_llm,
+                            self.output_gate,
+                        ],
+                    ),
+                    self.tts,
+                    self.user_idle,
+                    self.transport.output(),
+                    self.context_aggregator.assistant(),
+                ]
+                if processor is not None
             ]
         )
 
