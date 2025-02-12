@@ -323,6 +323,10 @@ class StatementJudgeContextFilter(FrameProcessor):
                 await self.push_frame(LLMMessagesFrame(messages))
             else:
                 logger.debug("No user text messages found to process")
+            return
+
+        # Fallback: for any frames not otherwise handled, forward them.
+        await self.push_frame(frame, direction)
 
 
 class CompletenessCheck(FrameProcessor):
