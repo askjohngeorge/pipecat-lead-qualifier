@@ -38,6 +38,7 @@ from pipecat.frames.frames import (
     FunctionCallInProgressFrame,
     FunctionCallResultFrame,
 )
+from deepgram import LiveOptions
 
 from loguru import logger
 import time
@@ -63,7 +64,9 @@ class BaseBot(ABC):
         self.config = config
 
         # Initialize STT service
-        self.stt = DeepgramSTTService(api_key=config.deepgram_api_key)
+        self.stt = DeepgramSTTService(
+            api_key=config.deepgram_api_key, live_options=LiveOptions(model="nova-3-general")
+        )
 
         # Initialize TTS service
         match config.tts_provider:
