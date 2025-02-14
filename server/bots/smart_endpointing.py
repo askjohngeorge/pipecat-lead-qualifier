@@ -211,11 +211,11 @@ def get_message_text(message: object) -> str:
     """
     Extract text content from a message, handling both dict and Google Content formats.
     """
-    logger.debug(f"Processing message: {message}")
+    # logger.debug(f"Processing message: {message}")
 
     # First try Google's format with parts array
     parts = get_message_field(message, "parts")
-    logger.debug(f"Found parts: {parts}")
+    # logger.debug(f"Found parts: {parts}")
 
     if parts:
         # Google format with parts array
@@ -228,15 +228,15 @@ def get_message_text(message: object) -> str:
             if text:
                 text_parts.append(text)
         result = " ".join(text_parts)
-        logger.debug(f"Extracted text from parts: {result}")
+        # logger.debug(f"Extracted text from parts: {result}")
         return result
 
     # Try direct content field
     content = get_message_field(message, "content")
-    logger.debug(f"Found content: {content}")
+    # logger.debug(f"Found content: {content}")
 
     if isinstance(content, str):
-        logger.debug(f"Using string content: {content}")
+        # logger.debug(f"Using string content: {content}")
         return content
     elif isinstance(content, list):
         # Handle content that might be a list of parts
@@ -248,10 +248,10 @@ def get_message_text(message: object) -> str:
                     text_parts.append(text)
         if text_parts:
             result = " ".join(text_parts)
-            logger.debug(f"Extracted text from content list: {result}")
+            # logger.debug(f"Extracted text from content list: {result}")
             return result
 
-    logger.debug("No text content found, returning empty string")
+    # logger.debug("No text content found, returning empty string")
     return ""
 
 
@@ -285,44 +285,44 @@ class StatementJudgeContextFilter(FrameProcessor):
         if isinstance(frame, OpenAILLMContextFrame):
             # Take text content from the most recent user messages.
             messages = frame.context.messages
-            logger.debug(f"Processing context messages: {messages}")
+            # logger.debug(f"Processing context messages: {messages}")
 
             user_text_messages = []
             last_assistant_message = None
             for message in reversed(messages):
                 role = get_message_field(message, "role")
-                logger.debug(f"Processing message with role: {role}")
+                # logger.debug(f"Processing message with role: {role}")
 
                 if role != "user":
                     if role == "assistant" or role == "model":
                         last_assistant_message = message
-                        logger.debug(f"Found assistant/model message: {message}")
+                        # logger.debug(f"Found assistant/model message: {message}")
                     break
 
                 text = get_message_text(message)
-                logger.debug(f"Extracted user message text: {text}")
+                # logger.debug(f"Extracted user message text: {text}")
                 if text:
                     user_text_messages.append(text)
 
             # If we have any user text content, push an LLMMessagesFrame
             if user_text_messages:
                 user_message = " ".join(reversed(user_text_messages))
-                logger.debug(f"Final user message: {user_message}")
+                # logger.debug(f"Final user message: {user_message}")
                 messages = [
                     glm.Content(role="user", parts=[glm.Part(text=CLASSIFIER_SYSTEM_INSTRUCTION)])
                 ]
                 if last_assistant_message:
                     assistant_text = get_message_text(last_assistant_message)
-                    logger.debug(f"Assistant message text: {assistant_text}")
+                    # logger.debug(f"Assistant message text: {assistant_text}")
                     if assistant_text:
                         messages.append(
                             glm.Content(role="assistant", parts=[glm.Part(text=assistant_text)])
                         )
                 messages.append(glm.Content(role="user", parts=[glm.Part(text=user_message)]))
-                logger.debug(f"Pushing classifier messages: {messages}")
+                # logger.debug(f"Pushing classifier messages: {messages}")
                 await self.push_frame(LLMMessagesFrame(messages))
-            else:
-                logger.debug("No user text messages found to process")
+            # else:
+            # logger.debug("No user text messages found to process")
             return
 
         # Fallback: for any frames not otherwise handled, forward them.
@@ -373,7 +373,7 @@ class UserAggregatorBuffer(LLMResponseAggregator):
             self._transcription = self._aggregation
             self._aggregation = ""
 
-            logger.debug(f"[Transcription] {self._transcription}")
+            # logger.debug(f"[Transcription] {self._transcription}")
 
     async def wait_for_transcription(self):
         while not self._transcription:
